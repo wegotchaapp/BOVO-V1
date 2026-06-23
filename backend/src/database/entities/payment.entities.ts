@@ -139,31 +139,3 @@ export class InsurancePolicy {
   @UpdateDateColumn()
   updated_at!: string;
 }
-
-@Entity('compliance_logs')
-export class ComplianceLog {
-  @PrimaryGeneratedColumn('uuid')
-  id!: string;
-
-  @Column({ type: 'uuid' })
-  user_id!: string;
-
-  @ManyToOne(() => User)
-  @JoinColumn({ name: 'user_id' })
-  user!: User;
-
-  @Column()
-  rule!: string;
-
-  @Column()
-  action!: string;
-
-  @Column({ type: 'varchar', length: 500, nullable: true })
-  details!: string | null;
-
-  @Column({ type: 'timestamptz' })
-  triggered_at!: string;
-
-  @CreateDateColumn()
-  created_at!: string;
-}

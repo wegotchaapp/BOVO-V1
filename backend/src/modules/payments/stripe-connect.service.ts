@@ -10,8 +10,9 @@ import { ConfigService } from '@nestjs/config';
 import { PinoLogger } from 'nestjs-pino';
 import { User } from '../../database/entities/user.entity';
 import { Payout } from '../../database/entities/payment.entities';
-import { ComplianceLog } from '../../database/entities/payment.entities';
+import { ComplianceLog } from '../../database/entities/compliance-log.entity';
 import { Trip } from '../../database/entities/trip.entities';
+import { randomBytes } from 'crypto';
 
 export interface StripeOnboardDto {
   return_url: string;
@@ -447,11 +448,12 @@ export class StripeConnectService {
 
     if (tripCount >= 6) {
       const log = this.complianceRepo.create({
+        id: randomBytes(16).toString('hex'),
         user_id: userId,
         rule: 'trip_frequency_limit',
         action: 'blocked',
         details: `Driver attempted to post trip #${tripCount + 1} in 7 days (limit: 6)`,
-        triggered_at: new Date().toISOString(),
+        triggered_at: new Date(),
       });
       await this.complianceRepo.save(log);
 
@@ -472,11 +474,12 @@ export class StripeConnectService {
 
       if (!existing) {
         const log = this.complianceRepo.create({
+          id: randomBytes(16).toString('hex'),
           user_id: userId,
           rule: 'trip_frequency_warning',
           action: 'warned',
           details: `Driver at 5/6 trips this week — approaching compliance limit`,
-          triggered_at: new Date().toISOString(),
+          triggered_at: new Date(),
         });
         await this.complianceRepo.save(log);
 

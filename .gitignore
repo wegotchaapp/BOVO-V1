@@ -22,6 +22,7 @@ out/
 # ── Local run / test scratch files ─────────────────────────────────────────
 .run.log
 .smoke.ps1
+.admin-smoke.ps1
 .pgtmp_mobile.sql
 
 # ── Logs ───────────────────────────────────────────────────────────────────

@@ -370,11 +370,9 @@ async function seed() {
       rider: rider,
       trip_id: trips[1].id,
       trip: trips[1],
-      seats_booked: 1,
+      seats: 1,
       total_price: 32.00,
       status: BookingStatus.CONFIRMED,
-      pickup_zone: 'Downtown Houston',
-      dropoff_zone: 'Downtown Austin',
     });
 
     // Create conversation for this booking

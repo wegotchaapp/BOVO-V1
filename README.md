@@ -60,6 +60,17 @@ are optional and degrade gracefully.
 > `STRIPE_PRICE_ID` to enable the premium flow. Without them, the subscribe
 > screen surfaces a clean "Payments are not configured" message.
 
+**Fresh local database:** on an empty Postgres database, set
+`DATABASE_SYNCHRONIZE=true` in `backend/.env`, start the backend once (creates
+all platform tables from entities), then set it back to `false`. Seed demo data:
+
+```bash
+cd backend
+npm run db:seed    # admin@test.com / testpass123, plus drivers & trips
+```
+
+Login to the admin dashboard with `admin@test.com` / `testpass123`.
+
 ### 2. Mobile app (Expo)
 
 ```bash

@@ -1,0 +1,377 @@
+You are a senior full-stack engineer working on a production-grade Next.js 14 + TypeScript + Prisma + PostgreSQL ride-sharing application.
+
+Implement a new feature called:
+
+“Smart Pickup Hub + Auto Trip Group Chat”
+
+The application already supports:
+
+* trip posting
+* riders joining trips
+* booking lifecycle
+* trip chat system
+* live user coordinates
+
+The goal is to automatically create a shared trip group once all seats are filled, then intelligently suggest optimized Walmart or Target pickup hubs using predefined store locations.
+
+The feature should feel modern, social, collaborative, and production-ready.
+
+---
+
+# FEATURE OVERVIEW
+
+Example scenario:
+
+Driver X posts:
+Austin → Houston
+Available seats: 4
+
+Riders:
+A, B, C, D join the trip.
+
+Once all 4 seats are filled:
+
+1. Automatically create a shared trip group
+2. Add Driver X + Riders A/B/C/D into group chat
+3. Calculate optimized pickup hubs
+4. Suggest Walmart/Target locations
+5. Allow riders and driver to coordinate inside the group
+
+---
+
+# IMPORTANT PRODUCT RULES
+
+* Pickup locations must ONLY use Walmart or Target stores
+* Do NOT use gas stations
+* Do NOT use Costco
+* Do NOT use random midpoint coordinates
+* Use only predefined store locations provided below
+* The system should optimize:
+
+  * minimum driver detour
+  * minimum average rider travel distance
+
+---
+
+# STORE DATA
+
+Hardcode the following store locations into the application for MVP.
+
+Create:
+lib/pickup-hubs.ts
+
+Export structured arrays for:
+
+* Austin Walmart locations
+* Austin Target locations
+* Houston Walmart locations
+* Houston Target locations
+
+Each store object should contain:
+
+* id
+* storeName
+* brand
+* address
+* latitude
+* longitude
+* city
+
+IMPORTANT:
+Use real geocoded coordinates for all addresses.
+
+Geocode all provided addresses and store accurate coordinates in the file.
+
+Do NOT call external APIs repeatedly during calculations.
+
+---
+
+# DATABASE MODELS
+
+Create or extend Prisma models:
+
+## TripGroup
+
+Fields:
+
+* id
+* tripId
+* createdAt
+* pickupHubId (nullable initially)
+* pickupLocked (boolean)
+
+---
+
+## TripGroupMember
+
+Fields:
+
+* id
+* groupId
+* userId
+* joinedAt
+
+---
+
+## TripGroupMessage
+
+Fields:
+
+* id
+* groupId
+* senderId
+* message
+* createdAt
+* isSystemMessage
+
+---
+
+# AUTO GROUP CREATION
+
+When:
+confirmed riders count === available seats
+
+Automatically:
+
+* create TripGroup
+* add driver
+* add all riders
+* create initial system message:
+
+“Trip group created successfully.”
+
+Requirements:
+
+* only one group per trip
+* use database transaction
+* prevent duplicate groups
+
+---
+
+# GROUP CHAT UI
+
+Inside Messages section create:
+
+“Trip Groups”
+
+Each group card should display:
+
+* route
+* trip date
+* participant count
+* latest message
+* small member avatars
+
+Example:
+Austin → Houston
+5 members
+Pickup planning discussion...
+
+---
+
+# GROUP CHAT REQUIREMENTS
+
+Requirements:
+
+* reuse existing polling architecture
+* optimistic sending
+* modern bubble UI
+* timestamps
+* sender names
+
+System messages should display differently.
+
+Examples:
+
+* “Smart pickup suggestions are now available.”
+* “Pickup hub confirmed.”
+* “New rider joined the trip.”
+
+---
+
+# SMART PICKUP HUB SYSTEM
+
+The system should intelligently suggest:
+
+* Walmart
+* Target
+
+pickup hubs only.
+
+---
+
+# COORDINATE SOURCES
+
+Use:
+
+* driver coordinates
+* rider coordinates
+* trip route
+
+Assume:
+
+* all users already share live coordinates
+* trip route already exists
+
+---
+
+# PICKUP OPTIMIZATION ALGORITHM
+
+DO NOT use simple midpoint averaging.
+
+Instead:
+
+## STEP 1
+
+Cluster rider coordinates.
+
+Calculate:
+
+* rider average location
+* rider spread radius
+
+---
+
+## STEP 2
+
+Evaluate all Walmart/Target locations.
+
+Only consider locations:
+
+* near the driver route corridor
+* within reasonable detour range
+
+---
+
+## STEP 3
+
+For each candidate location calculate:
+
+score =
+(driver_detour_minutes * 0.7)
++
+(avg_rider_travel_minutes * 0.3)
+
+Choose:
+
+* lowest scoring location
+
+---
+
+# PICKUP SUGGESTION OUTPUT
+
+Generate top 3 pickup suggestions.
+
+Each suggestion card should display:
+
+* store name
+* address
+* city
+* driver detour estimate
+* average rider travel estimate
+
+Example:
+
+Target
+901 E 5th St, Austin TX
+
+Driver detour: 4 mins
+Avg rider travel: 7 mins
+
+---
+
+# GROUP CHAT PICKUP UI
+
+Inside the group chat:
+
+Render suggested pickup hubs as modern interactive cards.
+
+Each card should include:
+
+* Walmart/Target logo badge
+* address
+* estimated metrics
+* Approve button
+* Suggest Another button
+
+Use:
+
+* rounded modern cards
+* subtle shadows
+* premium travel app styling
+
+---
+
+# PICKUP CONFIRMATION FLOW
+
+Once majority of trip members approve a hub:
+
+* lock pickup location
+* update TripGroup
+* create system message:
+
+“Pickup hub confirmed successfully.”
+
+After confirmation:
+
+* stop recalculations
+* stop suggestion updates
+
+---
+
+# RECALCULATION RULES
+
+Only recalculate pickup suggestions if:
+
+* rider removed
+* new rider added before lock
+* driver changes route
+
+Do NOT continuously recalculate.
+
+---
+
+# UX GOALS
+
+The experience should feel:
+
+* collaborative
+* organized
+* social
+* intelligent
+* trustworthy
+
+The group should feel like:
+“a coordinated shared road trip”
+
+---
+
+# PERFORMANCE REQUIREMENTS
+
+* batch calculations
+* avoid N+1 queries
+* avoid repeated coordinate computations
+* cache optimized pickup results temporarily
+
+---
+
+# SECURITY
+
+* only trip participants can access group
+* validate membership everywhere
+* sanitize messages
+* protect against duplicate joins
+
+---
+
+# CODE QUALITY
+
+Requirements:
+
+* TypeScript strict typing
+* modular services
+* reusable hooks/components
+* scalable architecture
+* production-ready implementation
+
+Do not modify unrelated application features.

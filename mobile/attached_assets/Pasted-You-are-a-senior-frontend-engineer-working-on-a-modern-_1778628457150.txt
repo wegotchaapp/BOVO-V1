@@ -1,0 +1,172 @@
+You are a senior frontend engineer working on a modern Next.js 14 + TypeScript + Tailwind CSS application.
+
+Create a clean and modern “Driver Trip Post Composer” component where drivers can create travel posts and specify available seats and luggage capacity.
+
+The UI should feel minimal, polished, mobile responsive, and easy to use.
+
+---
+
+# FEATURE REQUIREMENTS
+
+Create a post creation card/component with:
+
+## 1. TEXT AREA
+
+Large textarea where the driver writes a trip message.
+
+Example placeholder:
+"Hello, I am travelling from Dallas to Chicago for a music festival..."
+
+The textarea should:
+
+* Auto resize vertically
+* Have rounded corners
+* Clean modern styling
+* Character limit: 500
+* Show subtle focus states
+
+---
+
+# 2. FIXED HARD-CODED AVAILABILITY SECTION
+
+Below the textarea, always display two required fields:
+
+### Available Seats
+
+* Label:
+  "No of seats available"
+
+### Available Luggage Space
+
+* Label:
+  "No of bag spaces available"
+
+Requirements:
+
+* Seats max value = 6
+* Bag spaces max value = 5
+* Both fields required
+* Use number input OR plus/minus stepper UI
+* Prevent invalid values
+* Mobile friendly
+
+Layout:
+
+* Labels aligned left
+* Input boxes aligned right
+* Clean spacing
+* Soft borders/shadows
+
+---
+
+# 3. REMINDER TEXT
+
+Below the fields show a highlighted reminder message in subtle red/orange styling:
+
+"Please don't forget to post your available seat and luggage space."
+
+The styling should:
+
+* Feel informative, not alarming
+* Use medium font weight
+* Small icon optional
+
+---
+
+# 4. POST BUTTON
+
+Add modern rounded “Post” button.
+
+Requirements:
+
+* Positioned toward bottom-right of card on desktop
+* Full width on mobile
+* Hover animation
+* Loading state support
+
+---
+
+# 5. POST OUTPUT FORMAT
+
+When the user submits the form, render the final post exactly in this structure:
+
+Hello, I am travelling from Dallas to Chicago for a music festival.
+
+No of **seats** available in my car: 3
+
+And no of **luggage** space available in my car: 2
+
+Requirements:
+
+* Words "seats" and "luggage" must appear bold
+* Preserve spacing cleanly
+* Render inside modern trip card UI
+* Cards should have subtle shadow and rounded corners
+
+---
+
+# 6. VALIDATION
+
+Requirements:
+
+* Prevent empty posts
+* Prevent seats > 6
+* Prevent luggage spaces > 5
+* Show inline validation messages
+* Disable submit while invalid
+
+---
+
+# 7. STYLING
+
+Use:
+
+* Tailwind CSS
+* Modern card-based UI
+* Soft shadows
+* Rounded-xl or rounded-2xl
+* Good spacing/padding
+* Responsive layout
+
+Design aesthetic:
+
+* Clean modern travel/social app
+* Slightly premium feel
+* Minimal clutter
+
+---
+
+# 8. COMPONENT STRUCTURE
+
+Create reusable components:
+
+* DriverPostComposer
+* AvailabilityInputs
+* DriverTripPostCard
+
+Keep architecture modular and production-ready.
+
+---
+
+# 9. MOBILE RESPONSIVENESS
+
+Ensure:
+
+* Inputs stack properly on small screens
+* Button becomes full width on mobile
+* Text remains readable
+* Comfortable spacing/tap targets
+
+---
+
+# 10. CODE QUALITY
+
+Requirements:
+
+* TypeScript strict typing
+* Clean state management
+* Reusable form logic
+* Accessible labels and inputs
+* Production-ready frontend code
+
+Do not modify unrelated parts of the application.

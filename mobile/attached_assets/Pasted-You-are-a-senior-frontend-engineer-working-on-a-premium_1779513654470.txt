@@ -1,0 +1,233 @@
+You are a senior frontend engineer working on a premium mobile-first travel application built with Next.js 14 + TypeScript + Tailwind CSS.
+
+Redesign the “Ride Start Time Selection” UI completely.
+
+The current implementation uses a traditional hour/minute selector with separate columns and buttons. Remove that experience entirely.
+
+Replace it with a modern immersive wheel-style time picker inspired by native iOS time selection interfaces and the attached reference image.
+
+The new component should feel:
+
+* elegant
+* minimal
+* premium
+* smooth
+* mobile-first
+* highly touch-friendly
+
+Do NOT use the old dropdown or stepper layout.
+
+---
+
+# DESIGN GOAL
+
+The time picker should look and behave like a native mobile wheel picker.
+
+Visual style inspiration:
+
+* iOS wheel picker
+* smooth scroll selection
+* centered highlighted row
+* blurred/faded surrounding values
+* premium dark translucent overlay
+
+The selected value should feel focused and elevated.
+
+---
+
+# COMPONENT REQUIREMENTS
+
+Create reusable component:
+
+RideTimePicker
+
+---
+
+# TIME PICKER STRUCTURE
+
+Use 3 vertical wheel columns:
+
+1. Hour
+2. Minute
+3. AM / PM
+
+---
+
+# HOURS COLUMN
+
+Values:
+1–12
+
+Scrollable vertically.
+
+---
+
+# MINUTES COLUMN
+
+Values:
+00
+05
+10
+15
+20
+25
+30
+35
+40
+45
+50
+55
+
+Use 5-minute intervals.
+
+---
+
+# PERIOD COLUMN
+
+Values:
+AM
+PM
+
+---
+
+# INTERACTION REQUIREMENTS
+
+Users should:
+
+* scroll wheels vertically
+* snap smoothly into position
+* tap values optionally
+* experience momentum/inertia scrolling
+
+Selected row should:
+
+* align in center highlight area
+* appear larger/brighter
+* animate smoothly
+
+Non-selected values should:
+
+* fade slightly
+* reduce opacity
+* appear behind selection layer
+
+---
+
+# VISUAL REQUIREMENTS
+
+Use:
+
+* glassmorphism effect
+* translucent dark overlay
+* subtle blur
+* soft shadows
+* premium typography
+
+The center selected row should:
+
+* have rounded highlight background
+* subtle glow/shadow
+* clean divider lines optional
+
+The entire component should feel:
+
+* cinematic
+* modern
+* native-app quality
+
+---
+
+# ANIMATION REQUIREMENTS
+
+Use smooth animations for:
+
+* wheel scrolling
+* snapping
+* value transitions
+* opacity changes
+
+Use:
+
+* Framer Motion if needed
+
+Avoid janky transitions.
+
+---
+
+# MOBILE EXPERIENCE
+
+This component is mobile-first.
+
+Requirements:
+
+* optimized touch scrolling
+* large tap targets
+* smooth momentum
+* responsive sizing
+* safe-area friendly
+
+The picker should feel excellent on:
+
+* iPhone
+* Android
+
+---
+
+# FUNCTIONAL REQUIREMENTS
+
+The component should:
+
+* return valid Date/time values
+* integrate with existing trip posting form
+* support controlled/uncontrolled modes
+* initialize with default current time
+
+---
+
+# ACCESSIBILITY
+
+Requirements:
+
+* keyboard navigation support
+* focus management
+* screen-reader labels
+* accessible interactions
+
+---
+
+# STYLING
+
+Use:
+
+* Tailwind CSS
+* modern dark theme
+* premium UI aesthetic
+
+Avoid:
+
+* old-school form controls
+* native browser selects
+* clunky dropdowns
+
+---
+
+# PERFORMANCE
+
+Requirements:
+
+* smooth scrolling on mobile
+* avoid unnecessary rerenders
+* lightweight implementation
+
+---
+
+# FINAL DELIVERABLE
+
+Replace the old time selector entirely with:
+
+* immersive wheel-style picker
+* premium animations
+* mobile-native UX
+* reusable production-ready component
+
+Do not modify unrelated application features.

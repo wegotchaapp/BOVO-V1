@@ -1,0 +1,103 @@
+Implement a Destination Weather Insight component directly below the Rider / Driver toggle on the Home screen.
+
+The weather animation background already exists and is driven by the destination city's live weather.
+
+The goal of this feature is to clearly communicate to users what weather condition the animated background represents.
+
+Many users currently see the animation but do not realize it is showing the destination weather.
+
+Create a new component:
+
+DestinationWeatherInsight
+
+Placement:
+
+Directly below the Rider / Driver toggle
+Above the user's greeting section
+Integrated naturally into the hero area
+
+Design Requirements:
+
+Use a premium Apple-style glassmorphism pill.
+
+Requirements:
+
+semi-transparent background
+backdrop blur
+subtle shadow
+rounded-full corners
+small footprint
+mobile-first design
+
+The component should feel like part of the weather system rather than a separate card.
+
+Content Format:
+
+Examples:
+
+☀️ Houston is Sunny
+
+🌤 Houston is Mostly Sunny
+
+☁️ Houston is Cloudy
+
+🌧 Houston is Experiencing Light Rain
+
+⛈ Houston is Experiencing Thunderstorms
+
+🌫 Houston is Foggy
+
+❄️ Houston is Snowing
+
+🌙 Houston has Clear Night Skies
+
+Behavior:
+
+The destination city should be taken from the currently selected destination in the search form.
+
+The weather condition should come from the live weather API already used by the weather animation engine.
+
+Animation:
+
+When destination changes:
+
+Houston → Dallas
+
+The weather text should animate smoothly.
+
+Use:
+
+fade out
+content update
+fade in
+
+Duration:
+300–500ms
+
+No abrupt text switching.
+
+Weather Synchronization:
+
+The weather insight component must always stay synchronized with:
+
+destination city
+live weather API
+animated weather background
+
+All three should update together.
+
+Visual Priority:
+
+The component should be subtle.
+
+Users should notice it immediately after seeing the weather animation.
+
+It should explain the animation, not compete with it.
+
+Styling Goal:
+
+The final result should feel like:
+
+"Apple Weather meets a premium travel application."
+
+Do not modify unrelated Home page functionality.

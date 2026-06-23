@@ -1,0 +1,1642 @@
+openapi: 3.1.0
+info:
+  # Do not change the title, if the title changes, the import paths will be broken
+  title: Api
+  version: 0.1.0
+  description: API specification
+servers:
+  - url: /api
+    description: Base API path
+tags:
+  - name: health
+    description: Health operations
+  - name: auth
+    description: User authentication (riders/drivers)
+  - name: earnings
+    description: Driver earnings / cost-recovery records
+  - name: trips
+    description: Driver-posted intercity trips and rider replies
+  - name: bookings
+    description: Rider bookings (seat reservations on driver trips)
+  - name: groups
+    description: Trip groups (auto-created when a trip's last seat is booked)
+  - name: subscriptions
+    description: Bovogo Premium subscriptions
+  - name: support-auth
+    description: Support agent authentication
+  - name: support-tickets
+    description: Support ticket operations
+  - name: support-agents
+    description: Support agent management
+  - name: support-dashboard
+    description: Support dashboard metrics
+paths:
+  /healthz:
+    get:
+      operationId: healthCheck
+      tags: [health]
+      summary: Health check
+      description: Returns server health status
+      responses:
+        "200":
+          description: Healthy
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthStatus"
+
+  /auth/register:
+    post:
+      operationId: authRegister
+      tags: [auth]
+      summary: Create a new user account
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AuthRegisterInput"
+      responses:
+        "200":
+          description: Account created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthSession"
+        "400":
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "409":
+          description: Email already in use
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+
+  /auth/login:
+    post:
+      operationId: authLogin
+      tags: [auth]
+      summary: Log in with email and password
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AuthLoginInput"
+      responses:
+        "200":
+          description: Logged in
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthSession"
+        "401":
+          description: Invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+
+  /auth/logout:
+    post:
+      operationId: authLogout
+      tags: [auth]
+      summary: Log out of the current session
+      responses:
+        "200":
+          description: Logged out
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OkResponse"
+
+  /auth/me:
+    get:
+      operationId: authMe
+      tags: [auth]
+      summary: Get the current authenticated user
+      responses:
+        "200":
+          description: Current user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthUser"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+    patch:
+      operationId: authUpdateMe
+      tags: [auth]
+      summary: Update the current authenticated user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AuthUpdateMeInput"
+      responses:
+        "200":
+          description: Updated user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthUser"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+
+  /subscriptions/start:
+    post:
+      operationId: startSubscription
+      tags: [subscriptions]
+      summary: Start a Bovogo Premium subscription ($22/mo, 1yr free trial for founding members)
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SubscriptionStartInput"
+      responses:
+        "200":
+          description: Subscription created (may be trialing or incomplete)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SubscriptionStartResponse"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "409":
+          description: Subscription already exists
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "500":
+          description: Stripe error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+
+  /subscriptions/me:
+    get:
+      operationId: getMySubscription
+      tags: [subscriptions]
+      summary: Get the authenticated user's subscription status
+      responses:
+        "200":
+          description: Subscription status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SubscriptionMeResponse"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+
+  /earnings:
+    get:
+      operationId: getEarnings
+      tags: [earnings]
+      summary: Driver earnings summary and trip history
+      parameters:
+        - name: period
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [month, all]
+            default: month
+      responses:
+        "200":
+          description: Earnings summary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Earnings"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+
+  /trips:
+    get:
+      operationId: getTrips
+      tags: [trips]
+      summary: List/search active trips
+      parameters:
+        - name: from
+          in: query
+          required: false
+          schema: { type: string }
+        - name: to
+          in: query
+          required: false
+          schema: { type: string }
+        - name: afterDate
+          in: query
+          required: false
+          schema: { type: string, format: date-time }
+      responses:
+        "200":
+          description: Trip list
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TripList"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+    post:
+      operationId: createTrip
+      tags: [trips]
+      summary: Create a new trip posting
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateTripInput"
+      responses:
+        "201":
+          description: Trip created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TripEnvelope"
+        "400":
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+
+  /trips/mine:
+    get:
+      operationId: listMyTrips
+      tags: [trips]
+      summary: List all trips posted by the authenticated driver (any status, any date)
+      responses:
+        "200":
+          description: Trip list
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TripList"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+
+  /trips/{id}:
+    get:
+      operationId: getTrip
+      tags: [trips]
+      summary: Get a single trip and its replies
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: Trip detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TripDetail"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+
+  /trips/{id}/replies:
+    post:
+      operationId: createTripReply
+      tags: [trips]
+      summary: Reply to a trip post
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateTripReplyInput"
+      responses:
+        "201":
+          description: Reply created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TripReplyEnvelope"
+        "404":
+          description: Trip not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+
+  /bookings:
+    post:
+      operationId: createBooking
+      tags: [bookings]
+      summary: Book seats on a trip (atomically decrements trip seats)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateBookingInput"
+      responses:
+        "201":
+          description: Booking created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BookingEnvelope"
+        "400":
+          description: Invalid input or no seats available
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "404":
+          description: Trip not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+
+  /bookings/mine:
+    get:
+      operationId: listMyBookings
+      tags: [bookings]
+      summary: List the authenticated rider's bookings
+      responses:
+        "200":
+          description: Booking list
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BookingList"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+
+  /bookings/{id}:
+    get:
+      operationId: getBooking
+      tags: [bookings]
+      summary: Get a single booking
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: Booking detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BookingEnvelope"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+
+  /groups/mine:
+    get:
+      operationId: listMyGroups
+      tags: [groups]
+      summary: List trip groups the authenticated user is a member of
+      responses:
+        "200":
+          description: Group list
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TripGroupList"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+
+  /groups/{id}:
+    get:
+      operationId: getTripGroup
+      tags: [groups]
+      summary: Get a single trip group with members, messages, and pickup suggestions
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: Group detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TripGroupDetail"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "404":
+          description: Not a member or group not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+
+  /groups/{id}/messages:
+    post:
+      operationId: postGroupMessage
+      tags: [groups]
+      summary: Post a chat message to a trip group
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PostGroupMessageInput"
+      responses:
+        "201":
+          description: Message created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TripGroupMessageEnvelope"
+        "400":
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "404":
+          description: Not a member or group not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+
+  /groups/{id}/pickup/approve:
+    post:
+      operationId: approveGroupPickup
+      tags: [groups]
+      summary: Approve a pickup hub for this group (vote, may trigger lock)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ApproveGroupPickupInput"
+      responses:
+        "200":
+          description: Vote recorded
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TripGroupDetail"
+        "400":
+          description: Invalid input or group already locked
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "404":
+          description: Not a member or group not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+
+  /support/auth/login:
+    post:
+      operationId: supportLogin
+      tags: [support-auth]
+      summary: Agent login
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SupportLoginInput"
+      responses:
+        "200":
+          description: Logged in
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SupportAgent"
+        "401":
+          description: Invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+
+  /support/auth/logout:
+    post:
+      operationId: supportLogout
+      tags: [support-auth]
+      summary: Agent logout
+      responses:
+        "200":
+          description: Logged out
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OkResponse"
+
+  /support/auth/me:
+    get:
+      operationId: supportMe
+      tags: [support-auth]
+      summary: Current agent
+      responses:
+        "200":
+          description: Current agent
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SupportAgent"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+
+  /support/agents:
+    get:
+      operationId: listSupportAgents
+      tags: [support-agents]
+      summary: List agents
+      responses:
+        "200":
+          description: Agents
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/SupportAgent"
+    post:
+      operationId: createSupportAgent
+      tags: [support-agents]
+      summary: Create an agent
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SupportAgentInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SupportAgent"
+
+  /support/tickets:
+    get:
+      operationId: listSupportTickets
+      tags: [support-tickets]
+      summary: List tickets
+      parameters:
+        - in: query
+          name: status
+          required: false
+          schema:
+            $ref: "#/components/schemas/TicketStatus"
+        - in: query
+          name: priority
+          required: false
+          schema:
+            $ref: "#/components/schemas/TicketPriority"
+        - in: query
+          name: assigneeId
+          required: false
+          schema:
+            type: string
+        - in: query
+          name: search
+          required: false
+          schema:
+            type: string
+        - in: query
+          name: sort
+          required: false
+          schema:
+            type: string
+            enum: [updated_desc, updated_asc, created_desc, priority_desc]
+            default: updated_desc
+        - in: query
+          name: limit
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 25
+        - in: query
+          name: offset
+          required: false
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+      responses:
+        "200":
+          description: Tickets
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/SupportTicketSummary"
+          headers:
+            X-Total-Count:
+              schema:
+                type: integer
+              description: Total number of tickets matching the filter
+
+  /support/tickets/{id}:
+    get:
+      operationId: getSupportTicket
+      tags: [support-tickets]
+      summary: Get ticket detail
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Ticket detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SupportTicketDetail"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+    patch:
+      operationId: updateSupportTicket
+      tags: [support-tickets]
+      summary: Update ticket status / priority / assignee
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SupportTicketUpdate"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SupportTicketDetail"
+
+  /support/tickets/{id}/messages:
+    post:
+      operationId: postSupportTicketMessage
+      tags: [support-tickets]
+      summary: Add a public reply or internal note
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SupportTicketMessageInput"
+      responses:
+        "201":
+          description: Message added
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SupportTicketDetail"
+
+  /support/dashboard/overview:
+    get:
+      operationId: getSupportDashboardOverview
+      tags: [support-dashboard]
+      summary: Dashboard overview counts
+      responses:
+        "200":
+          description: Overview
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SupportDashboardOverview"
+
+components:
+  schemas:
+    HealthStatus:
+      type: object
+      properties:
+        status:
+          type: string
+      required:
+        - status
+
+    OkResponse:
+      type: object
+      required: [ok]
+      properties:
+        ok:
+          type: boolean
+
+    ApiError:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: string
+
+    TicketStatus:
+      type: string
+      enum: [open, pending, resolved]
+
+    TicketPriority:
+      type: string
+      enum: [low, normal, high, urgent]
+
+    RequesterRole:
+      type: string
+      enum: [rider, driver]
+
+    SupportLoginInput:
+      type: object
+      required: [email, password]
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          minLength: 1
+
+    SupportAgent:
+      type: object
+      required: [id, name, email, role, createdAt]
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        email:
+          type: string
+          format: email
+        role:
+          type: string
+          enum: [admin, agent]
+        createdAt:
+          type: string
+          format: date-time
+
+    SupportAgentInput:
+      type: object
+      required: [name, email, password]
+      properties:
+        name:
+          type: string
+          minLength: 1
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          minLength: 6
+        role:
+          type: string
+          enum: [admin, agent]
+
+    SupportRequester:
+      type: object
+      required: [name, role]
+      properties:
+        name:
+          type: string
+        role:
+          $ref: "#/components/schemas/RequesterRole"
+        email:
+          type: ["string", "null"]
+        phone:
+          type: ["string", "null"]
+        avatarUrl:
+          type: ["string", "null"]
+
+    SupportRelatedTrip:
+      type: object
+      required: [id, origin, destination, departureAt]
+      properties:
+        id:
+          type: string
+        origin:
+          type: string
+        destination:
+          type: string
+        departureAt:
+          type: string
+          format: date-time
+        driverName:
+          type: ["string", "null"]
+        priceCents:
+          type: ["integer", "null"]
+
+    SupportTicketSummary:
+      type: object
+      required:
+        - id
+        - subject
+        - status
+        - priority
+        - requester
+        - createdAt
+        - updatedAt
+      properties:
+        id:
+          type: string
+        subject:
+          type: string
+        status:
+          $ref: "#/components/schemas/TicketStatus"
+        priority:
+          $ref: "#/components/schemas/TicketPriority"
+        requester:
+          $ref: "#/components/schemas/SupportRequester"
+        tripId:
+          type: ["string", "null"]
+        assigneeId:
+          type: ["string", "null"]
+        assigneeName:
+          type: ["string", "null"]
+        lastMessagePreview:
+          type: ["string", "null"]
+        messageCount:
+          type: integer
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    SupportTicketMessage:
+      type: object
+      required: [id, body, authorType, authorName, internal, createdAt]
+      properties:
+        id:
+          type: string
+        body:
+          type: string
+        authorType:
+          type: string
+          enum: [customer, agent, system]
+        authorName:
+          type: string
+        internal:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+
+    SupportTicketDetail:
+      type: object
+      required:
+        - id
+        - subject
+        - status
+        - priority
+        - requester
+        - messages
+        - createdAt
+        - updatedAt
+      properties:
+        id:
+          type: string
+        subject:
+          type: string
+        status:
+          $ref: "#/components/schemas/TicketStatus"
+        priority:
+          $ref: "#/components/schemas/TicketPriority"
+        requester:
+          $ref: "#/components/schemas/SupportRequester"
+        trip:
+          oneOf:
+            - $ref: "#/components/schemas/SupportRelatedTrip"
+            - type: "null"
+        assigneeId:
+          type: ["string", "null"]
+        assigneeName:
+          type: ["string", "null"]
+        messages:
+          type: array
+          items:
+            $ref: "#/components/schemas/SupportTicketMessage"
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    SupportTicketUpdate:
+      type: object
+      properties:
+        status:
+          $ref: "#/components/schemas/TicketStatus"
+        priority:
+          $ref: "#/components/schemas/TicketPriority"
+        assigneeId:
+          type: ["string", "null"]
+
+    SupportTicketMessageInput:
+      type: object
+      required: [body]
+      properties:
+        body:
+          type: string
+          minLength: 1
+        internal:
+          type: boolean
+
+    SupportDashboardOverview:
+      type: object
+      required:
+        - openCount
+        - pendingCount
+        - resolvedCount
+        - unassignedCount
+        - resolvedTodayCount
+        - avgFirstResponseMinutes
+        - byPriority
+      properties:
+        openCount:
+          type: integer
+        pendingCount:
+          type: integer
+        resolvedCount:
+          type: integer
+        unassignedCount:
+          type: integer
+        resolvedTodayCount:
+          type: integer
+        avgFirstResponseMinutes:
+          type: ["number", "null"]
+        byPriority:
+          type: array
+          items:
+            $ref: "#/components/schemas/SupportPriorityCount"
+
+    SupportPriorityCount:
+      type: object
+      required: [priority, count]
+      properties:
+        priority:
+          $ref: "#/components/schemas/TicketPriority"
+        count:
+          type: integer
+
+    AuthUser:
+      type: object
+      required:
+        - id
+        - name
+        - email
+        - phone
+        - role
+        - rating
+        - trips
+        - isVerified
+        - onboarded
+        - isFoundingMember
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        email:
+          type: string
+          format: email
+        phone:
+          type: string
+        role:
+          oneOf:
+            - type: string
+              enum: [driver, rider]
+            - type: "null"
+        rating:
+          type: number
+        trips:
+          type: integer
+        isVerified:
+          type: boolean
+        onboarded:
+          type: boolean
+        isFoundingMember:
+          type: boolean
+          description: True for the first 10,000 users. Grants founding-member badge + crown avatar.
+        subscriptionStatus:
+          oneOf:
+            - type: string
+              enum: [active, trialing, past_due, canceled, unpaid, incomplete, incomplete_expired, paused, none]
+            - type: "null"
+          description: Current Stripe subscription status, or null if no subscription exists.
+        trialEndsAt:
+          oneOf:
+            - type: string
+              format: date-time
+            - type: "null"
+          description: ISO timestamp when the trial ends (for trialing subscriptions).
+
+    SubscriptionStartInput:
+      type: object
+      properties:
+        idempotencyKey:
+          type: string
+          description: Optional client-generated key to avoid duplicate subscription creation.
+
+    SubscriptionStartResponse:
+      type: object
+      required: [subscriptionId, status, clientSecret, publishableKey]
+      properties:
+        subscriptionId:
+          type: string
+        status:
+          type: string
+          description: Subscription status from Stripe (trialing, active, incomplete, etc.)
+        clientSecret:
+          oneOf:
+            - type: string
+            - type: "null"
+          description: PaymentIntent client_secret to confirm with Stripe SDK. Null if trial-only with no immediate charge.
+        publishableKey:
+          type: string
+          description: Stripe publishable key for the mobile SDK to use.
+        trialEndsAt:
+          oneOf:
+            - type: string
+              format: date-time
+            - type: "null"
+
+    SubscriptionMeResponse:
+      type: object
+      required: [hasSubscription]
+      properties:
+        hasSubscription:
+          type: boolean
+        status:
+          oneOf:
+            - type: string
+            - type: "null"
+        currentPeriodEnd:
+          oneOf:
+            - type: string
+              format: date-time
+            - type: "null"
+        trialEndsAt:
+          oneOf:
+            - type: string
+              format: date-time
+            - type: "null"
+        cancelAtPeriodEnd:
+          type: boolean
+          default: false
+
+    AuthSession:
+      type: object
+      required: [user, token]
+      properties:
+        user:
+          $ref: "#/components/schemas/AuthUser"
+        token:
+          type: string
+
+    AuthLoginInput:
+      type: object
+      required: [email, password]
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          minLength: 1
+
+    AuthRegisterInput:
+      type: object
+      required: [name, email, phone, password]
+      properties:
+        name:
+          type: string
+          minLength: 1
+        email:
+          type: string
+          format: email
+        phone:
+          type: string
+          minLength: 1
+        password:
+          type: string
+          minLength: 8
+
+    AuthUpdateMeInput:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+        phone:
+          type: string
+          minLength: 1
+        role:
+          oneOf:
+            - type: string
+              enum: [driver, rider]
+            - type: "null"
+        onboarded:
+          type: boolean
+
+    EarningsTrip:
+      type: object
+      required:
+        - id
+        - fromCity
+        - toCity
+        - miles
+        - seatsBooked
+        - grossAmount
+        - platformFee
+        - netAmount
+        - completedAt
+      properties:
+        id:
+          type: string
+        fromCity:
+          type: string
+        toCity:
+          type: string
+        miles:
+          type: integer
+        seatsBooked:
+          type: integer
+        grossAmount:
+          type: number
+        platformFee:
+          type: number
+        netAmount:
+          type: number
+        completedAt:
+          type: string
+          format: date-time
+
+    Earnings:
+      type: object
+      required:
+        - period
+        - tripCount
+        - totalMiles
+        - grossTotal
+        - platformFeeTotal
+        - netTotal
+        - trips
+      properties:
+        period:
+          type: string
+          enum: [month, all]
+        tripCount:
+          type: integer
+        totalMiles:
+          type: integer
+        grossTotal:
+          type: number
+        platformFeeTotal:
+          type: number
+        netTotal:
+          type: number
+        trips:
+          type: array
+          items:
+            $ref: "#/components/schemas/EarningsTrip"
+
+    TripDriver:
+      type: object
+      required: [id, name, rating, trips, isTopDriver]
+      properties:
+        id: { type: string }
+        name: { type: string }
+        rating: { type: number }
+        trips: { type: integer }
+        isTopDriver: { type: boolean }
+
+    TripPreferences:
+      type: object
+      required: [smoking, pets, music, ac]
+      properties:
+        smoking: { type: boolean }
+        pets: { type: boolean }
+        music: { type: boolean }
+        ac: { type: boolean }
+
+    Trip:
+      type: object
+      required:
+        - id
+        - driver
+        - fromCity
+        - toCity
+        - departureAt
+        - seatsAvailable
+        - luggageSpace
+        - pricePerSeat
+        - note
+        - car
+        - preferences
+        - status
+        - replyCount
+        - createdAt
+      properties:
+        id: { type: string }
+        driver: { $ref: "#/components/schemas/TripDriver" }
+        fromCity: { type: string }
+        toCity: { type: string }
+        departureAt: { type: string, format: date-time }
+        seatsAvailable: { type: integer }
+        luggageSpace: { type: integer }
+        pricePerSeat: { type: number }
+        note: { type: string }
+        car: { type: string }
+        preferences: { $ref: "#/components/schemas/TripPreferences" }
+        status:
+          type: string
+          enum: [active, cancelled, completed]
+        replyCount: { type: integer }
+        createdAt: { type: string, format: date-time }
+
+    TripReply:
+      type: object
+      required: [id, userId, userName, text, isDriverReply, createdAt]
+      properties:
+        id: { type: string }
+        userId: { type: string }
+        userName: { type: string }
+        text: { type: string }
+        isDriverReply: { type: boolean }
+        createdAt: { type: string, format: date-time }
+
+    TripList:
+      type: object
+      required: [trips]
+      properties:
+        trips:
+          type: array
+          items:
+            $ref: "#/components/schemas/Trip"
+
+    TripGroupSummary:
+      type: object
+      required: [id, tripId, fromCity, toCity, departureAt, memberCount, pickupLocked, createdAt]
+      properties:
+        id: { type: string }
+        tripId: { type: string }
+        fromCity: { type: string }
+        toCity: { type: string }
+        departureAt: { type: string, format: date-time }
+        memberCount: { type: integer }
+        pickupLocked: { type: boolean }
+        pickupHubId: { type: [string, "null"] }
+        pickupHub:
+          oneOf:
+            - { $ref: "#/components/schemas/PickupHubMeta" }
+            - type: "null"
+        latestMessage: { type: [string, "null"] }
+        createdAt: { type: string, format: date-time }
+
+    PickupHubMeta:
+      type: object
+      required: [hubId, brand, storeName, address, city]
+      properties:
+        hubId: { type: string }
+        brand: { type: string, enum: [walmart, target] }
+        storeName: { type: string }
+        address: { type: string }
+        city: { type: string }
+        latitude: { type: number }
+        longitude: { type: number }
+
+    TripGroupMember:
+      type: object
+      required: [userId, name, role, joinedAt]
+      properties:
+        userId: { type: string }
+        name: { type: string }
+        role: { type: string, enum: [driver, rider] }
+        joinedAt: { type: string, format: date-time }
+
+    TripGroupMessage:
+      type: object
+      required: [id, text, isSystem, createdAt]
+      properties:
+        id: { type: string }
+        senderId: { type: [string, "null"] }
+        senderName: { type: [string, "null"] }
+        text: { type: string }
+        isSystem: { type: boolean }
+        createdAt: { type: string, format: date-time }
+
+    PickupHubSuggestion:
+      type: object
+      required: [hubId, brand, storeName, address, city, driverDetourMinutes, avgRiderTravelMinutes]
+      properties:
+        hubId: { type: string }
+        brand: { type: string, enum: [walmart, target] }
+        storeName: { type: string }
+        address: { type: string }
+        city: { type: string }
+        latitude: { type: number }
+        longitude: { type: number }
+        driverDetourMinutes: { type: integer }
+        avgRiderTravelMinutes: { type: integer }
+
+    TripGroupList:
+      type: object
+      required: [groups]
+      properties:
+        groups:
+          type: array
+          items:
+            $ref: "#/components/schemas/TripGroupSummary"
+
+    TripGroupDetail:
+      type: object
+      required: [group, members, messages, pickupSuggestions, approvalCounts, majorityNeeded]
+      properties:
+        group: { $ref: "#/components/schemas/TripGroupSummary" }
+        members:
+          type: array
+          items:
+            $ref: "#/components/schemas/TripGroupMember"
+        messages:
+          type: array
+          items:
+            $ref: "#/components/schemas/TripGroupMessage"
+        pickupSuggestions:
+          type: array
+          items:
+            $ref: "#/components/schemas/PickupHubSuggestion"
+        approvalCounts:
+          type: array
+          items:
+            $ref: "#/components/schemas/PickupApprovalCount"
+        myVoteHubId:
+          type: [string, "null"]
+        majorityNeeded:
+          type: integer
+
+    PickupApprovalCount:
+      type: object
+      required: [hubId, count]
+      properties:
+        hubId: { type: string }
+        count: { type: integer }
+
+    TripGroupMessageEnvelope:
+      type: object
+      required: [message]
+      properties:
+        message: { $ref: "#/components/schemas/TripGroupMessage" }
+
+    PostGroupMessageInput:
+      type: object
+      required: [text]
+      properties:
+        text: { type: string, minLength: 1, maxLength: 2000 }
+
+    ApproveGroupPickupInput:
+      type: object
+      required: [hubId]
+      properties:
+        hubId: { type: string, minLength: 1 }
+
+    TripEnvelope:
+      type: object
+      required: [trip]
+      properties:
+        trip: { $ref: "#/components/schemas/Trip" }
+
+    TripDetail:
+      type: object
+      required: [trip, replies]
+      properties:
+        trip: { $ref: "#/components/schemas/Trip" }
+        replies:
+          type: array
+          items:
+            $ref: "#/components/schemas/TripReply"
+
+    TripReplyEnvelope:
+      type: object
+      required: [reply]
+      properties:
+        reply: { $ref: "#/components/schemas/TripReply" }
+
+    CreateTripInput:
+      type: object
+      required:
+        - fromCity
+        - toCity
+        - departureAt
+        - seatsAvailable
+        - pricePerSeat
+      properties:
+        fromCity: { type: string, minLength: 1 }
+        toCity: { type: string, minLength: 1 }
+        departureAt: { type: string, format: date-time }
+        seatsAvailable: { type: integer, minimum: 1, maximum: 8 }
+        luggageSpace: { type: integer, minimum: 0, maximum: 8 }
+        pricePerSeat: { type: number, minimum: 0 }
+        note: { type: string }
+        car: { type: string }
+        preferences: { $ref: "#/components/schemas/TripPreferences" }
+
+    CreateTripReplyInput:
+      type: object
+      required: [text]
+      properties:
+        text: { type: string, minLength: 1, maxLength: 1000 }
+
+    BookingTripSummary:
+      type: object
+      required: [id, fromCity, toCity, departureAt, driverName, car]
+      properties:
+        id: { type: string }
+        fromCity: { type: string }
+        toCity: { type: string }
+        departureAt: { type: string, format: date-time }
+        driverName: { type: string }
+        car: { type: string }
+
+    Booking:
+      type: object
+      required:
+        - id
+        - tripId
+        - riderId
+        - seats
+        - pricePerSeat
+        - serviceFee
+        - totalAmount
+        - paymentMethod
+        - status
+        - createdAt
+        - trip
+      properties:
+        id: { type: string }
+        tripId: { type: string }
+        riderId: { type: string }
+        seats: { type: integer }
+        pricePerSeat: { type: number }
+        serviceFee: { type: number }
+        totalAmount: { type: number }
+        paymentMethod:
+          type: string
+          enum: [card, apple, venmo]
+        status:
+          type: string
+          enum: [confirmed, cancelled, completed]
+        createdAt: { type: string, format: date-time }
+        completedAt:
+          oneOf:
+            - type: string
+              format: date-time
+            - type: "null"
+        trip:
+          $ref: "#/components/schemas/BookingTripSummary"
+
+    BookingEnvelope:
+      type: object
+      required: [booking]
+      properties:
+        booking: { $ref: "#/components/schemas/Booking" }
+
+    BookingList:
+      type: object
+      required: [bookings]
+      properties:
+        bookings:
+          type: array
+          items:
+            $ref: "#/components/schemas/Booking"
+
+    CreateBookingInput:
+      type: object
+      required: [tripId, seats, paymentMethod]
+      properties:
+        tripId: { type: string, minLength: 1 }
+        seats: { type: integer, minimum: 1, maximum: 8 }
+        paymentMethod:
+          type: string
+          enum: [card, apple, venmo]

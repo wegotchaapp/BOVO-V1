@@ -1,0 +1,76 @@
+name: Mobile Preview
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'wegotcha/**'
+      - '.github/workflows/mobile-preview.yml'
+
+jobs:
+  preview:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./wegotcha
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Cache dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            wegotcha/node_modules
+            ~/.expo
+          key: ${{ runner.os }}-mobile-modules-${{ hashFiles('wegotcha/package-lock.json') }}
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Load production .env
+        run: |
+          cp .env.example .env
+          sed -i "s|EXPO_PUBLIC_API_URL=.*|EXPO_PUBLIC_API_URL=${{ secrets.EXPO_PUBLIC_API_URL }}|" .env
+          sed -i "s|EXPO_PUBLIC_SUPABASE_URL=.*|EXPO_PUBLIC_SUPABASE_URL=${{ secrets.EXPO_PUBLIC_SUPABASE_URL }}|" .env
+          sed -i "s|EXPO_PUBLIC_SUPABASE_ANON_KEY=.*|EXPO_PUBLIC_SUPABASE_ANON_KEY=${{ secrets.EXPO_PUBLIC_SUPABASE_URL }}|" .env
+          sed -i "s|EXPO_PUBLIC_MAPBOX_ACCESS_TOKEN=.*|EXPO_PUBLIC_MAPBOX_ACCESS_TOKEN=${{ secrets.EXPO_PUBLIC_MAPBOX_ACCESS_TOKEN }}|" .env
+          sed -i "s|EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY=.*|EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY=${{ secrets.EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY }}|" .env
+          sed -i "s|EXPO_PUBLIC_SENTRY_DSN=.*|EXPO_PUBLIC_SENTRY_DSN=${{ secrets.EXPO_PUBLIC_SENTRY_DSN }}|" .env
+          sed -i "s|EXPO_PUBLIC_POSTHOG_API_KEY=.*|EXPO_PUBLIC_POSTHOG_API_KEY=${{ secrets.EXPO_PUBLIC_POSTHOG_API_KEY }}|" .env
+          sed -i "s|APP_ENV=.*|APP_ENV=production|" .env
+
+      - name: Setup EAS CLI
+        run: npm install -g eas-cli
+
+      - name: Configure Expo Credentials
+        run: echo "$EXPO_CREDENTIALS_JSON" > credentials.json
+        env:
+          EXPO_CREDENTIALS_JSON: ${{ secrets.EXPO_CREDENTIALS_JSON }}
+
+      - name: Build Preview APK
+        id: eas-build
+        run: |
+          EAS_BUILD_OUTPUT=$(eas build --platform android --profile preview --non-interactive --json 2>&1)
+          echo "$EAS_BUILD_OUTPUT"
+          EAS_BUILD_URL=$(echo "$EAS_BUILD_OUTPUT" | jq -r '.[0].link')
+          echo "build_url=$EAS_BUILD_URL" >> $GITHUB_OUTPUT
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+
+      - name: Comment PR
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: `🚀 **Mobile Preview Build Ready**\nDownload here: ${{ steps.eas-build.outputs.build_url }}`
+            })

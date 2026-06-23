@@ -1,0 +1,124 @@
+You are a senior full-stack engineer. Integrate Mapbox into an existing Next.js 14 + TypeScript + Tailwind CSS application.
+
+The goal is to add a reusable, production-ready Mapbox integration that supports rendering interactive maps and displaying/updating markers for future live ride tracking features.
+
+Use Mapbox GL JS.
+
+---
+
+# REQUIREMENTS
+
+## 1. INSTALLATION
+
+Install:
+
+* mapbox-gl
+
+Import Mapbox CSS globally.
+
+---
+
+# 2. ENVIRONMENT SETUP
+
+Use environment variable:
+
+NEXT_PUBLIC_MAPBOX_TOKEN
+
+Do not hardcode tokens anywhere.
+
+---
+
+# 3. MAP COMPONENT
+
+Create reusable component:
+
+components/maps/MapboxMap.tsx
+
+Requirements:
+
+* Client component
+* Fully responsive
+* Initializes Mapbox only once
+* Uses refs correctly
+* Cleans up map instance on unmount
+* Supports props:
+
+  * latitude
+  * longitude
+  * zoom
+  * markerEnabled
+  * className
+
+Default:
+
+* zoom = 10
+* marker enabled
+
+---
+
+# 4. MAP FUNCTIONALITY
+
+The component should:
+
+* Render a Mapbox map
+* Center on provided coordinates
+* Add a marker when enabled
+* Smoothly update marker position if props change
+* Avoid unnecessary re-renders
+
+Use dark-themed map style:
+mapbox://styles/mapbox/dark-v11
+
+---
+
+# 5. MARKER
+
+Create reusable marker logic.
+
+Requirements:
+
+* Marker updates dynamically
+* No map reinitialization
+* Smooth transitions
+* Clean TypeScript implementation
+
+---
+
+# 6. LOADING + ERROR STATES
+
+Handle:
+
+* Missing token
+* Failed map initialization
+* Invalid coordinates
+
+Show clean fallback UI.
+
+---
+
+# 7. DEMO PAGE
+
+Create test page:
+
+/app/map-test/page.tsx
+
+Requirements:
+
+* Display full-width responsive map
+* Use sample coordinates
+* Demonstrate marker rendering
+* Include simple controls/buttons to change coordinates dynamically and verify marker movement
+
+---
+
+# 8. CODE QUALITY
+
+Requirements:
+
+* TypeScript strict typing
+* Modular architecture
+* Clean hooks/ref usage
+* No memory leaks
+* Production-ready implementation
+
+Do not modify unrelated parts of the app.

@@ -1,0 +1,422 @@
+I would actually give Replit **two images**:
+
+### Image 1
+
+The mockup we just created (overall vision).
+
+### Image 2
+
+A weather-state reference sheet showing each weather animation individually.
+
+Since I can't generate another image and a long prompt in the same response flow, here's exactly what I'd tell Replit along with the first image.
+
+---
+
+## Weather Animation Reference Sheet (for Replit)
+
+| Weather       | Animation                                                       |
+| ------------- | --------------------------------------------------------------- |
+| Sunny         | Slow moving sun rays, soft lens flare, drifting light particles |
+| Partly Cloudy | Clouds slowly crossing screen, sunlight peeking through         |
+| Cloudy        | Heavy cloud layers moving at different speeds (parallax)        |
+| Rain          | Continuous rain particles, occasional windshield-style droplets |
+| Thunderstorm  | Rain + lightning flashes + darker clouds                        |
+| Fog           | Multiple translucent fog layers drifting slowly                 |
+| Snow          | Snowflakes with depth/parallax movement                         |
+| Clear Night   | Moon glow, stars twinkling, occasional shooting star            |
+
+---
+
+# Very Important Architectural Decision
+
+I would NOT use GIFs.
+
+I would NOT use videos.
+
+I would NOT use static images.
+
+I would build:
+
+```text
+Weather Engine
+↓
+Weather API
+↓
+Animation Renderer
+↓
+Home Screen Background
+```
+
+Using:
+
+* Framer Motion
+* CSS Keyframes
+* Canvas particles
+
+This gives:
+
+* smooth 60 FPS
+* low battery usage
+* real weather
+* instant transitions
+
+---
+
+# Weather API Recommendation
+
+For Bovogo:
+
+## Best Option
+
+[Open-Meteo API](https://open-meteo.com/?utm_source=chatgpt.com)
+
+Pros:
+
+* Free
+* No API key
+* Fast
+* Reliable
+* Weather codes already provided
+
+Example response:
+
+```json
+{
+  "weather_code": 95
+}
+```
+
+Then map:
+
+```text
+95 → Thunderstorm
+61 → Rain
+3 → Cloudy
+0 → Clear
+45 → Fog
+71 → Snow
+```
+
+---
+
+# My Recommendation for Scroll Behavior
+
+Remember the concern you raised:
+
+> dark thunderstorm background suddenly becoming white when scrolling.
+
+I agree.
+
+I would implement:
+
+### Weather Hero Layer
+
+Top 35–40% of page:
+
+```text
+Thunderstorm Background
+↓
+Dark Cloud Layer
+↓
+Soft Gradient Transition
+↓
+White Content Area
+```
+
+Like Apple Weather.
+
+Not a hard cut.
+
+Instead:
+
+```text
+Black
+Dark Gray
+Gray
+Light Gray
+White
+```
+
+over about 300–400px.
+
+This creates continuity.
+
+---
+
+# Replit Prompt
+
+Copy this entire prompt into Replit:
+
+You are a senior iOS-quality frontend engineer.
+
+Implement a live destination-weather background system for the Home page.
+
+IMPORTANT:
+
+This is NOT a weather widget.
+
+This is NOT a weather card.
+
+The weather should become part of the Home screen environment similar to Apple's Weather app.
+
+The weather displayed should ALWAYS be based on the selected DESTINATION city only.
+
+Example:
+
+Austin → Houston
+
+The weather engine should fetch Houston weather and render Houston's weather animations across the Home screen.
+
+---
+
+GOAL
+
+Create an immersive animated weather experience behind the Home screen.
+
+The weather must feel alive.
+
+Use animations.
+
+Do NOT use static images.
+
+Do NOT use GIFs.
+
+Do NOT use videos.
+
+Use:
+
+* Framer Motion
+* CSS animations
+* Canvas particles where appropriate
+
+Target:
+
+* 60fps
+* mobile optimized
+* battery efficient
+
+---
+
+WEATHER DATA
+
+Use Open-Meteo API.
+
+Fetch destination city weather.
+
+Map weather codes into animation states.
+
+Example:
+
+Clear Sky
+Partly Cloudy
+Cloudy
+Rain
+Thunderstorm
+Fog
+Snow
+Night
+
+Create a WeatherBackgroundEngine service.
+
+---
+
+HOME SCREEN LAYOUT
+
+Current Home page structure should remain unchanged:
+
+Greeting
+
+Rider/Driver Toggle
+
+Search Card
+
+Launch Banner
+
+Voyager Posts
+
+Bottom Navigation
+
+The weather becomes the background behind all content.
+
+---
+
+SCROLL EXPERIENCE
+
+Do NOT place weather behind the entire infinitely scrolling feed.
+
+Instead:
+
+Create a Weather Hero Layer covering approximately the top 35–40% of the page.
+
+As the user scrolls downward:
+
+Weather layer should smoothly fade into the feed background.
+
+Use a gradual gradient transition:
+
+Thunderstorm:
+black → dark gray → gray → white
+
+Sunny:
+sky blue → pale blue → white
+
+Fog:
+mist gray → light gray → white
+
+No abrupt color changes.
+
+The transition must feel premium and natural.
+
+---
+
+ANIMATION STATES
+
+SUNNY
+
+* moving sunlight rays
+* lens flare
+* atmospheric particles
+* subtle brightness movement
+
+PARTLY CLOUDY
+
+* drifting clouds
+* moving light shafts
+* parallax cloud layers
+
+CLOUDY
+
+* multiple cloud layers
+* slow atmospheric movement
+
+RAIN
+
+* rain particles
+* cloud movement
+* subtle water effects
+
+THUNDERSTORM
+
+* rain particles
+* dark cloud layers
+* occasional lightning flashes
+* ambient illumination changes
+
+FOG
+
+* multiple fog layers
+* slow drifting motion
+* atmospheric blur
+
+SNOW
+
+* snow particles
+* layered depth effect
+
+CLEAR NIGHT
+
+* moon glow
+* twinkling stars
+* occasional shooting star
+
+---
+
+WEATHER TRANSITIONS
+
+When destination changes:
+
+Houston → Dallas
+
+Do NOT instantly swap backgrounds.
+
+Instead:
+
+Morph between weather states.
+
+Example:
+
+Thunderstorm
+↓
+fade rain
+↓
+fade clouds
+↓
+introduce sunlight
+↓
+Partly Cloudy
+
+Transition duration:
+
+1.5–2.5 seconds
+
+No flashing.
+
+No abrupt changes.
+
+---
+
+CONTENT READABILITY
+
+Search cards and content cards should remain readable.
+
+Use:
+
+* glassmorphism
+* translucent overlays
+* backdrop blur
+
+Ensure contrast remains accessible.
+
+---
+
+PERFORMANCE
+
+Requirements:
+
+* mobile first
+* optimized for iPhone
+* GPU accelerated transforms
+* no memory leaks
+* no heavy re-renders
+
+Cache weather results.
+
+Avoid excessive API requests.
+
+---
+
+CODE STRUCTURE
+
+Create:
+
+WeatherBackgroundEngine
+
+WeatherSceneRenderer
+
+SunnyScene
+
+CloudyScene
+
+RainScene
+
+ThunderstormScene
+
+FogScene
+
+SnowScene
+
+NightScene
+
+WeatherTransitionManager
+
+Keep architecture modular and production-ready.
+
+---
+
+FINAL EXPERIENCE
+
+The result should feel like:
+
+"A travel app and Apple Weather had a premium product-quality child."
+
+The weather should be beautiful, immersive, subtle, smooth, and become part of the identity of the application.

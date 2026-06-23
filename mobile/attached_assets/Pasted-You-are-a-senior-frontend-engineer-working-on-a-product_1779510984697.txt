@@ -1,0 +1,279 @@
+You are a senior frontend engineer working on a production-grade Next.js 14 + TypeScript + Tailwind CSS + Prisma application for a long-distance cost-sharing travel platform.
+
+Implement a scalable “City + Neighborhood Selection System” for the trip posting flow.
+
+The goal is to allow drivers to select:
+
+* start city
+* start neighborhood
+* destination city
+* destination neighborhood
+
+using a clean searchable UI instead of large dropdowns.
+
+The application already has:
+
+* trip posting
+* trip cards
+* booking flow
+* messaging system
+
+Do not modify unrelated features.
+
+---
+
+# PRODUCT LOGIC
+
+Example:
+
+Driver posts:
+Irving → Round Rock
+
+This means:
+
+* riders from Irving area can join
+* driver is NOT doing custom pickups
+* riders are responsible for reaching the origin neighborhood
+
+This simplifies pickup coordination for MVP.
+
+The neighborhood selection system must support this architecture.
+
+---
+
+# UX REQUIREMENTS
+
+DO NOT use giant dropdowns with hundreds of neighborhoods.
+
+Instead:
+
+* use searchable comboboxes/autocomplete
+* mobile-friendly interaction
+* modern clean UX
+
+Think:
+
+* Airbnb location search
+* command palette style search
+* modern searchable popovers
+
+---
+
+# DATA STRUCTURE
+
+Create:
+
+lib/locations.ts
+
+Export structured location data.
+
+Example structure:
+
+export const texasLocations = {
+Austin: [
+"Downtown Austin",
+"Round Rock",
+"Cedar Park",
+"Domain",
+"South Austin"
+],
+Houston: [
+"Midtown",
+"Sugar Land",
+"Katy",
+"The Heights"
+]
+}
+
+The neighborhood list will be manually provided later.
+
+Build architecture to easily extend all Texas cities.
+
+---
+
+# COMPONENTS
+
+Create reusable components:
+
+1. CitySelector
+2. NeighborhoodCombobox
+3. LocationSelectionSection
+
+---
+
+# CITY SELECTOR
+
+Requirements:
+
+* searchable dropdown
+* keyboard accessible
+* clean modern styling
+* mobile optimized
+
+Cities should include:
+
+* Austin
+* Houston
+* Dallas
+* Irving
+* Round Rock
+* San Antonio
+  etc.
+
+Use mock Texas city data for now.
+
+---
+
+# NEIGHBORHOOD COMBOBOX
+
+Requirements:
+
+* searchable autocomplete
+* dynamically filtered by selected city
+* real-time filtering
+* fuzzy matching support
+* keyboard navigation
+* scrollable result list
+* modern popover UI
+
+Behavior:
+
+* neighborhoods should ONLY appear for selected city
+* prevent neighborhood selection before city chosen
+
+---
+
+# SEARCH EXPERIENCE
+
+Example:
+
+Selected city:
+Austin
+
+User types:
+"rou"
+
+Suggestions:
+
+* Round Rock
+* Round Rock North
+* Round Rock East
+
+Search should feel:
+
+* instant
+* smooth
+* modern
+
+---
+
+# TRIP POSTING FORM UPDATE
+
+Update trip posting form to include:
+
+FROM:
+
+* city selector
+* neighborhood selector
+
+TO:
+
+* city selector
+* neighborhood selector
+
+Example final values:
+
+From:
+Irving, TX — Las Colinas
+
+To:
+Round Rock, TX — Downtown Round Rock
+
+---
+
+# VALIDATION
+
+Requirements:
+
+* city required
+* neighborhood required
+* prevent identical start/end combinations
+* neighborhood must belong to selected city
+
+Show elegant inline validation messages.
+
+---
+
+# TRIP CARD DISPLAY
+
+Update trip cards to display:
+
+Irving, TX (Las Colinas)
+→
+Round Rock, TX (Downtown)
+
+Use:
+
+* modern typography
+* compact route styling
+* premium travel app aesthetic
+
+---
+
+# PERFORMANCE REQUIREMENTS
+
+* avoid rerendering entire list on typing
+* debounce search input
+* optimize large neighborhood lists
+* scalable architecture
+
+Assume future expansion:
+
+* hundreds of neighborhoods
+* many Texas cities
+
+---
+
+# STYLING REQUIREMENTS
+
+Use:
+
+* Tailwind CSS
+* rounded-xl / rounded-2xl
+* subtle shadows
+* premium modern UI
+* clean spacing
+* elegant search dropdown animations
+
+The UI should feel:
+
+* fast
+* lightweight
+* trustworthy
+* mobile-first
+
+---
+
+# ACCESSIBILITY
+
+Requirements:
+
+* keyboard navigation
+* enter-to-select
+* arrow key navigation
+* focus states
+* screen reader friendly labels
+
+---
+
+# CODE QUALITY
+
+Requirements:
+
+* TypeScript strict typing
+* reusable architecture
+* modular components
+* production-ready code
+* clean state management
+
+Do not modify unrelated application features.

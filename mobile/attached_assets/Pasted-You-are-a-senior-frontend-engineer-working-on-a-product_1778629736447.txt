@@ -1,0 +1,306 @@
+You are a senior frontend engineer working on a production-grade Next.js 14 + TypeScript + Tailwind CSS travel marketplace application.
+
+Create a modern “Driver Trip Posting” feature inspired by the attached reference design image.
+
+The design should feel clean, modern, trustworthy, and similar to a premium ride-sharing/travel marketplace UI.
+
+Use the attached screenshot as visual inspiration for:
+
+* card spacing
+* typography hierarchy
+* layout structure
+* subtle shadows
+* chip/badge styling
+* overall modern travel app appearance
+
+Do NOT copy the screenshot exactly. Create an improved modern version inspired by it.
+
+---
+
+# FEATURE OVERVIEW
+
+Drivers should be able to create structured travel posts using a polished form UI.
+
+Once submitted, the trip should render as a beautiful travel card similar to the reference image.
+
+---
+
+# POST CREATION FORM
+
+Create a reusable component:
+DriverTripComposer
+
+The form must include the following fields in this exact order:
+
+---
+
+## 1. FROM LOCATION
+
+Label:
+"From Location"
+
+Input:
+
+* searchable location input
+* placeholder example:
+  "Dallas, TX"
+
+Styling:
+
+* rounded modern input
+* subtle border
+* responsive
+
+---
+
+## 2. TO LOCATION
+
+Label:
+"To Location"
+
+Input:
+
+* searchable location input
+* placeholder example:
+  "Austin, TX"
+
+---
+
+## 3. POST MESSAGE
+
+Label:
+"Post"
+
+Use:
+
+* multiline textarea
+
+Placeholder example:
+"Heading to Austin for the weekend! Clean car, good music, and friendly vibes."
+
+Requirements:
+
+* auto-resize
+* max length 500
+* modern styling
+* subtle focus ring
+
+---
+
+## 4. DATE OF TRAVEL
+
+Label:
+"Date of Travel"
+
+Use:
+
+* calendar date picker component
+
+Requirements:
+
+* clean modern calendar popup
+* mobile responsive
+* prevent past dates
+
+---
+
+## 5. NUMBER OF SEATS AVAILABLE
+
+Label:
+"No of Seats Available"
+
+Use:
+
+* plus/minus stepper control
+
+Requirements:
+
+* minimum: 1
+* maximum: 6
+* smooth increment/decrement animation
+* visually polished controls
+
+---
+
+## 6. NUMBER OF LUGGAGE SPACES AVAILABLE
+
+Label:
+"No of Luggage Space Available"
+
+Use:
+
+* plus/minus stepper control
+
+Requirements:
+
+* minimum: 0
+* maximum: 6
+
+---
+
+## 7. AMOUNT PER SEAT
+
+Label:
+"Amount Per Seat"
+
+IMPORTANT:
+The amount must be auto-calculated dynamically using the existing IRS mileage logic already implemented in the application.
+
+The frontend should:
+
+* calculate suggested price automatically
+* display result in real-time
+* show formatted badge/chip:
+  "$25/seat"
+
+Do NOT use hardcoded pricing.
+
+Assume the application already contains:
+
+* IRS rate logic
+* distance calculation utilities
+
+Integrate with existing utilities instead of recreating logic.
+
+---
+
+# POST SUBMISSION
+
+Add modern rounded “Post Trip” button.
+
+Requirements:
+
+* loading state
+* disabled validation state
+* subtle hover animations
+* premium feel
+
+---
+
+# POST CARD DISPLAY
+
+After submission, render trip cards similar to the attached reference image.
+
+Create reusable component:
+DriverTripCard
+
+---
+
+# CARD LAYOUT REQUIREMENTS
+
+Each card should display:
+
+## TOP SECTION
+
+* Driver initials avatar
+* Driver name
+* Small "Top Driver" badge (optional mock)
+* Rating
+* Trips completed
+* Posted time
+
+---
+
+## LOCATION SECTION
+
+Display:
+
+* From location on left
+* Arrow/route line in middle
+* Destination on right
+
+Example:
+Dallas, TX → Austin, TX
+
+Use elegant route visualization styling.
+
+---
+
+## POST MESSAGE
+
+Display the driver message underneath locations.
+
+Example:
+"Heading to Austin for the weekend! Clean car, good music, and friendly vibes."
+
+Limit preview to 2–3 lines.
+
+---
+
+## BOTTOM INFO CHIPS
+
+Display modern rounded chips for:
+
+* Travel date
+* Seats available
+* Price per seat
+* Luggage spaces available
+
+Example chips:
+
+* Fri, May 24
+* 3 seats
+* $25/seat
+* 2 bags
+
+Use soft background colors and subtle shadows.
+
+---
+
+# STYLING REQUIREMENTS
+
+Use:
+
+* Tailwind CSS
+* rounded-2xl cards
+* soft shadows
+* subtle hover lift effect
+* modern spacing
+* elegant typography hierarchy
+
+Aesthetic:
+
+* premium travel startup
+* clean
+* trustworthy
+* minimal clutter
+
+---
+
+# RESPONSIVENESS
+
+Ensure:
+
+* mobile-first layout
+* cards stack beautifully on small screens
+* form remains easy to use on phones
+* chips wrap properly
+
+---
+
+# VALIDATION
+
+Requirements:
+
+* prevent empty required fields
+* prevent same from/to location
+* prevent seats > 6
+* prevent luggage > 6
+* prevent past dates
+
+Show elegant inline validation messages.
+
+---
+
+# CODE QUALITY
+
+Requirements:
+
+* TypeScript strict typing
+* reusable components
+* modular architecture
+* clean form state management
+* accessible inputs
+* production-ready code
+
+Do not modify unrelated application features.

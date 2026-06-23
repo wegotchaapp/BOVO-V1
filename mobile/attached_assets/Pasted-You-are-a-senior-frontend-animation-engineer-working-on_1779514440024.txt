@@ -1,0 +1,254 @@
+You are a senior frontend animation engineer working on a premium mobile-first travel application built with Next.js 14 + TypeScript + Tailwind CSS + Framer Motion.
+
+Create a cinematic animated loading screen using the attached yellow car image as the main animated asset.
+
+The goal is to make the loading experience feel alive and immersive — like the car is actively driving forward through a long road trip adventure.
+
+IMPORTANT:
+The car itself and the road must both animate continuously to simulate realistic forward movement.
+
+The experience should feel:
+
+* smooth
+* premium
+* playful
+* immersive
+* mobile-native
+* cinematic
+
+Do NOT create a static loading screen.
+
+---
+
+# CORE ANIMATION GOAL
+
+The user should feel like:
+
+“The car is actively traveling forward on a long adventure.”
+
+To achieve this:
+
+* the road must move horizontally
+* the car must bounce subtly
+* smoke must emit from the exhaust
+* the background should animate slightly
+* the wheels should rotate
+* road lane markers should move continuously
+
+The motion should create the illusion of continuous travel.
+
+---
+
+# VISUAL STYLE
+
+Theme:
+
+* dark cinematic night mode
+* minimal but premium
+* modern travel startup aesthetic
+
+Use:
+
+* soft gradients
+* subtle glow
+* atmospheric depth
+* layered parallax
+
+---
+
+# LAYOUT
+
+Center of screen:
+
+* animated yellow car
+* positioned above a moving curvy/bumpy road
+
+Bottom:
+
+* loading text
+* animated progress indicator
+
+---
+
+# ROAD ANIMATION
+
+The road should:
+
+* continuously scroll horizontally from right to left
+* contain moving lane divider markings
+* have smooth looping animation
+* slightly curve and bump vertically
+
+The movement should create the illusion:
+
+* car driving forward endlessly
+
+Road behavior:
+
+* subtle vertical wave motion
+* premium smooth easing
+* infinite seamless loop
+
+---
+
+# CAR ANIMATION
+
+The yellow car should:
+
+* move slightly up/down as if driving on bumps
+* tilt slightly while moving over road curves
+* remain centered while road moves underneath
+* feel physically connected to road movement
+
+Add:
+
+* soft suspension bounce effect
+* subtle body rotation on bumps
+
+---
+
+# WHEEL ANIMATION
+
+Requirements:
+
+* wheels rotate continuously
+* realistic speed
+* smooth infinite rotation
+
+---
+
+# SMOKE EFFECT
+
+Add animated smoke particles behind the car.
+
+Behavior:
+
+* smoke emits continuously from exhaust
+* particles expand and fade naturally
+* drift backward
+* soft blur effect
+
+Smoke should feel:
+
+* lightweight
+* stylized
+* not cartoonish
+
+---
+
+# HEADLIGHT EFFECT
+
+Add:
+
+* subtle glowing headlights
+* soft beam spread
+* slight flicker optional
+
+---
+
+# BACKGROUND ANIMATION
+
+Use:
+
+* subtle parallax mountains/hills
+* faint moving clouds
+* tiny stars
+* atmospheric motion
+
+Background should move slower than road to create depth.
+
+---
+
+# LOADING TEXT
+
+Display:
+“Loading your adventure...”
+
+Requirements:
+
+* elegant typography
+* subtle fade animation
+* centered below animation
+
+---
+
+# PROGRESS INDICATOR
+
+Create:
+
+* animated loading bar OR pulsing dots
+
+Should feel:
+
+* premium
+* smooth
+* minimal
+
+---
+
+# ANIMATION TECHNOLOGY
+
+Use:
+
+* Framer Motion
+* CSS keyframes where appropriate
+
+Requirements:
+
+* smooth 60fps animations
+* GPU-friendly transforms
+* optimized mobile performance
+
+---
+
+# RESPONSIVENESS
+
+The loading screen must work beautifully on:
+
+* iPhone
+* Android
+* tablets
+* desktop
+
+Ensure:
+
+* no overflow issues
+* proper scaling
+* centered composition
+
+---
+
+# PERFORMANCE
+
+Requirements:
+
+* lightweight animation architecture
+* avoid heavy DOM rendering
+* smooth looping
+* no memory leaks
+
+---
+
+# CODE STRUCTURE
+
+Create reusable components:
+
+* AnimatedRoad
+* AnimatedCar
+* SmokeParticles
+* LoadingOverlay
+
+Keep implementation modular and production-ready.
+
+---
+
+# FINAL EXPERIENCE
+
+The final loading screen should feel like:
+
+* a road trip adventure beginning
+* polished startup-quality animation
+* emotionally engaging
+* modern and memorable
+
+Do not modify unrelated application features.

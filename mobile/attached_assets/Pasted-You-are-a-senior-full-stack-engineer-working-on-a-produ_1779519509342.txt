@@ -1,0 +1,272 @@
+You are a senior full-stack engineer working on a production-grade Next.js 14 + TypeScript + Tailwind CSS + Prisma application for a mobile-first travel platform.
+
+Implement a modern unread notification indicator system similar to iPhone/iMessage behavior.
+
+The goal is to show small unread badges/dots when:
+
+* a user receives a new message
+* someone replies to their trip post
+* a new group trip message arrives
+
+The indicator should automatically disappear once the user views the related section.
+
+The experience should feel:
+
+* smooth
+* minimal
+* native-app quality
+* realtime
+* trustworthy
+
+Do NOT use intrusive popup notifications for this feature.
+
+---
+
+# FEATURE OVERVIEW
+
+The application already has:
+
+* direct messages
+* trip group chats
+* trip post comments/replies
+* authenticated users
+
+Add unread indicators across the app.
+
+---
+
+# REQUIREMENTS
+
+Implement unread tracking for:
+
+1. Direct Messages
+2. Group Trip Chats
+3. Trip Post Replies/Comments
+
+---
+
+# UX BEHAVIOR
+
+Example:
+
+User receives:
+
+* new chat message
+  OR
+* someone replies to their post
+
+Then:
+
+* a small colored unread dot/badge appears
+* message tab shows unread state
+* specific chat/post card shows unread indicator
+
+Once the user opens/views the related conversation:
+
+* unread state disappears automatically
+
+Behavior should feel similar to:
+
+* iPhone Messages
+* Instagram DMs
+* WhatsApp unread indicators
+
+---
+
+# DATABASE CHANGES
+
+Create proper unread tracking models/fields.
+
+Suggested architecture:
+
+## MessageReadStatus
+
+Fields:
+
+* id
+* userId
+* messageId
+* readAt
+
+OR
+
+Alternative scalable approach:
+
+* lastReadMessageId per conversation
+
+Choose the most scalable architecture.
+
+---
+
+# GROUP CHAT UNREADS
+
+Requirements:
+
+* each user should track unread state independently
+* unread counts per group
+* opening group marks messages as read
+
+---
+
+# DIRECT MESSAGE UNREADS
+
+Requirements:
+
+* unread badge on chat list
+* unread dot beside latest message
+* count aggregation support
+
+---
+
+# POST REPLY UNREADS
+
+Requirements:
+
+* if someone replies to a user's trip post
+* show unread indicator on:
+
+  * notifications tab
+  * post card
+  * replies section
+
+Unread clears when viewed.
+
+---
+
+# UI REQUIREMENTS
+
+Use elegant modern unread indicators.
+
+Examples:
+
+* small red/orange dot
+* subtle count badge
+* pulsing animation optional
+
+The UI should feel:
+
+* lightweight
+* premium
+* non-intrusive
+
+---
+
+# TAB BAR INDICATORS
+
+If there are unread messages:
+
+* show dot/badge on Messages tab icon
+
+If there are unread post replies:
+
+* show dot/badge on Notifications tab
+
+Behavior similar to iOS apps.
+
+---
+
+# MESSAGE LIST UI
+
+Unread chats should:
+
+* appear visually highlighted
+* use slightly bolder text
+* show unread dot
+* optionally move to top of list
+
+---
+
+# REALTIME/POLLING
+
+The application already uses polling.
+
+Integrate unread system with existing polling architecture.
+
+Requirements:
+
+* unread indicators update automatically
+* no page refresh needed
+* smooth UI updates
+
+Do NOT implement websockets yet.
+
+---
+
+# READ LOGIC
+
+Messages should mark as read when:
+
+* user opens chat
+* user scrolls into latest messages
+* user opens reply thread
+
+Avoid false-positive reads.
+
+---
+
+# PERFORMANCE REQUIREMENTS
+
+Requirements:
+
+* efficient unread queries
+* avoid N+1 database issues
+* scalable unread count aggregation
+* optimized polling
+
+Assume future scale:
+
+* thousands of messages
+* many group chats
+
+---
+
+# ANIMATION REQUIREMENTS
+
+Unread indicators should:
+
+* fade in smoothly
+* animate subtly
+* disappear elegantly when read
+
+Use:
+
+* Framer Motion if needed
+
+Avoid excessive animations.
+
+---
+
+# MOBILE EXPERIENCE
+
+This feature is mobile-first.
+
+Requirements:
+
+* touch friendly
+* smooth updates
+* native-app feel
+* no layout shifting
+
+---
+
+# SECURITY
+
+Requirements:
+
+* unread state isolated per user
+* secure authorization checks
+* users cannot mark others' messages as read
+
+---
+
+# CODE QUALITY
+
+Requirements:
+
+* TypeScript strict typing
+* reusable notification hooks
+* scalable architecture
+* modular unread utilities
+* production-ready implementation
+
+Do not modify unrelated application features.

@@ -4,14 +4,14 @@
     "slug": "bovogo",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/icon.png",
+    "icon": "./assets/images/logo.png",
     "scheme": "bovogo",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "splash": {
-      "image": "./assets/images/icon.png",
+      "image": "./assets/images/logo.png",
       "resizeMode": "contain",
-      "backgroundColor": "#1A5C38"
+      "backgroundColor": "#1B3A8A"
     },
     "ios": {
       "supportsTablet": false,

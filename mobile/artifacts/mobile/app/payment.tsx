@@ -12,17 +12,34 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { StripeProvider, useStripe } from "@/lib/stripeNative";
 
 import { useColors } from "@/hooks/useColors";
 import { CARD_SHADOW } from "@/constants/colors";
 import { getTrip } from "@/lib/trips";
-import { createBooking, computeServiceFee } from "@/lib/bookings";
+import {
+  confirmBooking,
+  createBooking,
+  computeServiceFee,
+  prepareBooking,
+} from "@/lib/bookings";
 import type { Trip } from "@/data/trips";
 
 const PAYMENT_METHODS = [
-  { id: "card" as const, icon: "credit-card", label: "Credit / Debit Card", sub: "Visa, Mastercard, Amex", badge: "Stripe" },
-  { id: "apple" as const, icon: "smartphone", label: "Apple Pay", sub: "Pay with Face ID", badge: "Fast" },
-  { id: "venmo" as const, icon: "send", label: "Venmo / Zelle", sub: "Transfer after ride", badge: null },
+  {
+    id: "card" as const,
+    icon: "credit-card",
+    label: "Credit / Debit Card",
+    sub: "Visa, Mastercard, Amex",
+    badge: "Stripe",
+  },
+  {
+    id: "apple" as const,
+    icon: "smartphone",
+    label: "Apple Pay",
+    sub: "Pay with Face ID",
+    badge: "Fast",
+  },
 ];
 
 type PaymentMethodId = (typeof PAYMENT_METHODS)[number]["id"];
@@ -45,9 +62,10 @@ function cityShort(c: string): string {
   return c.replace(/, TX$/, "").replace(/, AR$/, "");
 }
 
-export default function Payment() {
+function PaymentBody() {
   const colors = useColors();
   const router = useRouter();
+  const stripe = useStripe();
   const { tripId } = useLocalSearchParams<{ tripId?: string }>();
 
   const [trip, setTrip] = useState<Trip | null>(null);
@@ -84,8 +102,6 @@ export default function Payment() {
     };
   }, [tripId]);
 
-  // For MVP we book 1 seat. (The booking flow doesn't yet expose seat-count
-  // selection — that's a follow-up.)
   const seats = 1;
   const subtotal = trip ? Number(trip.pricePerSeat) * seats : 0;
   const fee = computeServiceFee(subtotal);
@@ -95,15 +111,60 @@ export default function Payment() {
     if (!trip || paying) return;
     setPaying(true);
     try {
-      const booking = await createBooking({
-        tripId: trip.id,
-        seats,
-        paymentMethod: selected,
-      });
-      router.replace({
-        pathname: "/booking-confirmed",
-        params: { id: booking.id },
-      });
+      try {
+        const prepared = await prepareBooking({
+          tripId: trip.id,
+          seats,
+          paymentMethod: selected,
+        });
+
+        if (prepared.clientSecret && Platform.OS !== "web") {
+          const init = await stripe.initPaymentSheet({
+            merchantDisplayName: "Bovogo",
+            paymentIntentClientSecret: prepared.clientSecret,
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          } as any);
+          if (init.error) throw new Error(init.error.message);
+
+          const present = await stripe.presentPaymentSheet();
+          if (present.error) {
+            if (present.error.code === "Canceled") {
+              setPaying(false);
+              return;
+            }
+            throw new Error(present.error.message);
+          }
+
+          const confirmed = await confirmBooking(prepared.booking.id);
+          router.replace({
+            pathname: "/booking-confirmed",
+            params: { id: confirmed.id },
+          });
+          return;
+        }
+
+        // Web or no client secret — confirm if already paid (unlikely) or error.
+        throw new Error(
+          "Card payment requires the iOS or Android app (Expo Go or a build).",
+        );
+      } catch (err: any) {
+        const msg = String(err?.message ?? "");
+        const notConfigured =
+          msg.toLowerCase().includes("not configured") ||
+          msg.toLowerCase().includes("payments are not configured");
+        if (!notConfigured) throw err;
+
+        // Local dev without Stripe keys: instant confirm (no charge).
+        const booking = await createBooking({
+          tripId: trip.id,
+          seats,
+          paymentMethod: selected,
+        });
+        router.replace({
+          pathname: "/booking-confirmed",
+          params: { id: booking.id },
+        });
+      }
     } catch (err: any) {
       setPaying(false);
       Alert.alert(
@@ -151,111 +212,171 @@ export default function Payment() {
   const route = `${cityShort(trip.fromCity)} → ${cityShort(trip.toCity)}`;
 
   return (
-    <SafeAreaView style={[styles.safe, { backgroundColor: colors.background }]}>
-      <View style={[styles.header, { paddingTop: Platform.OS === "web" ? 67 : 0 }]}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.headerBtn}>
-          <Feather name="arrow-left" size={20} color={colors.foreground} />
-        </TouchableOpacity>
-        <Text style={[styles.headerTitle, { color: colors.foreground }]}>Payment</Text>
-        <View style={{ width: 40 }} />
-      </View>
+      <SafeAreaView style={[styles.safe, { backgroundColor: colors.background }]}>
+        <View style={[styles.header, { paddingTop: Platform.OS === "web" ? 67 : 0 }]}>
+          <TouchableOpacity onPress={() => router.back()} style={styles.headerBtn}>
+            <Feather name="arrow-left" size={20} color={colors.foreground} />
+          </TouchableOpacity>
+          <Text style={[styles.headerTitle, { color: colors.foreground }]}>Payment</Text>
+          <View style={{ width: 40 }} />
+        </View>
 
-      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        <View style={[styles.summaryCard, CARD_SHADOW]}>
-          <Text style={[styles.sectionLabel, { color: colors.mutedForeground }]}>ADVENTURE SUMMARY</Text>
-          <View style={styles.summaryRows}>
-            {[
-              { label: "Route", value: route },
-              { label: "Date", value: formatDate(trip.departureAt) },
-              { label: "Voyager", value: trip.driver.name },
-              { label: "Seats", value: `${seats} seat` },
-            ].map((row, i) => (
-              <View key={row.label}>
-                {i > 0 && <View style={[styles.rowDiv, { backgroundColor: colors.border }]} />}
-                <View style={styles.summaryRow}>
-                  <Text style={[styles.rowLabel, { color: colors.mutedForeground }]}>{row.label}</Text>
-                  <Text style={[styles.rowValue, { color: colors.foreground }]}>{row.value}</Text>
+        <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+          <View style={[styles.summaryCard, CARD_SHADOW]}>
+            <Text style={[styles.sectionLabel, { color: colors.mutedForeground }]}>
+              ADVENTURE SUMMARY
+            </Text>
+            <View style={styles.summaryRows}>
+              {[
+                { label: "Route", value: route },
+                { label: "Date", value: formatDate(trip.departureAt) },
+                { label: "Voyager", value: trip.driver.name },
+                { label: "Seats", value: `${seats} seat` },
+              ].map((row, i) => (
+                <View key={row.label}>
+                  {i > 0 && (
+                    <View style={[styles.rowDiv, { backgroundColor: colors.border }]} />
+                  )}
+                  <View style={styles.summaryRow}>
+                    <Text style={[styles.rowLabel, { color: colors.mutedForeground }]}>
+                      {row.label}
+                    </Text>
+                    <Text style={[styles.rowValue, { color: colors.foreground }]}>
+                      {row.value}
+                    </Text>
+                  </View>
                 </View>
+              ))}
+            </View>
+
+            <View style={[styles.totalBlock, { borderTopColor: colors.border }]}>
+              <View style={styles.totalRow}>
+                <Text style={[styles.totalLabel, { color: colors.mutedForeground }]}>
+                  Subtotal
+                </Text>
+                <Text style={[styles.totalValue, { color: colors.foreground }]}>
+                  ${subtotal.toFixed(2)}
+                </Text>
               </View>
+              <View style={styles.totalRow}>
+                <Text style={[styles.totalLabel, { color: colors.mutedForeground }]}>
+                  Bovogo fee
+                </Text>
+                <Text style={[styles.totalValue, { color: colors.foreground }]}>
+                  ${fee.toFixed(2)}
+                </Text>
+              </View>
+              <View style={[styles.totalRow, styles.grandTotalRow]}>
+                <Text style={[styles.grandLabel, { color: colors.foreground }]}>Total</Text>
+                <Text style={[styles.grandValue, { color: colors.primary }]}>
+                  ${total.toFixed(2)}
+                </Text>
+              </View>
+            </View>
+          </View>
+
+          <Text style={[styles.sectionLabel, { color: colors.mutedForeground }]}>
+            PAYMENT METHOD
+          </Text>
+          <View style={styles.methodList}>
+            {PAYMENT_METHODS.map((method) => (
+              <TouchableOpacity
+                key={method.id}
+                style={[
+                  styles.methodCard,
+                  {
+                    backgroundColor:
+                      selected === method.id ? colors.secondary : colors.card,
+                    borderColor:
+                      selected === method.id ? colors.primary : colors.border,
+                    borderWidth: selected === method.id ? 2 : 1,
+                  },
+                  CARD_SHADOW,
+                ]}
+                onPress={() => setSelected(method.id)}
+                activeOpacity={0.8}
+              >
+                <View
+                  style={[
+                    styles.methodIcon,
+                    {
+                      backgroundColor:
+                        selected === method.id ? colors.primary : colors.muted,
+                    },
+                  ]}
+                >
+                  <Feather
+                    name={method.icon as any}
+                    size={18}
+                    color={selected === method.id ? "#fff" : colors.mutedForeground}
+                  />
+                </View>
+                <View style={styles.methodInfo}>
+                  <Text style={[styles.methodLabel, { color: colors.foreground }]}>
+                    {method.label}
+                  </Text>
+                  <Text style={[styles.methodSub, { color: colors.mutedForeground }]}>
+                    {method.sub}
+                  </Text>
+                </View>
+                {method.badge && (
+                  <View style={[styles.methodBadge, { backgroundColor: "#EBF2ED" }]}>
+                    <Text style={[styles.methodBadgeText, { color: colors.primary }]}>
+                      {method.badge}
+                    </Text>
+                  </View>
+                )}
+                {selected === method.id && (
+                  <View style={[styles.checkIcon, { backgroundColor: colors.primary }]}>
+                    <Feather name="check" size={12} color="#fff" />
+                  </View>
+                )}
+              </TouchableOpacity>
             ))}
           </View>
 
-          <View style={[styles.totalBlock, { borderTopColor: colors.border }]}>
-            <View style={styles.totalRow}>
-              <Text style={[styles.totalLabel, { color: colors.mutedForeground }]}>Subtotal</Text>
-              <Text style={[styles.totalValue, { color: colors.foreground }]}>${subtotal.toFixed(2)}</Text>
-            </View>
-            <View style={styles.totalRow}>
-              <Text style={[styles.totalLabel, { color: colors.mutedForeground }]}>Bovogo fee</Text>
-              <Text style={[styles.totalValue, { color: colors.foreground }]}>${fee.toFixed(2)}</Text>
-            </View>
-            <View style={[styles.totalRow, styles.grandTotalRow]}>
-              <Text style={[styles.grandLabel, { color: colors.foreground }]}>Total</Text>
-              <Text style={[styles.grandValue, { color: colors.primary }]}>${total.toFixed(2)}</Text>
-            </View>
+          <View style={[styles.stripeNote, { backgroundColor: colors.muted }]}>
+            <Feather name="lock" size={13} color={colors.mutedForeground} />
+            <Text style={[styles.stripeNoteText, { color: colors.mutedForeground }]}>
+              Payments processed securely via Stripe. Your card details are never stored
+              on Bovogo. Private group chat unlocks after payment.
+            </Text>
           </View>
-        </View>
+        </ScrollView>
 
-        <Text style={[styles.sectionLabel, { color: colors.mutedForeground }]}>PAYMENT METHOD</Text>
-        <View style={styles.methodList}>
-          {PAYMENT_METHODS.map((method) => (
-            <TouchableOpacity
-              key={method.id}
-              style={[
-                styles.methodCard,
-                {
-                  backgroundColor: selected === method.id ? colors.secondary : colors.card,
-                  borderColor: selected === method.id ? colors.primary : colors.border,
-                  borderWidth: selected === method.id ? 2 : 1,
-                },
-                CARD_SHADOW,
-              ]}
-              onPress={() => setSelected(method.id)}
-              activeOpacity={0.8}
-            >
-              <View style={[styles.methodIcon, { backgroundColor: selected === method.id ? colors.primary : colors.muted }]}>
-                <Feather name={method.icon as any} size={18} color={selected === method.id ? "#fff" : colors.mutedForeground} />
-              </View>
-              <View style={styles.methodInfo}>
-                <Text style={[styles.methodLabel, { color: colors.foreground }]}>{method.label}</Text>
-                <Text style={[styles.methodSub, { color: colors.mutedForeground }]}>{method.sub}</Text>
-              </View>
-              {method.badge && (
-                <View style={[styles.methodBadge, { backgroundColor: "#EBF2ED" }]}>
-                  <Text style={[styles.methodBadgeText, { color: colors.primary }]}>{method.badge}</Text>
-                </View>
-              )}
-              {selected === method.id && (
-                <View style={[styles.checkIcon, { backgroundColor: colors.primary }]}>
-                  <Feather name="check" size={12} color="#fff" />
-                </View>
-              )}
-            </TouchableOpacity>
-          ))}
-        </View>
-
-        <View style={[styles.stripeNote, { backgroundColor: colors.muted }]}>
-          <Feather name="lock" size={13} color={colors.mutedForeground} />
-          <Text style={[styles.stripeNoteText, { color: colors.mutedForeground }]}>
-            Payments processed securely via Stripe. Your card details are never stored.
-          </Text>
-        </View>
-      </ScrollView>
-
-      <View style={[styles.footer, { backgroundColor: colors.background, borderTopColor: colors.border }]}>
-        <TouchableOpacity
-          style={[styles.payBtn, { backgroundColor: colors.primary, opacity: paying ? 0.8 : 1 }]}
-          onPress={handlePay}
-          disabled={paying}
-          activeOpacity={0.88}
+        <View
+          style={[
+            styles.footer,
+            { backgroundColor: colors.background, borderTopColor: colors.border },
+          ]}
         >
-          <Feather name="lock" size={16} color="#fff" />
-          <Text style={styles.payBtnText}>
-            {paying ? "Processing..." : `Pay $${total.toFixed(2)}`}
-          </Text>
-        </TouchableOpacity>
-      </View>
-    </SafeAreaView>
+          <TouchableOpacity
+            style={[styles.payBtn, { backgroundColor: colors.primary, opacity: paying ? 0.8 : 1 }]}
+            onPress={handlePay}
+            disabled={paying}
+            activeOpacity={0.88}
+          >
+            <Feather name="lock" size={16} color="#fff" />
+            <Text style={styles.payBtnText}>
+              {paying ? "Processing..." : `Pay $${total.toFixed(2)}`}
+            </Text>
+          </TouchableOpacity>
+        </View>
+      </SafeAreaView>
+  );
+}
+
+export default function Payment() {
+  const key =
+    process.env.EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY &&
+    !process.env.EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY.includes("your-stripe")
+      ? process.env.EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY
+      : "pk_test_placeholder_for_provider_mount";
+
+  return (
+    <StripeProvider publishableKey={key}>
+      <PaymentBody />
+    </StripeProvider>
   );
 }
 
@@ -276,7 +397,13 @@ const styles = StyleSheet.create({
   headerTitle: { fontSize: 17, fontFamily: "Inter_600SemiBold" },
   content: { paddingHorizontal: 20, gap: 14, paddingBottom: 24 },
   summaryCard: { backgroundColor: "#fff", borderRadius: 20, overflow: "hidden" },
-  sectionLabel: { fontSize: 11, fontFamily: "Inter_600SemiBold", letterSpacing: 0.8, marginBottom: 6, paddingHorizontal: 4 },
+  sectionLabel: {
+    fontSize: 11,
+    fontFamily: "Inter_600SemiBold",
+    letterSpacing: 0.8,
+    marginBottom: 6,
+    paddingHorizontal: 4,
+  },
   summaryRows: { padding: 18 },
   summaryRow: { flexDirection: "row", justifyContent: "space-between", paddingVertical: 10 },
   rowDiv: { height: 1 },
@@ -328,5 +455,3 @@ const styles = StyleSheet.create({
   },
   payBtnText: { color: "#fff", fontSize: 16, fontFamily: "Inter_600SemiBold" },
 });
-
-void Alert;

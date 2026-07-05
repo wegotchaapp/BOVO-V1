@@ -7,13 +7,17 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { FindOptionsWhere, ILike, In, Repository } from 'typeorm';
 import {
+  MobileBooking,
   MobileTrip,
+  MobileTripGroup,
+  MobileTripGroupMember,
   MobileTripReply,
   MobileTripReplyRead,
   MobileUser,
 } from '../entities/mobile.entities';
 import { CreateTripBody, CreateReplyBody } from '../dto/mobile.dto';
 import { driverSummary, replyToDto, tripToDto } from '../mobile.mappers';
+import { findPublicReplyPii } from '../pii-guard';
 
 @Injectable()
 export class MobileTripsService {
@@ -26,6 +30,12 @@ export class MobileTripsService {
     private readonly reads: Repository<MobileTripReplyRead>,
     @InjectRepository(MobileUser)
     private readonly users: Repository<MobileUser>,
+    @InjectRepository(MobileBooking)
+    private readonly bookings: Repository<MobileBooking>,
+    @InjectRepository(MobileTripGroup)
+    private readonly groups: Repository<MobileTripGroup>,
+    @InjectRepository(MobileTripGroupMember)
+    private readonly groupMembers: Repository<MobileTripGroupMember>,
   ) {}
 
   async list(from?: string, to?: string) {
@@ -49,7 +59,7 @@ export class MobileTripsService {
     return { trips: await this.decorate(rows) };
   }
 
-  async getOne(id: string) {
+  async getOne(id: string, viewerId?: string) {
     const trip = await this.trips.findOne({ where: { id } });
     if (!trip) throw new NotFoundException('Trip not found');
 
@@ -58,6 +68,14 @@ export class MobileTripsService {
       where: { trip_id: id },
       order: { created_at: 'ASC' },
     });
+
+    const confirmedBookings = await this.bookings.find({
+      where: { trip_id: id, status: 'confirmed' },
+    });
+    const bookedRiderIds = [
+      ...new Set(confirmedBookings.map((b) => b.rider_id)),
+    ];
+    const bookedRiderSet = new Set(bookedRiderIds);
 
     const authorIds = [...new Set(replyRows.map((r) => r.user_id))];
     const authors = authorIds.length
@@ -70,8 +88,22 @@ export class MobileTripsService {
         r,
         r.user_id === trip.driver_id,
         nameById.get(r.user_id) ?? 'Unknown',
+        bookedRiderSet.has(r.user_id),
       ),
     );
+
+    let viewerHasBooked = false;
+    let viewerGroupId: string | null = null;
+    if (viewerId) {
+      viewerHasBooked = bookedRiderSet.has(viewerId);
+      const group = await this.groups.findOne({ where: { trip_id: id } });
+      if (group) {
+        const membership = await this.groupMembers.findOne({
+          where: { group_id: group.id, user_id: viewerId },
+        });
+        if (membership) viewerGroupId = group.id;
+      }
+    }
 
     return {
       trip: tripToDto(
@@ -82,6 +114,11 @@ export class MobileTripsService {
         replies.length,
       ),
       replies,
+      meta: {
+        bookedRiderIds,
+        viewerHasBooked,
+        viewerGroupId,
+      },
     };
   }
 
@@ -143,19 +180,47 @@ export class MobileTripsService {
     const trip = await this.trips.findOne({ where: { id: tripId } });
     if (!trip) throw new NotFoundException('Trip not found');
 
+    const text = dto.text.trim();
+    if (!text) {
+      throw new BadRequestException('Reply cannot be empty.');
+    }
+
+    const piiHit = findPublicReplyPii(text);
+    if (piiHit) {
+      throw new BadRequestException(
+        `Public replies cannot include ${piiHit}. Book your seat to chat privately with the Voyager.`,
+      );
+    }
+
+    // Voyagers may post only one public reply per adventure.
+    if (userId === trip.driver_id) {
+      const existingDriverReply = await this.replies.findOne({
+        where: { trip_id: tripId, user_id: userId },
+      });
+      if (existingDriverReply) {
+        throw new BadRequestException(
+          'Voyagers can only post one public reply on their adventure.',
+        );
+      }
+    }
+
     const inserted = await this.replies.save(
       this.replies.create({
         trip_id: tripId,
         user_id: userId,
-        text: dto.text.trim(),
+        text,
       }),
     );
     const author = await this.users.findOne({ where: { id: userId } });
+    const hasBookedSeat = !!(await this.bookings.findOne({
+      where: { trip_id: tripId, rider_id: userId, status: 'confirmed' },
+    }));
     return {
       reply: replyToDto(
         inserted,
         userId === trip.driver_id,
         author?.name ?? 'Unknown',
+        hasBookedSeat,
       ),
     };
   }

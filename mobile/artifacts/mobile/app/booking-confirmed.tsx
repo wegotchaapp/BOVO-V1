@@ -120,7 +120,9 @@ export default function BookingConfirmed() {
           <Animated.View style={[styles.textBlock, contentStyle]}>
             <Text style={[styles.title, { color: colors.foreground }]}>You're all set!</Text>
             <Text style={[styles.subtitle, { color: colors.mutedForeground }]}>
-              Your seat is confirmed. Have a safe trip!
+              {booking?.groupId
+                ? "Your seat is confirmed. You can now chat privately with your Voyager."
+                : "Your seat is confirmed. Have a safe trip!"}
             </Text>
           </Animated.View>
 
@@ -159,14 +161,41 @@ export default function BookingConfirmed() {
         </View>
 
         <View style={styles.actions}>
-          <TouchableOpacity
-            style={[styles.primaryBtn, { backgroundColor: colors.primary }]}
-            onPress={() => router.replace("/(tabs)/trips")}
-            activeOpacity={0.88}
-          >
-            <Feather name="map-pin" size={18} color="#fff" />
-            <Text style={styles.primaryBtnText}>View My Adventures</Text>
-          </TouchableOpacity>
+          {booking?.groupId ? (
+            <TouchableOpacity
+              style={[styles.primaryBtn, { backgroundColor: colors.primary }]}
+              onPress={() =>
+                router.replace({
+                  pathname: "/group/[id]",
+                  params: { id: booking.groupId! },
+                })
+              }
+              activeOpacity={0.88}
+            >
+              <Feather name="message-circle" size={18} color="#fff" />
+              <Text style={styles.primaryBtnText}>Open Adventure group</Text>
+            </TouchableOpacity>
+          ) : (
+            <TouchableOpacity
+              style={[styles.primaryBtn, { backgroundColor: colors.primary }]}
+              onPress={() => router.replace("/(tabs)/trips")}
+              activeOpacity={0.88}
+            >
+              <Feather name="map-pin" size={18} color="#fff" />
+              <Text style={styles.primaryBtnText}>View My Adventures</Text>
+            </TouchableOpacity>
+          )}
+          {booking?.groupId ? (
+            <TouchableOpacity
+              style={[styles.secondaryBtn, { backgroundColor: colors.secondary }]}
+              onPress={() => router.replace("/(tabs)/trips")}
+              activeOpacity={0.88}
+            >
+              <Text style={[styles.secondaryBtnText, { color: colors.primary }]}>
+                View My Adventures
+              </Text>
+            </TouchableOpacity>
+          ) : null}
           <TouchableOpacity
             style={[styles.secondaryBtn, { backgroundColor: colors.secondary }]}
             onPress={() => router.replace("/(tabs)")}

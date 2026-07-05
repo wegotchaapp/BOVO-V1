@@ -1,6 +1,8 @@
 import React, { useEffect, useRef } from "react";
-import { StyleSheet, View } from "react-native";
+import { StyleSheet, Text, View } from "react-native";
 import WebView from "react-native-webview";
+
+import { isMapboxTokenConfigured } from "@/lib/city-coords";
 
 interface Coord {
   latitude: number;
@@ -362,6 +364,21 @@ export default function MapboxWebMap({
     } catch (_) {}
   }
 
+  if (!isMapboxTokenConfigured(TOKEN)) {
+    return (
+      <View style={[styles.container, styles.errorBox, style]}>
+        <Text style={styles.errorTitle}>Map unavailable</Text>
+        <Text style={styles.errorBody}>
+          Add a valid Mapbox public token to EXPO_PUBLIC_MAPBOX_TOKEN in your
+          mobile .env file, then restart Expo.
+        </Text>
+        <Text style={styles.errorRoute}>
+          {fromLabel} → {toLabel}
+        </Text>
+      </View>
+    );
+  }
+
   return (
     <View style={[styles.container, style]}>
       <WebView
@@ -386,4 +403,29 @@ export default function MapboxWebMap({
 const styles = StyleSheet.create({
   container: { flex: 1 },
   webview: { flex: 1, backgroundColor: "#f0ebe3" },
+  errorBox: {
+    backgroundColor: "#EBF2ED",
+    alignItems: "center",
+    justifyContent: "center",
+    padding: 24,
+    gap: 8,
+  },
+  errorTitle: {
+    fontSize: 16,
+    fontFamily: "Inter_700Bold",
+    color: "#1B3D2F",
+  },
+  errorBody: {
+    fontSize: 13,
+    fontFamily: "Inter_400Regular",
+    color: "#3D5C4E",
+    textAlign: "center",
+    lineHeight: 18,
+  },
+  errorRoute: {
+    marginTop: 8,
+    fontSize: 14,
+    fontFamily: "Inter_600SemiBold",
+    color: "#1B3D2F",
+  },
 });

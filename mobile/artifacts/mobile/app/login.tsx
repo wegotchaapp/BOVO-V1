@@ -3,6 +3,7 @@ import { useRouter } from "expo-router";
 import React, { useState } from "react";
 import {
   Alert,
+  Keyboard,
   KeyboardAvoidingView,
   Platform,
   SafeAreaView,
@@ -14,6 +15,7 @@ import {
   View,
 } from "react-native";
 
+import { SocialAuthButtons } from "@/components/SocialAuthButtons";
 import { useAuth } from "@/context/AuthContext";
 import { useColors } from "@/hooks/useColors";
 
@@ -27,6 +29,7 @@ export default function Login() {
   const [loading, setLoading] = useState(false);
 
   async function handleLogin() {
+    Keyboard.dismiss();
     if (!email || !password) {
       Alert.alert("Missing fields", "Please enter your email and password.");
       return;
@@ -52,6 +55,7 @@ export default function Login() {
         <ScrollView
           contentContainerStyle={[styles.container, { paddingTop: Platform.OS === "web" ? 67 : 20 }]}
           keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="on-drag"
           showsVerticalScrollIndicator={false}
         >
           <TouchableOpacity onPress={() => router.back()} style={styles.back}>
@@ -76,6 +80,8 @@ export default function Login() {
                 onChangeText={setEmail}
                 keyboardType="email-address"
                 autoCapitalize="none"
+                returnKeyType="next"
+                blurOnSubmit={false}
               />
             </View>
 
@@ -89,6 +95,8 @@ export default function Login() {
                   value={password}
                   onChangeText={setPassword}
                   secureTextEntry={!showPass}
+                  returnKeyType="done"
+                  onSubmitEditing={handleLogin}
                 />
                 <TouchableOpacity onPress={() => setShowPass(!showPass)} style={styles.eyeBtn}>
                   <Feather name={showPass ? "eye-off" : "eye"} size={18} color={colors.mutedForeground} />
@@ -114,16 +122,7 @@ export default function Login() {
               <View style={[styles.orLine, { backgroundColor: colors.border }]} />
             </View>
 
-            <View style={styles.socialRow}>
-              <TouchableOpacity style={[styles.socialBtn, { borderColor: colors.border, backgroundColor: colors.card }]}>
-                <Text style={styles.socialIcon}>🇬</Text>
-                <Text style={[styles.socialText, { color: colors.foreground }]}>Google</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={[styles.socialBtn, { borderColor: colors.border, backgroundColor: colors.card }]}>
-                <Text style={styles.socialIcon}>🍎</Text>
-                <Text style={[styles.socialText, { color: colors.foreground }]}>Apple</Text>
-              </TouchableOpacity>
-            </View>
+            <SocialAuthButtons />
 
             <View style={styles.signupRow}>
               <Text style={[styles.signupText, { color: colors.mutedForeground }]}>

@@ -48,8 +48,16 @@ export interface TripReply {
   userName: string;
   text: string;
   isDriverReply: boolean;
+  /** True when this sailor has a confirmed booking — private group chat is available. */
+  hasBookedSeat?: boolean;
   /** ISO-8601 timestamp. */
   createdAt: string;
+}
+
+export interface TripDetailMeta {
+  bookedRiderIds: string[];
+  viewerHasBooked: boolean;
+  viewerGroupId: string | null;
 }
 
 // ─── Display helpers ─────────────────────────────────────────────────────────

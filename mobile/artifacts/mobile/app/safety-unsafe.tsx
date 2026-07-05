@@ -3,8 +3,10 @@ import { useRouter } from "expo-router";
 import React, { useState } from "react";
 import {
   Alert,
+  Keyboard,
   Platform,
   SafeAreaView,
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -69,6 +71,7 @@ export default function SafetyUnsafe() {
   }
 
   function saveSafeWord() {
+    Keyboard.dismiss();
     if (!safeWord.trim()) return;
     setWordSaved(true);
     Alert.alert("Safe Word Set", `"${safeWord.trim()}" is your safe word. If you text this to anyone, Bovogo will automatically alert your emergency contacts.`, [{ text: "Got it" }]);
@@ -91,7 +94,13 @@ export default function SafetyUnsafe() {
         </Text>
       </View>
 
-      <View style={styles.content}>
+      <ScrollView
+        style={styles.content}
+        contentContainerStyle={{ paddingBottom: 24 }}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="on-drag"
+        showsVerticalScrollIndicator={false}
+      >
         {OPTIONS.map((opt) => (
           <TouchableOpacity
             key={opt.id}
@@ -132,6 +141,8 @@ export default function SafetyUnsafe() {
               value={safeWord}
               onChangeText={setSafeWord}
               autoCapitalize="none"
+              returnKeyType="done"
+              onSubmitEditing={saveSafeWord}
             />
             <TouchableOpacity
               style={[styles.saveBtn, { backgroundColor: colors.primary, opacity: safeWord.trim() ? 1 : 0.4 }]}
@@ -149,7 +160,7 @@ export default function SafetyUnsafe() {
         >
           <Text style={[styles.backBtnText, { color: colors.mutedForeground }]}>I'm safe now — go back</Text>
         </TouchableOpacity>
-      </View>
+      </ScrollView>
     </SafeAreaView>
   );
 }

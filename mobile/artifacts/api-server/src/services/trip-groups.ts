@@ -1,10 +1,10 @@
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { randomBytes } from "node:crypto";
 import {
-  bookingsTable,
   tripGroupMembersTable,
   tripGroupMessagesTable,
   tripGroupsTable,
+  usersTable,
   type TripRow,
 } from "@workspace/db";
 
@@ -15,79 +15,81 @@ function newId(prefix: string): string {
 }
 
 /**
- * Auto-create a trip group when the last seat of a trip has just been booked.
+ * After payment, add the Voyager and paying Sailor to the Adventure group so
+ * they can coordinate privately. One group per trip; riders join as they pay.
  *
  * Must be called inside the same transaction as the booking insert/seat
- * decrement so we never race two concurrent "last seat" bookings into two
- * different groups. Idempotent: if a group already exists for the trip, this
- * is a no-op.
- *
- * Members are the driver + every rider with a `confirmed` booking on the
- * trip. Rider seats > 1 still count as a single member (one human, one seat
- * reservation per booking row).
+ * decrement. Idempotent for existing members.
  */
-export async function ensureGroupIfFull(
+export async function ensureGroupForBooking(
   tx: TxClient,
   trip: TripRow,
-): Promise<string | null> {
-  if (trip.seatsAvailable > 0) return null;
-
+  riderId: string,
+): Promise<string> {
   const [existing] = await tx
     .select({ id: tripGroupsTable.id })
     .from(tripGroupsTable)
     .where(eq(tripGroupsTable.tripId, trip.id));
-  if (existing) return existing.id;
 
-  const groupId = newId("grp");
-  await tx.insert(tripGroupsTable).values({
-    id: groupId,
-    tripId: trip.id,
-  });
+  let groupId = existing?.id ?? null;
+  const isNewGroup = !groupId;
 
-  // Driver is always a member.
-  await tx.insert(tripGroupMembersTable).values({
-    id: newId("gm"),
-    groupId,
-    userId: trip.driverId,
-    role: "driver",
-  });
-
-  // Add every confirmed rider. Dedupe by riderId so multi-seat single-rider
-  // bookings still resolve to one member row.
-  const riders = await tx
-    .select({ riderId: bookingsTable.riderId })
-    .from(bookingsTable)
-    .where(eq(bookingsTable.tripId, trip.id));
-
-  const seenRiders = new Set<string>();
-  for (const r of riders) {
-    if (r.riderId === trip.driverId) continue; // belt-and-suspenders
-    if (seenRiders.has(r.riderId)) continue;
-    seenRiders.add(r.riderId);
-    await tx.insert(tripGroupMembersTable).values({
-      id: newId("gm"),
-      groupId,
-      userId: r.riderId,
-      role: "rider",
+  if (!groupId) {
+    groupId = newId("grp");
+    await tx.insert(tripGroupsTable).values({
+      id: groupId,
+      tripId: trip.id,
     });
   }
 
-  await tx.insert(tripGroupMessagesTable).values([
-    {
+  const ensureMember = async (
+    userId: string,
+    role: "driver" | "rider",
+  ): Promise<boolean> => {
+    const [member] = await tx
+      .select({ id: tripGroupMembersTable.id })
+      .from(tripGroupMembersTable)
+      .where(
+        and(
+          eq(tripGroupMembersTable.groupId, groupId!),
+          eq(tripGroupMembersTable.userId, userId),
+        ),
+      );
+    if (member) return false;
+    await tx.insert(tripGroupMembersTable).values({
+      id: newId("gm"),
+      groupId: groupId!,
+      userId,
+      role,
+    });
+    return true;
+  };
+
+  await ensureMember(trip.driverId, "driver");
+  const riderAdded = await ensureMember(riderId, "rider");
+
+  if (isNewGroup) {
+    await tx.insert(tripGroupMessagesTable).values({
       id: newId("gmsg"),
       groupId,
       senderId: null,
-      text: "Trip group created successfully.",
+      text: "Your Adventure group is ready! Use this chat to coordinate pickup after booking.",
       isSystem: true,
-    },
-    {
+    });
+  } else if (riderAdded) {
+    const [rider] = await tx
+      .select({ name: usersTable.name })
+      .from(usersTable)
+      .where(eq(usersTable.id, riderId));
+    const firstName = rider?.name?.split(" ")[0] ?? "A sailor";
+    await tx.insert(tripGroupMessagesTable).values({
       id: newId("gmsg"),
       groupId,
       senderId: null,
-      text: "Smart pickup suggestions are now available.",
+      text: `${firstName} joined the Adventure group after booking.`,
       isSystem: true,
-    },
-  ]);
+    });
+  }
 
   return groupId;
 }

@@ -7,6 +7,7 @@
   "license": "UNLICENSED",
   "scripts": {
     "build": "nest build",
+    "migration:run": "typeorm migration:run -d dist/database/data-source.js",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
     "start": "nest start",
     "start:dev": "nest start --watch",
@@ -45,6 +46,7 @@
     "@sentry/tracing": "^7.114.0",
     "@supabase/supabase-js": "^2.48.1",
     "@types/bad-words": "^3.0.3",
+    "@react-email/render": "^2.0.6",
     "aws-sdk": "^2.1692.0",
     "axios": "^1.7.9",
     "bad-words": "^3.0.0",
@@ -71,6 +73,7 @@
     "stripe": "^17.5.0",
     "twilio": "^5.4.2",
     "typeorm": "^0.3.20",
+    "react": "^19.0.0",
     "uuid": "^11.1.1"
   },
   "devDependencies": {

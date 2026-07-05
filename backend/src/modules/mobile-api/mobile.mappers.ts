@@ -37,7 +37,61 @@ export function driverSummary(u: {
   };
 }
 
+function parseJsonArray(raw: string | null | undefined): string[] {
+  if (!raw) return [];
+  try {
+    const v = JSON.parse(raw);
+    return Array.isArray(v) ? v.map(String) : [];
+  } catch {
+    return [];
+  }
+}
+
+function parseJsonObject(
+  raw: string | null | undefined,
+): Record<string, string> {
+  if (!raw) return {};
+  try {
+    const v = JSON.parse(raw);
+    if (!v || typeof v !== 'object' || Array.isArray(v)) return {};
+    const out: Record<string, string> = {};
+    for (const [k, val] of Object.entries(v)) out[k] = String(val);
+    return out;
+  } catch {
+    return {};
+  }
+}
+
+export const DEFAULT_NOTIFICATION_SETTINGS = {
+  pushEnabled: true,
+  emailEnabled: true,
+  tripUpdates: true,
+  marketing: false,
+  messages: true,
+};
+
+export type NotificationSettings = typeof DEFAULT_NOTIFICATION_SETTINGS;
+
+export function notificationSettingsFromUser(u: MobileUser): NotificationSettings {
+  const defaults = { ...DEFAULT_NOTIFICATION_SETTINGS };
+  if (!u.notification_settings) return defaults;
+  try {
+    const stored = JSON.parse(u.notification_settings) as Partial<NotificationSettings>;
+    return {
+      pushEnabled: stored.pushEnabled ?? defaults.pushEnabled,
+      emailEnabled: stored.emailEnabled ?? defaults.emailEnabled,
+      tripUpdates: stored.tripUpdates ?? defaults.tripUpdates,
+      marketing: stored.marketing ?? defaults.marketing,
+      messages: stored.messages ?? defaults.messages,
+    };
+  } catch {
+    return defaults;
+  }
+}
+
 export function userToDto(u: MobileUser) {
+  const ridePreferences = parseJsonObject(u.ride_preferences);
+  const notificationSettings = notificationSettingsFromUser(u);
   return {
     id: u.id,
     name: u.name,
@@ -50,9 +104,48 @@ export function userToDto(u: MobileUser) {
     onboarded: u.onboarded,
     isFoundingMember: u.is_founding_member,
     subscriptionStatus: u.subscription_status ?? null,
+    bio: u.bio ?? '',
+    languages: parseJsonArray(u.languages),
+    emergencyName: u.emergency_name ?? '',
+    emergencyPhone: u.emergency_phone ?? '',
+    photoUrl: u.photo_url ?? null,
+    ridePreferences,
+    preferencesCount: Object.keys(ridePreferences).length,
+    notificationSettings,
+    deletionRequestedAt: u.deletion_requested_at
+      ? u.deletion_requested_at.toISOString()
+      : null,
     // Omit when null — the mobile client normalizes a missing field to null and
     // some date coercions turn explicit null into epoch 0.
     ...(u.trial_ends_at ? { trialEndsAt: u.trial_ends_at.toISOString() } : {}),
+  };
+}
+
+export function vehicleToDto(v: {
+  id: string;
+  user_id: string;
+  make: string;
+  model: string;
+  year: number;
+  color: string;
+  license_plate: string;
+  state: string;
+  vin: string | null;
+  created_at: Date;
+  updated_at: Date;
+}) {
+  return {
+    id: v.id,
+    userId: v.user_id,
+    make: v.make,
+    model: v.model,
+    year: v.year,
+    color: v.color,
+    licensePlate: v.license_plate,
+    state: v.state,
+    vin: v.vin ?? '',
+    createdAt: v.created_at.toISOString(),
+    updatedAt: v.updated_at.toISOString(),
   };
 }
 
@@ -88,6 +181,7 @@ export function replyToDto(
   r: MobileTripReply,
   isDriverReply: boolean,
   userName: string,
+  hasBookedSeat = false,
 ) {
   return {
     id: r.id,
@@ -95,6 +189,7 @@ export function replyToDto(
     userName,
     text: r.text,
     isDriverReply,
+    hasBookedSeat,
     createdAt: r.created_at.toISOString(),
   };
 }
@@ -103,6 +198,7 @@ export function bookingToDto(
   b: MobileBooking,
   trip: Pick<MobileTrip, 'id' | 'from_city' | 'to_city' | 'departure_at' | 'car'>,
   driverName: string,
+  groupId: string | null = null,
 ) {
   return {
     id: b.id,
@@ -114,6 +210,7 @@ export function bookingToDto(
     totalAmount: Number(b.total_amount),
     paymentMethod: b.payment_method,
     status: b.status,
+    groupId,
     createdAt: b.created_at.toISOString(),
     completedAt: b.completed_at ? b.completed_at.toISOString() : null,
     trip: {

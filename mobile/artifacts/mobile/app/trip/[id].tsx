@@ -18,8 +18,10 @@ import {
   approximateArrivalTime,
   formatTripTime,
   type Trip,
+  type TripDetailMeta,
 } from "@/data/trips";
 import { getTrip } from "@/lib/trips";
+import { shareTripSummary } from "@/lib/share";
 import { useColors } from "@/hooks/useColors";
 import { CARD_SHADOW } from "@/constants/colors";
 
@@ -29,6 +31,7 @@ export default function TripDetails() {
   const { id } = useLocalSearchParams<{ id: string }>();
 
   const [trip, setTrip] = useState<Trip | null>(null);
+  const [meta, setMeta] = useState<TripDetailMeta | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -39,7 +42,10 @@ export default function TripDetails() {
     setError(null);
     getTrip(id)
       .then((data) => {
-        if (!cancelled) setTrip(data.trip);
+        if (!cancelled) {
+          setTrip(data.trip);
+          setMeta(data.meta);
+        }
       })
       .catch((err: Error) => {
         if (!cancelled) setError(err.message ?? "Couldn't load trip");
@@ -99,7 +105,21 @@ export default function TripDetails() {
         <Text style={[styles.headerTitle, { color: colors.foreground }]}>Adventure Details</Text>
         <TouchableOpacity
           style={styles.headerBtn}
-          onPress={() => Alert.alert("Share", "Sharing trip details...")}
+          onPress={async () => {
+            if (!trip) return;
+            try {
+              await shareTripSummary({
+                fromCity: trip.fromCity,
+                toCity: trip.toCity,
+                departureAt: trip.departureAt,
+                pricePerSeat: trip.pricePerSeat,
+                driverName: trip.driver.name,
+              });
+            } catch (e: any) {
+              if (String(e?.message ?? "").toLowerCase().includes("dismiss")) return;
+              Alert.alert("Couldn't share", e?.message ?? "Please try again.");
+            }
+          }}
         >
           <Feather name="share-2" size={20} color={colors.foreground} />
         </TouchableOpacity>
@@ -125,7 +145,30 @@ export default function TripDetails() {
           </View>
           <TouchableOpacity
             style={[styles.msgBtn, { backgroundColor: colors.secondary }]}
-            onPress={() => router.push({ pathname: "/chat/[id]", params: { id: "c1" } })}
+            onPress={() => {
+              if (meta?.viewerGroupId) {
+                router.push({
+                  pathname: "/group/[id]",
+                  params: { id: meta.viewerGroupId },
+                });
+                return;
+              }
+              Alert.alert(
+                "Book to chat privately",
+                "Pay for your seat first. After booking, you and the Voyager will be added to a private Adventure group.",
+                [
+                  { text: "Not now", style: "cancel" },
+                  {
+                    text: "Continue to payment",
+                    onPress: () =>
+                      router.push({
+                        pathname: "/payment",
+                        params: { tripId: trip.id },
+                      }),
+                  },
+                ],
+              );
+            }}
           >
             <Feather name="message-circle" size={18} color={colors.primary} />
           </TouchableOpacity>

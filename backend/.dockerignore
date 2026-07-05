@@ -1,0 +1,43 @@
+# Dependencies — the image installs its own inside Docker
+node_modules
+
+# TypeScript compiled output from host machine (Docker re-compiles clean)
+dist
+
+# Local environment files — secrets must never enter the image layer
+.env
+.env.*
+!.env.example
+
+# Test artifacts
+coverage
+test
+**/*.spec.ts
+**/*.e2e-spec.ts
+
+# Dev tooling
+.eslintrc*
+.prettierrc*
+eslint.config*
+jest.config*
+
+# Documentation
+*.md
+
+# Version control
+.git
+.gitignore
+
+# Editor / OS
+.cursor
+.idea
+.vscode
+*.DS_Store
+Thumbs.db
+
+# Local upload storage (should be on S3 in production)
+uploads
+
+# CI scripts not needed at runtime
+scripts
+supabase

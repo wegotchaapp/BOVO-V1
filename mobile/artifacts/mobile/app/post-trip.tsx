@@ -3,6 +3,7 @@ import { useRouter } from "expo-router";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   Alert,
+  Keyboard,
   KeyboardAvoidingView,
   Modal,
   Platform,
@@ -379,6 +380,7 @@ export default function PostTrip() {
     luggage <= MAX_LUGGAGE;
 
   async function handlePost() {
+    Keyboard.dismiss();
     setTouched(true);
     if (!isValid) return;
     setSubmitting(true);
@@ -474,6 +476,7 @@ export default function PostTrip() {
           contentContainerStyle={styles.scroll}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="on-drag"
         >
           {/* IRS notice */}
           <View style={[styles.notice, { backgroundColor: colors.secondary }]}>

@@ -1,8 +1,11 @@
 import { Feather } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
+  ActivityIndicator,
   Alert,
+  Keyboard,
+  KeyboardAvoidingView,
   Platform,
   SafeAreaView,
   ScrollView,
@@ -15,6 +18,8 @@ import {
 
 import { CARD_SHADOW } from "@/constants/colors";
 import { useColors } from "@/hooks/useColors";
+import { getBooking, type Booking } from "@/lib/bookings";
+import { getRatingStatus, submitRating } from "@/lib/ratings";
 
 const TAGS = [
   { id: "clean", label: "Clean Car", icon: "star" },
@@ -32,31 +37,94 @@ export default function RateTrip() {
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
 
+  const [booking, setBooking] = useState<Booking | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [alreadyRated, setAlreadyRated] = useState(false);
   const [rating, setRating] = useState(0);
   const [hovered, setHovered] = useState(0);
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [review, setReview] = useState("");
   const [submitted, setSubmitted] = useState(false);
+  const [saving, setSaving] = useState(false);
 
-  function toggleTag(id: string) {
-    setSelectedTags((prev) => prev.includes(id) ? prev.filter((t) => t !== id) : [...prev, id]);
+  useEffect(() => {
+    if (!id) {
+      setLoading(false);
+      return;
+    }
+    let cancelled = false;
+    Promise.all([getBooking(id), getRatingStatus(id)])
+      .then(([b, status]) => {
+        if (cancelled) return;
+        setBooking(b);
+        setAlreadyRated(status.rated);
+        if (status.rated) setSubmitted(true);
+      })
+      .catch((e: any) => {
+        if (!cancelled) {
+          Alert.alert("Couldn't load adventure", e?.message ?? "Please try again.");
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [id]);
+
+  function toggleTag(tagId: string) {
+    setSelectedTags((prev) =>
+      prev.includes(tagId) ? prev.filter((t) => t !== tagId) : [...prev, tagId],
+    );
   }
 
-  function handleSubmit() {
+  async function handleSubmit() {
+    Keyboard.dismiss();
+    if (!id || !booking) return;
     if (rating === 0) {
       Alert.alert("Rate Your Adventure", "Please select a star rating first.");
       return;
     }
-    setSubmitted(true);
-    setTimeout(() => {
+    if (alreadyRated || submitted) return;
+    setSaving(true);
+    try {
+      await submitRating({
+        bookingId: id,
+        score: rating,
+        comment: review.trim() || undefined,
+        tags: selectedTags,
+      });
+      setSubmitted(true);
+      setAlreadyRated(true);
       Alert.alert("Thank You!", "Your review helps build trust in the Bovogo community.", [
         { text: "Done", onPress: () => router.replace("/(tabs)/trips") },
       ]);
-    }, 600);
+    } catch (e: any) {
+      Alert.alert("Couldn't submit", e?.message ?? "Please try again.");
+    } finally {
+      setSaving(false);
+    }
   }
 
   const displayRating = hovered || rating;
   const ratingLabels = ["", "Poor", "Fair", "Good", "Great", "Amazing!"];
+  const driverName = booking?.trip.driverName ?? "Voyager";
+  const initials = driverName
+    .split(" ")
+    .map((p) => p[0])
+    .join("")
+    .slice(0, 2)
+    .toUpperCase();
+  const routeLabel = booking
+    ? `${booking.trip.fromCity.replace(/, TX$/i, "")} → ${booking.trip.toCity.replace(/, TX$/i, "")}`
+    : "";
+  const dateLabel = booking
+    ? new Date(booking.trip.departureAt).toLocaleDateString("en-US", {
+        month: "short",
+        day: "numeric",
+      })
+    : "";
 
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: colors.background }]}>
@@ -68,18 +136,27 @@ export default function RateTrip() {
         <View style={{ width: 40 }} />
       </View>
 
-      <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
+      {loading ? (
+        <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
+          <ActivityIndicator color={colors.primary} />
+        </View>
+      ) : (
+      <ScrollView
+        contentContainerStyle={styles.scroll}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="on-drag"
+      >
         <View style={[styles.driverCard, CARD_SHADOW]}>
           <View style={[styles.avatar, { backgroundColor: colors.secondary }]}>
-            <Text style={[styles.avatarText, { color: colors.primary }]}>JD</Text>
+            <Text style={[styles.avatarText, { color: colors.primary }]}>{initials}</Text>
           </View>
           <View style={styles.driverInfo}>
-            <Text style={[styles.driverName, { color: colors.foreground }]}>John D.</Text>
-            <Text style={[styles.tripInfo, { color: colors.mutedForeground }]}>Dallas → Austin · May 24</Text>
-          </View>
-          <View style={[styles.prevRating, { backgroundColor: colors.secondary }]}>
-            <Feather name="star" size={12} color={colors.primary} />
-            <Text style={[styles.prevRatingText, { color: colors.primary }]}>4.8</Text>
+            <Text style={[styles.driverName, { color: colors.foreground }]}>{driverName}</Text>
+            <Text style={[styles.tripInfo, { color: colors.mutedForeground }]}>
+              {routeLabel}{dateLabel ? ` · ${dateLabel}` : ""}
+            </Text>
           </View>
         </View>
 
@@ -152,20 +229,24 @@ export default function RateTrip() {
         <TouchableOpacity
           style={[
             styles.submitBtn,
-            { backgroundColor: submitted ? colors.success : colors.primary },
+            { backgroundColor: submitted ? "#059669" : colors.primary, opacity: saving ? 0.7 : 1 },
           ]}
           onPress={handleSubmit}
           activeOpacity={0.88}
-          disabled={submitted}
+          disabled={submitted || saving || alreadyRated}
         >
           <Feather name={submitted ? "check" : "send"} size={18} color="#fff" />
-          <Text style={styles.submitBtnText}>{submitted ? "Submitted!" : "Submit Review"}</Text>
+          <Text style={styles.submitBtnText}>
+            {submitted || alreadyRated ? "Submitted!" : saving ? "Submitting..." : "Submit Review"}
+          </Text>
         </TouchableOpacity>
 
         <TouchableOpacity onPress={() => router.replace("/(tabs)/trips")} style={styles.skipBtn}>
           <Text style={[styles.skipText, { color: colors.mutedForeground }]}>Skip for now</Text>
         </TouchableOpacity>
       </ScrollView>
+      )}
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }

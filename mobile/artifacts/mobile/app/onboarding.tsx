@@ -1,10 +1,15 @@
 import { Feather } from "@expo/vector-icons";
+import * as ImagePicker from "expo-image-picker";
 import { useRouter } from "expo-router";
 import React, { useState } from "react";
 import {
   Alert,
+  Image,
+  Keyboard,
+  KeyboardAvoidingView,
   Platform,
   SafeAreaView,
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -23,9 +28,10 @@ const STEPS = ["Photo", "Name", "Bio", "Languages", "Emergency", "Role"];
 export default function Onboarding() {
   const colors = useColors();
   const router = useRouter();
-  const { setRole, completeOnboarding } = useAuth();
+  const { completeOnboarding } = useAuth();
 
   const [step, setStep] = useState(0);
+  const [photoUrl, setPhotoUrl] = useState<string | null>(null);
   const [displayName, setDisplayName] = useState("");
   const [bio, setBio] = useState("");
   const [languages, setLanguages] = useState<string[]>(["English"]);
@@ -33,6 +39,36 @@ export default function Onboarding() {
   const [emergencyPhone, setEmergencyPhone] = useState("");
   const [selected, setSelected] = useState<UserRole>(null);
   const [loading, setLoading] = useState(false);
+
+  async function pickPhoto() {
+    try {
+      const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (!perm.granted) {
+        Alert.alert(
+          "Permission needed",
+          "Allow photo library access to set your profile picture.",
+        );
+        return;
+      }
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ["images"],
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.45,
+        base64: true,
+      });
+      if (result.canceled || !result.assets?.[0]) return;
+      const asset = result.assets[0];
+      const mime = asset.mimeType ?? "image/jpeg";
+      if (asset.base64) {
+        setPhotoUrl(`data:${mime};base64,${asset.base64}`);
+      } else if (asset.uri) {
+        setPhotoUrl(asset.uri);
+      }
+    } catch (e: any) {
+      Alert.alert("Couldn't add photo", e?.message ?? "Please try again.");
+    }
+  }
 
   function toggleLanguage(lang: string) {
     setLanguages((prev) =>
@@ -48,15 +84,31 @@ export default function Onboarding() {
   }
 
   async function advance() {
+    Keyboard.dismiss();
     if (step < STEPS.length - 1) {
       setStep(step + 1);
     } else {
       if (!selected) return;
       setLoading(true);
-      await setRole(selected);
-      await completeOnboarding();
-      setLoading(false);
-      router.replace("/(tabs)");
+      try {
+        await completeOnboarding({
+          name: displayName.trim(),
+          bio: bio.trim(),
+          languages,
+          emergencyName: emergencyName.trim(),
+          emergencyPhone: emergencyPhone.trim(),
+          photoUrl,
+          role: selected,
+        });
+        router.replace("/(tabs)");
+      } catch (e: any) {
+        Alert.alert(
+          "Couldn't finish setup",
+          e?.message ?? "Please try again.",
+        );
+      } finally {
+        setLoading(false);
+      }
     }
   }
 
@@ -80,7 +132,14 @@ export default function Onboarding() {
         </Text>
       </View>
 
-      <View style={styles.content}>
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
+      <ScrollView
+        style={styles.content}
+        contentContainerStyle={{ flexGrow: 1, paddingBottom: 16 }}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="on-drag"
+        showsVerticalScrollIndicator={false}
+      >
         {step === 0 && (
           <View style={styles.stepContainer}>
             <Text style={[styles.stepTitle, { color: colors.foreground }]}>Add Your Photo</Text>
@@ -89,12 +148,23 @@ export default function Onboarding() {
             </Text>
             <TouchableOpacity
               style={[styles.avatarUpload, { backgroundColor: colors.secondary, borderColor: colors.border }]}
-              onPress={() => Alert.alert("Photo Upload", "Camera access will be available at launch.")}
+              onPress={pickPhoto}
               activeOpacity={0.8}
             >
-              <Feather name="camera" size={36} color={colors.primary} />
-              <Text style={[styles.uploadText, { color: colors.primary }]}>Tap to add photo</Text>
+              {photoUrl ? (
+                <Image source={{ uri: photoUrl }} style={styles.avatarImage} />
+              ) : (
+                <>
+                  <Feather name="camera" size={36} color={colors.primary} />
+                  <Text style={[styles.uploadText, { color: colors.primary }]}>Tap to add photo</Text>
+                </>
+              )}
             </TouchableOpacity>
+            {photoUrl ? (
+              <TouchableOpacity style={styles.skipLink} onPress={() => setPhotoUrl(null)}>
+                <Text style={[styles.skipLinkText, { color: colors.mutedForeground }]}>Remove photo</Text>
+              </TouchableOpacity>
+            ) : null}
             <TouchableOpacity
               style={[styles.skipLink]}
               onPress={() => setStep(step + 1)}
@@ -118,6 +188,8 @@ export default function Onboarding() {
               onChangeText={setDisplayName}
               autoFocus
               maxLength={40}
+              returnKeyType="done"
+              onSubmitEditing={advance}
             />
           </View>
         )}
@@ -253,7 +325,7 @@ export default function Onboarding() {
             </View>
           </View>
         )}
-      </View>
+      </ScrollView>
 
       <View style={[styles.footer, { borderTopColor: colors.border }]}>
         <TouchableOpacity
@@ -271,6 +343,7 @@ export default function Onboarding() {
           {!loading && <Feather name="arrow-right" size={18} color={canAdvance() ? "#fff" : colors.mutedForeground} />}
         </TouchableOpacity>
       </View>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
@@ -303,6 +376,12 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderStyle: "dashed",
     marginTop: 20,
+    overflow: "hidden",
+  },
+  avatarImage: {
+    width: 160,
+    height: 160,
+    borderRadius: 80,
   },
   uploadText: { fontSize: 14, fontFamily: "Inter_600SemiBold" },
   textInput: {

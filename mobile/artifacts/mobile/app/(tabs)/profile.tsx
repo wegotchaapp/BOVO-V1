@@ -1,8 +1,10 @@
 import { Feather } from "@expo/vector-icons";
+import * as ImagePicker from "expo-image-picker";
 import { useRouter } from "expo-router";
-import React from "react";
+import React, { useState } from "react";
 import {
   Alert,
+  Image,
   Platform,
   ScrollView,
   StyleSheet,
@@ -15,6 +17,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "@/context/AuthContext";
 import { useColors } from "@/hooks/useColors";
 import { CARD_SHADOW } from "@/constants/colors";
+import { openSupportConversation } from "@/lib/conversations";
 
 interface MenuItem {
   icon: string;
@@ -44,7 +47,48 @@ export default function ProfileTab() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { user, logout, deleteAccount, deletionScheduledAt } = useAuth();
+  const {
+    user,
+    logout,
+    deleteAccount,
+    cancelAccountDeletion,
+    deletionScheduledAt,
+    patchMe,
+  } = useAuth();
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
+
+  async function handleEditPhoto() {
+    try {
+      const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (!perm.granted) {
+        Alert.alert(
+          "Permission needed",
+          "Allow photo library access to update your profile picture.",
+        );
+        return;
+      }
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ["images"],
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.45,
+        base64: true,
+      });
+      if (result.canceled || !result.assets?.[0]) return;
+      const asset = result.assets[0];
+      const mime = asset.mimeType ?? "image/jpeg";
+      const photoUrl = asset.base64
+        ? `data:${mime};base64,${asset.base64}`
+        : asset.uri;
+      setUploadingPhoto(true);
+      await patchMe({ photoUrl });
+      Alert.alert("Photo updated", "Your profile photo has been saved.");
+    } catch (e: any) {
+      Alert.alert("Couldn't update photo", e?.message ?? "Please try again.");
+    } finally {
+      setUploadingPhoto(false);
+    }
+  }
 
   const initials = user?.name
     ? user.name.split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase()
@@ -57,8 +101,16 @@ export default function ProfileTab() {
       title: "Account",
       items: [
         { icon: "map", label: "My Adventures", sublabel: `${user?.trips ?? 0} trips`, route: "/(tabs)/trips" },
-        { icon: "sliders", label: "Travel Preferences", sublabel: "10 preferences set", route: "/preferences" },
-        { icon: "bell", label: "Notifications", sublabel: "Manage alerts", action: () => Alert.alert("Notifications", "Notification settings coming soon.") },
+        {
+          icon: "sliders",
+          label: "Travel Preferences",
+          sublabel:
+            user?.preferencesCount && user.preferencesCount > 0
+              ? `${user.preferencesCount} of 10 set`
+              : "Set your ride preferences",
+          route: "/preferences",
+        },
+        { icon: "bell", label: "Notifications", sublabel: "Manage alerts", route: "/notifications" },
       ],
     },
     ...(isDriver
@@ -83,9 +135,31 @@ export default function ProfileTab() {
     {
       title: "Support",
       items: [
-        { icon: "help-circle", label: "Help & Support", action: () => router.push({ pathname: "/chat/[id]", params: { id: "c4" } }) },
-        { icon: "file-text", label: "Privacy & Data", action: () => Alert.alert("Privacy", "Data export and deletion requests can be submitted through support.") },
-        { icon: "settings", label: "Settings", action: () => Alert.alert("Settings", "Coming soon.") },
+        {
+          icon: "help-circle",
+          label: "Help & Support",
+          action: async () => {
+            try {
+              const conv = await openSupportConversation();
+              router.push({ pathname: "/chat/[id]", params: { id: conv.id } });
+            } catch (e: any) {
+              Alert.alert(
+                "Support unavailable",
+                e?.message ?? "Please try again in a moment.",
+              );
+            }
+          },
+        },
+        {
+          icon: "file-text",
+          label: "Privacy & Data",
+          action: () =>
+            Alert.alert(
+              "Privacy & Data",
+              "You can schedule account deletion below (7-day grace period). For a data export, message Bovogo Support from Help & Support.",
+            ),
+        },
+        { icon: "settings", label: "Settings", route: "/settings" },
       ],
     },
   ];
@@ -165,8 +239,23 @@ export default function ProfileTab() {
             <Text style={[styles.deletionBannerSub, { color: "#7F1D1D" }]}>
               Your account will be permanently deleted on{" "}
               {deletionDate.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}.
-              Contact support to cancel.
+              You can cancel in Settings.
             </Text>
+            <TouchableOpacity
+              onPress={async () => {
+                try {
+                  await cancelAccountDeletion();
+                  Alert.alert("Deletion cancelled", "Your account will remain active.");
+                } catch (e: any) {
+                  Alert.alert("Couldn't cancel", e?.message ?? "Please try again.");
+                }
+              }}
+              style={{ marginTop: 8 }}
+            >
+              <Text style={{ color: "#DC2626", fontFamily: "Inter_600SemiBold", fontSize: 13 }}>
+                Cancel deletion
+              </Text>
+            </TouchableOpacity>
           </View>
         </View>
       )}
@@ -174,10 +263,15 @@ export default function ProfileTab() {
       <View style={[styles.profileCard, CARD_SHADOW]}>
         <TouchableOpacity
           style={[styles.avatarWrap, { backgroundColor: colors.secondary }]}
-          onPress={() => Alert.alert("Edit Photo", "Photo upload available at launch.")}
+          onPress={handleEditPhoto}
           activeOpacity={0.85}
+          disabled={uploadingPhoto}
         >
-          <Text style={[styles.avatarText, { color: colors.primary }]}>{initials}</Text>
+          {user?.photoUrl ? (
+            <Image source={{ uri: user.photoUrl }} style={styles.avatarImage} />
+          ) : (
+            <Text style={[styles.avatarText, { color: colors.primary }]}>{initials}</Text>
+          )}
           {user?.isFoundingMember && (
             <View style={styles.crownOverlay}>
               <Feather name="award" size={16} color="#C4954A" />
@@ -415,6 +509,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
+  avatarImage: { width: 80, height: 80, borderRadius: 40 },
   avatarText: { fontSize: 28, fontFamily: "Inter_700Bold" },
   crownOverlay: {
     position: "absolute",

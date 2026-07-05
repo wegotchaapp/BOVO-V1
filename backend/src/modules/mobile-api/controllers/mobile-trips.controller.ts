@@ -36,8 +36,8 @@ export class MobileTripsController {
   }
 
   @Get(':id')
-  getOne(@Param('id') id: string) {
-    return this.trips.getOne(id);
+  getOne(@MobileAuthUser() user: MobileUser, @Param('id') id: string) {
+    return this.trips.getOne(id, user.id);
   }
 
   @Post()

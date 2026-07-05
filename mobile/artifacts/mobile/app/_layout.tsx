@@ -80,6 +80,8 @@ function RootLayoutNav() {
         <Stack.Screen name="vehicle" options={{ headerShown: false }} />
         <Stack.Screen name="safety-unsafe" options={{ headerShown: false }} />
         <Stack.Screen name="rate-trip/[id]" options={{ headerShown: false }} />
+        <Stack.Screen name="settings" options={{ headerShown: false }} />
+        <Stack.Screen name="notifications" options={{ headerShown: false }} />
         <Stack.Screen
           name="subscribe"
           options={{ headerShown: false, presentation: "modal" }}

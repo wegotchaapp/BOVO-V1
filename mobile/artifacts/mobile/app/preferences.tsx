@@ -1,7 +1,9 @@
 import { Feather } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
+  ActivityIndicator,
+  Alert,
   Platform,
   SafeAreaView,
   ScrollView,
@@ -17,7 +19,9 @@ import Animated, {
   withTiming,
 } from "react-native-reanimated";
 
+import { useAuth } from "@/context/AuthContext";
 import { useColors } from "@/hooks/useColors";
+import { getMyPreferences, saveMyPreferences } from "@/lib/preferences";
 
 interface Question {
   id: string;
@@ -136,10 +140,31 @@ const QUESTIONS: Question[] = [
 export default function Preferences() {
   const colors = useColors();
   const router = useRouter();
+  const { refreshMe } = useAuth();
   const { tripId } = useLocalSearchParams<{ tripId?: string }>();
   const [step, setStep] = useState(0);
   const [answers, setAnswers] = useState<Record<string, string>>({});
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
   const progress = useSharedValue(1 / QUESTIONS.length);
+
+  useEffect(() => {
+    let cancelled = false;
+    getMyPreferences()
+      .then((data) => {
+        if (cancelled) return;
+        if (data.preferences && Object.keys(data.preferences).length > 0) {
+          setAnswers(data.preferences);
+        }
+      })
+      .catch(() => undefined)
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const q = QUESTIONS[step];
   const total = QUESTIONS.length;
@@ -152,14 +177,23 @@ export default function Preferences() {
     setAnswers((prev) => ({ ...prev, [q.id]: option }));
   }
 
-  function next() {
-    if (!answers[q.id]) return;
+  async function next() {
+    if (!answers[q.id] || saving) return;
     if (step < total - 1) {
       const nextStep = step + 1;
       setStep(nextStep);
       progress.value = withTiming((nextStep + 1) / total, { duration: 300 });
-    } else {
+      return;
+    }
+    setSaving(true);
+    try {
+      await saveMyPreferences(answers);
+      await refreshMe();
       router.push({ pathname: "/matching", params: tripId ? { tripId } : {} });
+    } catch (e: any) {
+      Alert.alert("Couldn't save preferences", e?.message ?? "Please try again.");
+    } finally {
+      setSaving(false);
     }
   }
 
@@ -171,6 +205,14 @@ export default function Preferences() {
     } else {
       router.back();
     }
+  }
+
+  if (loading) {
+    return (
+      <SafeAreaView style={[styles.safe, { backgroundColor: colors.background, alignItems: "center", justifyContent: "center" }]}>
+        <ActivityIndicator color={colors.primary} />
+      </SafeAreaView>
+    );
   }
 
   return (
@@ -257,7 +299,7 @@ export default function Preferences() {
             },
           ]}
           onPress={next}
-          disabled={!answers[q.id]}
+          disabled={!answers[q.id] || saving}
           activeOpacity={0.88}
         >
           <Text
@@ -266,7 +308,11 @@ export default function Preferences() {
               { color: answers[q.id] ? "#fff" : colors.mutedForeground },
             ]}
           >
-            {step < total - 1 ? "Continue" : "Find Matches"}
+            {saving
+              ? "Saving..."
+              : step < total - 1
+                ? "Continue"
+                : "Save & Find Matches"}
           </Text>
           <Feather
             name="arrow-right"

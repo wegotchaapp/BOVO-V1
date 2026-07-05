@@ -1,12 +1,14 @@
 import { Feather } from "@expo/vector-icons";
 import { useFocusEffect, useRouter } from "expo-router";
-import React, { useCallback, useState } from "react";
+import React, { useCallback, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Platform,
+  RefreshControl,
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
@@ -14,20 +16,38 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useColors } from "@/hooks/useColors";
 import { CARD_SHADOW } from "@/constants/colors";
-import { MOCK_CONVERSATIONS, type Conversation } from "@/data/messages";
+import {
+  listMyConversations,
+  type Conversation,
+} from "@/lib/conversations";
 import { listMyGroups, type TripGroupSummary } from "@/lib/groups";
 
 function Avatar({ name, size = 50 }: { name: string; size?: number }) {
   const colors = useColors();
-  const initials = name.split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase();
+  const initials = name
+    .split(" ")
+    .map((n) => n[0])
+    .join("")
+    .slice(0, 2)
+    .toUpperCase();
   return (
     <View
       style={[
         styles.avatar,
-        { width: size, height: size, borderRadius: size / 2, backgroundColor: colors.secondary },
+        {
+          width: size,
+          height: size,
+          borderRadius: size / 2,
+          backgroundColor: colors.secondary,
+        },
       ]}
     >
-      <Text style={[styles.avatarText, { color: colors.primary, fontSize: size * 0.34 }]}>
+      <Text
+        style={[
+          styles.avatarText,
+          { color: colors.primary, fontSize: size * 0.34 },
+        ]}
+      >
         {initials}
       </Text>
     </View>
@@ -46,7 +66,6 @@ function GroupCard({
   onPress: () => void;
 }) {
   const colors = useColors();
-  // Avatar stack: 3 colored circles is plenty of signal without n-queries.
   const avatarColors = [colors.primary, colors.accent, "#1A7A4A"];
   return (
     <TouchableOpacity
@@ -90,7 +109,12 @@ function GroupCard({
         <Text style={[styles.memberCount, { color: colors.mutedForeground }]}>
           {group.memberCount} member{group.memberCount === 1 ? "" : "s"}
         </Text>
-        <Feather name="chevron-right" size={16} color={colors.mutedForeground} style={{ marginLeft: "auto" }} />
+        <Feather
+          name="chevron-right"
+          size={16}
+          color={colors.mutedForeground}
+          style={{ marginLeft: "auto" }}
+        />
       </View>
     </TouchableOpacity>
   );
@@ -102,40 +126,91 @@ export default function MessagesTab() {
   const router = useRouter();
 
   const [groups, setGroups] = useState<TripGroupSummary[]>([]);
+  const [conversations, setConversations] = useState<Conversation[]>([]);
   const [groupsLoading, setGroupsLoading] = useState(true);
+  const [convLoading, setConvLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [query, setQuery] = useState("");
+
+  const loadAll = useCallback(async (opts?: { silent?: boolean }) => {
+    if (!opts?.silent) {
+      setGroupsLoading(true);
+      setConvLoading(true);
+    }
+    const [gRes, cRes] = await Promise.allSettled([
+      listMyGroups(),
+      listMyConversations(),
+    ]);
+    if (gRes.status === "fulfilled") setGroups(gRes.value);
+    if (cRes.status === "fulfilled") setConversations(cRes.value);
+    if (!opts?.silent) {
+      setGroupsLoading(false);
+      setConvLoading(false);
+    }
+  }, []);
 
   useFocusEffect(
     useCallback(() => {
       let cancelled = false;
       setGroupsLoading(true);
-      listMyGroups()
-        .then((g) => {
-          if (!cancelled) setGroups(g);
-        })
-        .catch(() => {
-          // Silent — Adventure Groups section just stays empty. Direct messages
-          // section below is unaffected.
-        })
-        .finally(() => {
-          if (!cancelled) setGroupsLoading(false);
-        });
+      setConvLoading(true);
+      Promise.allSettled([listMyGroups(), listMyConversations()]).then(
+        ([gRes, cRes]) => {
+          if (cancelled) return;
+          if (gRes.status === "fulfilled") setGroups(gRes.value);
+          if (cRes.status === "fulfilled") setConversations(cRes.value);
+          setGroupsLoading(false);
+          setConvLoading(false);
+        },
+      );
       return () => {
         cancelled = true;
       };
     }, []),
   );
 
+  async function onRefresh() {
+    setRefreshing(true);
+    await loadAll({ silent: true });
+    setRefreshing(false);
+  }
+
+  const q = query.trim().toLowerCase();
+  const filteredGroups = useMemo(() => {
+    if (!q) return groups;
+    return groups.filter((g) => {
+      const route = `${g.fromCity} ${g.toCity}`.toLowerCase();
+      const latest = (g.latestMessage ?? "").toLowerCase();
+      return route.includes(q) || latest.includes(q);
+    });
+  }, [groups, q]);
+
+  const filteredConversations = useMemo(() => {
+    if (!q) return conversations;
+    return conversations.filter((c) => {
+      return (
+        c.userName.toLowerCase().includes(q) ||
+        (c.lastMessage ?? "").toLowerCase().includes(q) ||
+        (c.tripRoute ?? "").toLowerCase().includes(q)
+      );
+    });
+  }, [conversations, q]);
+
   function renderConversation(item: Conversation) {
     return (
       <TouchableOpacity
         key={item.id}
         style={[styles.item, { borderBottomColor: colors.border }]}
-        onPress={() => router.push({ pathname: "/chat/[id]", params: { id: item.id } })}
+        onPress={() =>
+          router.push({ pathname: "/chat/[id]", params: { id: item.id } })
+        }
         activeOpacity={0.75}
       >
         <View style={styles.avatarWrap}>
           <Avatar name={item.userName} />
-          {item.unread && <View style={[styles.unreadDot, { backgroundColor: colors.primary }]} />}
+          {item.unread && (
+            <View style={[styles.unreadDot, { backgroundColor: colors.primary }]} />
+          )}
         </View>
         <View style={styles.content}>
           <View style={styles.topRow}>
@@ -148,23 +223,29 @@ export default function MessagesTab() {
             >
               {item.userName}
             </Text>
-            <Text style={[styles.time, { color: colors.mutedForeground }]}>{item.time}</Text>
+            <Text style={[styles.time, { color: colors.mutedForeground }]}>
+              {item.time}
+            </Text>
           </View>
-          {item.tripRoute && (
+          {item.tripRoute ? (
             <View style={styles.routeRow}>
               <Feather name="map-pin" size={10} color={colors.primary} />
-              <Text style={[styles.routeTextSmall, { color: colors.primary }]}>{item.tripRoute}</Text>
+              <Text style={[styles.routeTextSmall, { color: colors.primary }]}>
+                {item.tripRoute}
+              </Text>
             </View>
-          )}
+          ) : null}
           <Text
             style={[
               styles.lastMsg,
-              { color: item.unread ? colors.foreground : colors.mutedForeground },
+              {
+                color: item.unread ? colors.foreground : colors.mutedForeground,
+              },
               item.unread && { fontFamily: "Inter_500Medium" },
             ]}
             numberOfLines={1}
           >
-            {item.lastMessage}
+            {item.lastMessage || "No messages yet"}
           </Text>
         </View>
       </TouchableOpacity>
@@ -180,71 +261,108 @@ export default function MessagesTab() {
         ]}
       >
         <Text style={[styles.heading, { color: colors.foreground }]}>Messages</Text>
-        <View style={[styles.searchBar, { backgroundColor: colors.card, borderColor: colors.border }]}>
+        <View
+          style={[
+            styles.searchBar,
+            { backgroundColor: colors.card, borderColor: colors.border },
+          ]}
+        >
           <Feather name="search" size={16} color={colors.mutedForeground} />
-          <Text style={[styles.searchPlaceholder, { color: colors.mutedForeground }]}>
-            Search conversations
-          </Text>
+          <TextInput
+            style={[styles.searchInput, { color: colors.foreground }]}
+            placeholder="Search conversations"
+            placeholderTextColor={colors.mutedForeground}
+            value={query}
+            onChangeText={setQuery}
+            autoCapitalize="none"
+            autoCorrect={false}
+            clearButtonMode="while-editing"
+          />
+          {query.length > 0 && Platform.OS !== "ios" ? (
+            <TouchableOpacity onPress={() => setQuery("")}>
+              <Feather name="x" size={16} color={colors.mutedForeground} />
+            </TouchableOpacity>
+          ) : null}
         </View>
       </View>
 
       <ScrollView
         contentContainerStyle={{ paddingBottom: insets.bottom + 110 }}
         showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="on-drag"
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor={colors.primary}
+          />
+        }
       >
-        {/* ── Adventure Groups ──────────────────────────────────────────────────── */}
         <View style={styles.sectionHeader}>
-          <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Adventure Groups</Text>
-          <View style={[styles.newBadge, { backgroundColor: colors.secondary }]}>
-            <Text style={[styles.newBadgeText, { color: colors.primary }]}>NEW</Text>
-          </View>
+          <Text style={[styles.sectionTitle, { color: colors.foreground }]}>
+            Adventure Groups
+          </Text>
         </View>
 
         {groupsLoading ? (
           <View style={styles.groupsLoading}>
             <ActivityIndicator size="small" color={colors.primary} />
           </View>
-        ) : groups.length === 0 ? (
+        ) : filteredGroups.length === 0 ? (
           <View style={[styles.emptyGroups, { backgroundColor: colors.muted }]}>
             <Feather name="users" size={20} color={colors.mutedForeground} />
             <View style={{ flex: 1 }}>
               <Text style={[styles.emptyGroupsTitle, { color: colors.foreground }]}>
-                No trip groups yet
+                {q ? "No matching groups" : "No trip groups yet"}
               </Text>
               <Text style={[styles.emptyGroupsSub, { color: colors.mutedForeground }]}>
-                When all seats on a trip are booked, your group chat appears here.
+                {q
+                  ? "Try a different search."
+                  : "After you book a seat, your private Adventure group chat appears here."}
               </Text>
             </View>
           </View>
         ) : (
           <View style={styles.groupsList}>
-            {groups.map((g) => (
+            {filteredGroups.map((g) => (
               <GroupCard
                 key={g.id}
                 group={g}
-                onPress={() => router.push({ pathname: "/group/[id]", params: { id: g.id } })}
+                onPress={() =>
+                  router.push({ pathname: "/group/[id]", params: { id: g.id } })
+                }
               />
             ))}
           </View>
         )}
 
-        {/* ── Direct messages ──────────────────────────────────────────────── */}
         <View style={[styles.sectionHeader, { marginTop: 18 }]}>
-          <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Direct messages</Text>
+          <Text style={[styles.sectionTitle, { color: colors.foreground }]}>
+            Direct messages
+          </Text>
         </View>
 
-        {MOCK_CONVERSATIONS.length === 0 ? (
+        {convLoading ? (
+          <View style={styles.groupsLoading}>
+            <ActivityIndicator size="small" color={colors.primary} />
+          </View>
+        ) : filteredConversations.length === 0 ? (
           <View style={styles.empty}>
             <View style={[styles.emptyIcon, { backgroundColor: colors.secondary }]}>
               <Feather name="message-circle" size={32} color={colors.primary} />
             </View>
-            <Text style={[styles.emptyTitle, { color: colors.foreground }]}>No messages yet</Text>
+            <Text style={[styles.emptyTitle, { color: colors.foreground }]}>
+              {q ? "No matching messages" : "No messages yet"}
+            </Text>
             <Text style={[styles.emptySub, { color: colors.mutedForeground }]}>
-              Messages with drivers and riders will appear here
+              {q
+                ? "Try a different name or keyword."
+                : "When you book an adventure, a chat with your Voyager appears here."}
             </Text>
           </View>
         ) : (
-          MOCK_CONVERSATIONS.map(renderConversation)
+          filteredConversations.map(renderConversation)
         )}
       </ScrollView>
     </View>
@@ -260,11 +378,11 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 10,
     paddingHorizontal: 14,
-    paddingVertical: 12,
+    paddingVertical: Platform.OS === "ios" ? 10 : 4,
     borderRadius: 14,
     borderWidth: 1.5,
   },
-  searchPlaceholder: { fontSize: 14, fontFamily: "Inter_400Regular" },
+  searchInput: { flex: 1, fontSize: 14, fontFamily: "Inter_400Regular", paddingVertical: 6 },
   sectionHeader: {
     flexDirection: "row",
     alignItems: "center",
@@ -274,8 +392,6 @@ const styles = StyleSheet.create({
     paddingBottom: 10,
   },
   sectionTitle: { fontSize: 17, fontFamily: "Inter_700Bold", letterSpacing: -0.3 },
-  newBadge: { paddingHorizontal: 7, paddingVertical: 2, borderRadius: 6 },
-  newBadgeText: { fontSize: 10, fontFamily: "Inter_700Bold", letterSpacing: 0.6 },
   groupsLoading: { paddingVertical: 20, alignItems: "center" },
   emptyGroups: {
     marginHorizontal: 22,
@@ -286,7 +402,12 @@ const styles = StyleSheet.create({
     borderRadius: 14,
   },
   emptyGroupsTitle: { fontSize: 14, fontFamily: "Inter_600SemiBold" },
-  emptyGroupsSub: { fontSize: 12, fontFamily: "Inter_400Regular", marginTop: 2, lineHeight: 17 },
+  emptyGroupsSub: {
+    fontSize: 12,
+    fontFamily: "Inter_400Regular",
+    marginTop: 2,
+    lineHeight: 17,
+  },
   groupsList: { paddingHorizontal: 22, gap: 10 },
   groupCard: {
     backgroundColor: "#fff",
@@ -294,7 +415,12 @@ const styles = StyleSheet.create({
     padding: 14,
     gap: 10,
   },
-  groupTop: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 8 },
+  groupTop: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 8,
+  },
   routePill: {
     flexDirection: "row",
     alignItems: "center",
@@ -348,14 +474,29 @@ const styles = StyleSheet.create({
     borderColor: "#fff",
   },
   content: { flex: 1, gap: 4 },
-  topRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
+  topRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
   name: { fontSize: 15, fontFamily: "Inter_500Medium" },
   time: { fontSize: 12, fontFamily: "Inter_400Regular" },
   routeRow: { flexDirection: "row", alignItems: "center", gap: 4 },
   routeTextSmall: { fontSize: 11, fontFamily: "Inter_500Medium" },
   lastMsg: { fontSize: 13, fontFamily: "Inter_400Regular" },
-  empty: { alignItems: "center", paddingTop: 40, gap: 14, paddingHorizontal: 40 },
-  emptyIcon: { width: 72, height: 72, borderRadius: 36, alignItems: "center", justifyContent: "center" },
+  empty: {
+    alignItems: "center",
+    paddingTop: 40,
+    gap: 14,
+    paddingHorizontal: 40,
+  },
+  emptyIcon: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    alignItems: "center",
+    justifyContent: "center",
+  },
   emptyTitle: { fontSize: 18, fontFamily: "Inter_600SemiBold" },
   emptySub: { fontSize: 14, fontFamily: "Inter_400Regular", textAlign: "center" },
 });

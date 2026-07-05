@@ -12,6 +12,7 @@ import {
   PrimaryColumn,
   Column,
   CreateDateColumn,
+  UpdateDateColumn,
   Index,
   Unique,
 } from 'typeorm';
@@ -63,6 +64,110 @@ export class MobileUser {
 
   @Column({ type: 'timestamptz', nullable: true })
   trial_ends_at!: Date | null;
+
+  @Column({ type: 'text', nullable: true })
+  bio!: string | null;
+
+  /** JSON array of language strings, e.g. ["English","Spanish"]. */
+  @Column({ type: 'text', nullable: true })
+  languages!: string | null;
+
+  @Column({ type: 'varchar', length: 120, nullable: true })
+  emergency_name!: string | null;
+
+  @Column({ type: 'varchar', length: 32, nullable: true })
+  emergency_phone!: string | null;
+
+  /** Profile photo as data URL or remote URL (MVP stores data URL). */
+  @Column({ type: 'text', nullable: true })
+  photo_url!: string | null;
+
+  /** JSON object of travel preference answers. */
+  @Column({ type: 'text', nullable: true })
+  ride_preferences!: string | null;
+
+  /** JSON object of notification toggles. */
+  @Column({ type: 'text', nullable: true })
+  notification_settings!: string | null;
+
+  @Column({ type: 'varchar', length: 20, nullable: true })
+  oauth_provider!: 'google' | 'apple' | null;
+
+  @Column({ type: 'varchar', length: 128, nullable: true })
+  oauth_subject!: string | null;
+
+  /** When set, account is scheduled for permanent deletion (CCPA). */
+  @Column({ type: 'timestamptz', nullable: true })
+  deletion_requested_at!: Date | null;
+
+  @CreateDateColumn({ type: 'timestamptz' })
+  created_at!: Date;
+}
+
+@Entity('mobile_vehicles')
+export class MobileVehicle {
+  @PrimaryGeneratedColumn('uuid')
+  id!: string;
+
+  @Index()
+  @Column({ type: 'uuid' })
+  user_id!: string;
+
+  @Column({ type: 'varchar', length: 60 })
+  make!: string;
+
+  @Column({ type: 'varchar', length: 60 })
+  model!: string;
+
+  @Column({ type: 'int' })
+  year!: number;
+
+  @Column({ type: 'varchar', length: 40 })
+  color!: string;
+
+  @Column({ type: 'varchar', length: 20 })
+  license_plate!: string;
+
+  @Column({ type: 'varchar', length: 2, default: 'TX' })
+  state!: string;
+
+  @Column({ type: 'varchar', length: 32, nullable: true })
+  vin!: string | null;
+
+  @CreateDateColumn({ type: 'timestamptz' })
+  created_at!: Date;
+
+  @UpdateDateColumn({ type: 'timestamptz' })
+  updated_at!: Date;
+}
+
+@Entity('mobile_ratings')
+@Unique(['booking_id', 'rater_id'])
+export class MobileRating {
+  @PrimaryGeneratedColumn('uuid')
+  id!: string;
+
+  @Index()
+  @Column({ type: 'uuid' })
+  booking_id!: string;
+
+  @Index()
+  @Column({ type: 'uuid' })
+  rater_id!: string;
+
+  @Index()
+  @Column({ type: 'uuid' })
+  ratee_id!: string;
+
+  @Column({ type: 'int' })
+  score!: number;
+
+  @Column({ type: 'text', nullable: true })
+  comment!: string | null;
+
+  /** JSON array of tag ids. */
+  @Column({ type: 'text', nullable: true })
+  tags!: string | null;
 
   @CreateDateColumn({ type: 'timestamptz' })
   created_at!: Date;
@@ -199,8 +304,11 @@ export class MobileBooking {
   @Column({ type: 'varchar', length: 12 })
   payment_method!: 'card' | 'apple' | 'venmo';
 
-  @Column({ type: 'varchar', length: 12, default: 'confirmed' })
-  status!: 'confirmed' | 'cancelled' | 'completed';
+  @Column({ type: 'varchar', length: 12, default: 'pending' })
+  status!: 'pending' | 'confirmed' | 'cancelled' | 'completed';
+
+  @Column({ type: 'varchar', length: 64, nullable: true })
+  payment_intent_id!: string | null;
 
   @CreateDateColumn({ type: 'timestamptz' })
   created_at!: Date;
@@ -305,4 +413,90 @@ export class MobileDriverTrip {
 
   @CreateDateColumn({ type: 'timestamptz' })
   created_at!: Date;
+}
+
+/** 1:1 direct message thread between two users (ordered pair for uniqueness). */
+@Entity('mobile_conversations')
+@Unique(['user_low_id', 'user_high_id'])
+export class MobileConversation {
+  @PrimaryGeneratedColumn('uuid')
+  id!: string;
+
+  @Index()
+  @Column({ type: 'uuid' })
+  user_low_id!: string;
+
+  @Index()
+  @Column({ type: 'uuid' })
+  user_high_id!: string;
+
+  @Column({ type: 'text', nullable: true })
+  last_message!: string | null;
+
+  @Column({ type: 'timestamptz', nullable: true })
+  last_message_at!: Date | null;
+
+  /** Optional route label, e.g. "Austin → Houston". */
+  @Column({ type: 'text', nullable: true })
+  trip_label!: string | null;
+
+  @CreateDateColumn({ type: 'timestamptz' })
+  created_at!: Date;
+}
+
+@Entity('mobile_direct_messages')
+export class MobileDirectMessage {
+  @PrimaryGeneratedColumn('uuid')
+  id!: string;
+
+  @Index()
+  @Column({ type: 'uuid' })
+  conversation_id!: string;
+
+  @Index()
+  @Column({ type: 'uuid' })
+  sender_id!: string;
+
+  @Column({ type: 'text' })
+  text!: string;
+
+  @Column({ type: 'timestamptz', nullable: true })
+  read_at!: Date | null;
+
+  @CreateDateColumn({ type: 'timestamptz' })
+  created_at!: Date;
+}
+
+/** Live GPS points for an active adventure (driver and/or rider). */
+@Entity('mobile_live_locations')
+@Unique(['trip_id', 'user_id'])
+export class MobileLiveLocation {
+  @PrimaryGeneratedColumn('uuid')
+  id!: string;
+
+  @Index()
+  @Column({ type: 'uuid' })
+  trip_id!: string;
+
+  @Index()
+  @Column({ type: 'uuid' })
+  user_id!: string;
+
+  @Column({ type: 'varchar', length: 12 })
+  role!: 'driver' | 'rider';
+
+  @Column({ type: 'double precision' })
+  latitude!: number;
+
+  @Column({ type: 'double precision' })
+  longitude!: number;
+
+  @Column({ type: 'double precision', nullable: true })
+  heading!: number | null;
+
+  @Column({ type: 'double precision', nullable: true })
+  speed!: number | null;
+
+  @UpdateDateColumn({ type: 'timestamptz' })
+  updated_at!: Date;
 }

@@ -1,8 +1,11 @@
 import { Feather } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
+  ActivityIndicator,
   Alert,
+  Keyboard,
+  KeyboardAvoidingView,
   Platform,
   SafeAreaView,
   ScrollView,
@@ -15,10 +18,12 @@ import {
 
 import { CARD_SHADOW } from "@/constants/colors";
 import { useColors } from "@/hooks/useColors";
+import { listMyVehicles, upsertVehicle } from "@/lib/vehicles";
 
 const MAKES = ["Toyota", "Honda", "Ford", "Chevrolet", "Tesla", "Hyundai", "Kia", "Nissan", "Jeep", "Subaru"];
 const COLORS_LIST = ["White", "Black", "Silver", "Gray", "Red", "Blue", "Green", "Brown", "Orange", "Yellow"];
 const YEARS = Array.from({ length: 15 }, (_, i) => String(2025 - i));
+const STATES = ["TX", "OK", "LA", "NM", "AR"];
 
 export default function Vehicle() {
   const colors = useColors();
@@ -28,19 +33,67 @@ export default function Vehicle() {
   const [model, setModel] = useState("Camry");
   const [year, setYear] = useState("2022");
   const [color, setColor] = useState("White");
+  const [state, setState] = useState("TX");
   const [plate, setPlate] = useState("");
   const [vin, setVin] = useState("");
   const [saved, setSaved] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
 
-  function handleSave() {
+  useEffect(() => {
+    let cancelled = false;
+    listMyVehicles()
+      .then((rows) => {
+        if (cancelled || rows.length === 0) return;
+        const v = rows[0];
+        setMake(v.make);
+        setModel(v.model);
+        setYear(String(v.year));
+        setColor(v.color);
+        setState(v.state || "TX");
+        setPlate(v.licensePlate);
+        setVin(v.vin || "");
+        setSaved(true);
+      })
+      .catch(() => undefined)
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  async function handleSave() {
+    Keyboard.dismiss();
     if (!plate.trim()) {
       Alert.alert("Required", "Please enter your license plate number.");
       return;
     }
-    setSaved(true);
-    Alert.alert("Vehicle Saved", "Your vehicle has been registered successfully.", [
-      { text: "Done", onPress: () => router.back() },
-    ]);
+    if (!model.trim()) {
+      Alert.alert("Required", "Please enter your vehicle model.");
+      return;
+    }
+    setSaving(true);
+    try {
+      await upsertVehicle({
+        make,
+        model: model.trim(),
+        year: Number(year),
+        color,
+        licensePlate: plate.trim(),
+        state,
+        vin: vin.trim() || undefined,
+      });
+      setSaved(true);
+      Alert.alert("Vehicle Saved", "Your vehicle has been registered successfully.", [
+        { text: "Done", onPress: () => router.back() },
+      ]);
+    } catch (e: any) {
+      Alert.alert("Couldn't save", e?.message ?? "Please try again.");
+    } finally {
+      setSaving(false);
+    }
   }
 
   function renderPickerRow(label: string, value: string, options: string[], onSelect: (v: string) => void) {
@@ -80,7 +133,13 @@ export default function Vehicle() {
         </TouchableOpacity>
       </View>
 
-      <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
+      <ScrollView
+        contentContainerStyle={styles.scroll}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="on-drag"
+      >
         <View style={[styles.card, CARD_SHADOW]}>
           <View style={styles.vehicleIconRow}>
             <View style={[styles.vehicleIcon, { backgroundColor: colors.secondary }]}>
@@ -107,6 +166,7 @@ export default function Vehicle() {
           </View>
           {renderPickerRow("Year", year, YEARS, setYear)}
           {renderPickerRow("Color", color, COLORS_LIST, setColor)}
+          {renderPickerRow("State", state, STATES, setState)}
 
           <View style={styles.fieldBlock}>
             <Text style={[styles.label, { color: colors.mutedForeground }]}>License Plate *</Text>
@@ -166,15 +226,21 @@ export default function Vehicle() {
           </Text>
         </View>
 
+        {loading ? (
+          <ActivityIndicator color={colors.primary} style={{ marginVertical: 20 }} />
+        ) : null}
+
         <TouchableOpacity
-          style={[styles.saveBtn, { backgroundColor: colors.primary }]}
+          style={[styles.saveBtn, { backgroundColor: colors.primary, opacity: saving ? 0.7 : 1 }]}
           onPress={handleSave}
+          disabled={saving}
           activeOpacity={0.88}
         >
           <Feather name="save" size={18} color="#fff" />
           <Text style={styles.saveBtnText}>Save Vehicle</Text>
         </TouchableOpacity>
       </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }

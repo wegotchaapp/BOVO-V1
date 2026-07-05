@@ -5,13 +5,14 @@ import {
   db,
   bookingsTable,
   tripsTable,
+  tripGroupsTable,
   usersTable,
   type BookingRow,
   type TripRow,
 } from "@workspace/db";
 import { CreateBookingBody } from "@workspace/api-zod";
 import { requireUser } from "../../middlewares/require-user";
-import { ensureGroupIfFull } from "../../services/trip-groups";
+import { ensureGroupForBooking } from "../../services/trip-groups";
 
 const router: IRouter = Router();
 
@@ -29,6 +30,7 @@ function bookingToDto(
   b: BookingRow,
   trip: Pick<TripRow, "id" | "fromCity" | "toCity" | "departureAt" | "car">,
   driverName: string,
+  groupId: string | null = null,
 ) {
   return {
     id: b.id,
@@ -40,6 +42,7 @@ function bookingToDto(
     totalAmount: Number(b.totalAmount),
     paymentMethod: b.paymentMethod as "card" | "apple" | "venmo",
     status: b.status as "confirmed" | "cancelled" | "completed",
+    groupId,
     createdAt: b.createdAt.toISOString(),
     completedAt: b.completedAt ? b.completedAt.toISOString() : null,
     trip: {
@@ -51,6 +54,14 @@ function bookingToDto(
       car: trip.car ?? "",
     },
   };
+}
+
+async function findGroupIdForTrip(tripId: string): Promise<string | null> {
+  const [group] = await db
+    .select({ id: tripGroupsTable.id })
+    .from(tripGroupsTable)
+    .where(eq(tripGroupsTable.tripId, tripId));
+  return group?.id ?? null;
 }
 
 // ─── POST /api/bookings ───────────────────────────────────────────────────────
@@ -127,14 +138,15 @@ router.post("/", requireUser, async (req, res): Promise<void> => {
         .from(usersTable)
         .where(eq(usersTable.id, trip.driverId));
 
-      // Auto-create a trip group if this booking just filled the trip.
-      // The service no-ops if seatsAvailable > 0 or a group already exists.
-      await ensureGroupIfFull(tx, {
-        ...trip,
-        seatsAvailable: newSeatsAvailable,
-      });
+      // After payment, add Voyager + Sailor to the private Adventure group.
+      const groupId = await ensureGroupForBooking(tx, trip, riderId);
 
-      return bookingToDto(inserted, trip, driverRow?.name ?? "Voyager");
+      return bookingToDto(
+        inserted,
+        trip,
+        driverRow?.name ?? "Voyager",
+        groupId,
+      );
     });
 
     res.status(201).json({ booking: dto });
@@ -164,9 +176,11 @@ router.get("/mine", requireUser, async (req, res): Promise<void> => {
     .where(eq(bookingsTable.riderId, riderId))
     .orderBy(desc(bookingsTable.createdAt));
 
-  const bookings = rows.map((r) =>
-    bookingToDto(r.booking, r.trip, r.driverName),
-  );
+  const bookings = [];
+  for (const r of rows) {
+    const groupId = await findGroupIdForTrip(r.booking.tripId);
+    bookings.push(bookingToDto(r.booking, r.trip, r.driverName, groupId));
+  }
   res.json({ bookings });
 });
 
@@ -196,7 +210,10 @@ router.get("/:id", requireUser, async (req, res): Promise<void> => {
     return;
   }
 
-  res.json({ booking: bookingToDto(row.booking, row.trip, row.driverName) });
+  const groupId = await findGroupIdForTrip(row.booking.tripId);
+  res.json({
+    booking: bookingToDto(row.booking, row.trip, row.driverName, groupId),
+  });
 });
 
 class BookingError extends Error {

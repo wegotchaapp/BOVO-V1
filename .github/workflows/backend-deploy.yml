@@ -60,16 +60,20 @@ jobs:
       - name: Build
         run: npm run build
 
+      # Migrations run from CI (after build) so ts-node and dist/ are both
+      # available. Running them before `railway up` ensures the schema is
+      # ready before new code starts serving traffic.
+      - name: Run Migrations
+        run: npm run migration:run
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          NODE_ENV: production
+
       - name: Install Railway CLI
         run: npm i -g @railway/cli
 
       - name: Deploy to Railway
         run: railway up --service ${{ secrets.RAILWAY_SERVICE_ID }}
-        env:
-          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
-
-      - name: Run Migrations
-        run: railway run --service ${{ secrets.RAILWAY_SERVICE_ID }} npm run migration:run
         env:
           RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
 

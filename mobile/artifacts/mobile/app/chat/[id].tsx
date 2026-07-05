@@ -1,8 +1,11 @@
 import { Feather } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import React, { useRef, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
+  ActivityIndicator,
+  Alert,
   FlatList,
+  Keyboard,
   KeyboardAvoidingView,
   Platform,
   SafeAreaView,
@@ -14,33 +17,83 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { MOCK_CONVERSATIONS, MOCK_CHAT_MESSAGES, type ChatMessage } from "@/data/messages";
 import { useColors } from "@/hooks/useColors";
+import {
+  getConversation,
+  postConversationMessage,
+  type ChatMessage,
+  type Conversation,
+} from "@/lib/conversations";
+
+const POLL_MS = 4000;
 
 export default function ChatScreen() {
   const colors = useColors();
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { id } = useLocalSearchParams<{ id: string }>();
-  const conv = MOCK_CONVERSATIONS.find((c) => c.id === id);
-  const [messages, setMessages] = useState<ChatMessage[]>(
-    MOCK_CHAT_MESSAGES[id ?? "c1"] ?? [],
-  );
+  const [conversation, setConversation] = useState<Conversation | null>(null);
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [sending, setSending] = useState(false);
   const [input, setInput] = useState("");
   const flatRef = useRef<FlatList>(null);
 
-  function sendMessage() {
+  const load = useCallback(async () => {
+    if (!id) return;
+    try {
+      const data = await getConversation(id);
+      setConversation(data.conversation);
+      setMessages(data.messages);
+    } catch (err: any) {
+      Alert.alert("Couldn't load chat", err?.message ?? "Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  }, [id]);
+
+  useEffect(() => {
+    load();
+    const timer = setInterval(load, POLL_MS);
+    return () => clearInterval(timer);
+  }, [load]);
+
+  async function sendMessage() {
     const text = input.trim();
-    if (!text) return;
-    const msg: ChatMessage = {
-      id: Date.now().toString(),
+    if (!text || !id || sending) return;
+    setSending(true);
+    const tempId = `tmp_${Date.now()}`;
+    const optimistic: ChatMessage = {
+      id: tempId,
       senderId: "me",
       text,
-      time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+      time: new Date().toLocaleTimeString([], {
+        hour: "2-digit",
+        minute: "2-digit",
+      }),
       isMe: true,
     };
-    setMessages((prev) => [...prev, msg]);
+    setMessages((prev) => [...prev, optimistic]);
     setInput("");
+    try {
+      const real = await postConversationMessage(id, text);
+      setMessages((prev) => prev.map((m) => (m.id === tempId ? real : m)));
+      setConversation((c) =>
+        c
+          ? {
+              ...c,
+              lastMessage: real.text,
+              time: real.time,
+              unread: false,
+            }
+          : c,
+      );
+    } catch (err: any) {
+      setMessages((prev) => prev.filter((m) => m.id !== tempId));
+      Alert.alert("Couldn't send", err?.message ?? "Please try again.");
+    } finally {
+      setSending(false);
+    }
   }
 
   function renderMessage({ item }: { item: ChatMessage }) {
@@ -49,7 +102,7 @@ export default function ChatScreen() {
         {!item.isMe && (
           <View style={[styles.smallAvatar, { backgroundColor: colors.secondary }]}>
             <Text style={[styles.smallAvatarText, { color: colors.primary }]}>
-              {(conv?.userName ?? "?")[0]}
+              {(conversation?.userName ?? "?")[0]}
             </Text>
           </View>
         )}
@@ -58,16 +111,29 @@ export default function ChatScreen() {
             styles.bubble,
             item.isMe
               ? { backgroundColor: colors.primary }
-              : { backgroundColor: colors.card, borderColor: colors.border, borderWidth: 1 },
+              : {
+                  backgroundColor: colors.card,
+                  borderColor: colors.border,
+                  borderWidth: 1,
+                },
           ]}
         >
-          <Text style={[styles.bubbleText, { color: item.isMe ? "#fff" : colors.foreground }]}>
+          <Text
+            style={[
+              styles.bubbleText,
+              { color: item.isMe ? "#fff" : colors.foreground },
+            ]}
+          >
             {item.text}
           </Text>
           <Text
             style={[
               styles.bubbleTime,
-              { color: item.isMe ? "rgba(255,255,255,0.7)" : colors.mutedForeground },
+              {
+                color: item.isMe
+                  ? "rgba(255,255,255,0.7)"
+                  : colors.mutedForeground,
+              },
             ]}
           >
             {item.time}
@@ -77,19 +143,36 @@ export default function ChatScreen() {
     );
   }
 
+  if (loading) {
+    return (
+      <SafeAreaView
+        style={[styles.safe, styles.center, { backgroundColor: colors.background }]}
+      >
+        <ActivityIndicator color={colors.primary} />
+      </SafeAreaView>
+    );
+  }
+
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: colors.background }]}>
       <View style={[styles.header, { paddingTop: Platform.OS === "web" ? 67 : 0 }]}>
-        <TouchableOpacity onPress={() => router.back()}>
+        <TouchableOpacity
+          onPress={() => {
+            Keyboard.dismiss();
+            router.back();
+          }}
+        >
           <Feather name="arrow-left" size={22} color={colors.foreground} />
         </TouchableOpacity>
         <View style={styles.headerInfo}>
           <Text style={[styles.headerName, { color: colors.foreground }]}>
-            {conv?.userName ?? "Chat"}
+            {conversation?.userName ?? "Chat"}
           </Text>
-          {conv?.tripRoute && (
-            <Text style={[styles.headerRoute, { color: colors.primary }]}>{conv.tripRoute}</Text>
-          )}
+          {conversation?.tripRoute ? (
+            <Text style={[styles.headerRoute, { color: colors.primary }]}>
+              {conversation.tripRoute}
+            </Text>
+          ) : null}
         </View>
         <View style={{ width: 22 }} />
       </View>
@@ -106,19 +189,38 @@ export default function ChatScreen() {
           renderItem={renderMessage}
           contentContainerStyle={styles.messagesList}
           showsVerticalScrollIndicator={false}
-          onContentSizeChange={() => flatRef.current?.scrollToEnd({ animated: true })}
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="on-drag"
+          onContentSizeChange={() =>
+            flatRef.current?.scrollToEnd({ animated: true })
+          }
+          ListEmptyComponent={
+            <View style={styles.emptyChat}>
+              <Text style={{ color: colors.mutedForeground, textAlign: "center" }}>
+                Say hello — messages are saved securely.
+              </Text>
+            </View>
+          }
         />
 
         <View
           style={[
             styles.inputBar,
-            { backgroundColor: colors.background, borderTopColor: colors.border, paddingBottom: Math.max(insets.bottom, 12) },
+            {
+              backgroundColor: colors.background,
+              borderTopColor: colors.border,
+              paddingBottom: Math.max(insets.bottom, 12),
+            },
           ]}
         >
           <TextInput
             style={[
               styles.input,
-              { backgroundColor: colors.card, borderColor: colors.border, color: colors.foreground },
+              {
+                backgroundColor: colors.card,
+                borderColor: colors.border,
+                color: colors.foreground,
+              },
             ]}
             placeholder="Type a message..."
             placeholderTextColor={colors.mutedForeground}
@@ -127,13 +229,26 @@ export default function ChatScreen() {
             multiline
             returnKeyType="send"
             onSubmitEditing={sendMessage}
+            editable={!sending}
           />
           <TouchableOpacity
-            style={[styles.sendBtn, { backgroundColor: input.trim() ? colors.primary : colors.muted }]}
+            style={[
+              styles.sendBtn,
+              {
+                backgroundColor:
+                  input.trim() && !sending ? colors.primary : colors.muted,
+              },
+            ]}
             onPress={sendMessage}
-            disabled={!input.trim()}
+            disabled={!input.trim() || sending}
           >
-            <Feather name="send" size={18} color={input.trim() ? "#fff" : colors.mutedForeground} />
+            <Feather
+              name="send"
+              size={18}
+              color={
+                input.trim() && !sending ? "#fff" : colors.mutedForeground
+              }
+            />
           </TouchableOpacity>
         </View>
       </KeyboardAvoidingView>
@@ -143,6 +258,7 @@ export default function ChatScreen() {
 
 const styles = StyleSheet.create({
   safe: { flex: 1 },
+  center: { alignItems: "center", justifyContent: "center" },
   header: {
     flexDirection: "row",
     alignItems: "center",
@@ -153,7 +269,8 @@ const styles = StyleSheet.create({
   headerInfo: { flex: 1, gap: 2 },
   headerName: { fontSize: 16, fontFamily: "Inter_600SemiBold" },
   headerRoute: { fontSize: 12, fontFamily: "Inter_500Medium" },
-  messagesList: { paddingHorizontal: 16, paddingVertical: 12, gap: 12 },
+  messagesList: { paddingHorizontal: 16, paddingVertical: 12, gap: 12, flexGrow: 1 },
+  emptyChat: { paddingTop: 40, paddingHorizontal: 24 },
   msgRow: { flexDirection: "row", alignItems: "flex-end", gap: 8 },
   msgRowMe: { flexDirection: "row-reverse" },
   smallAvatar: {
@@ -171,7 +288,11 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   bubbleText: { fontSize: 14, fontFamily: "Inter_400Regular", lineHeight: 20 },
-  bubbleTime: { fontSize: 10, fontFamily: "Inter_400Regular", alignSelf: "flex-end" },
+  bubbleTime: {
+    fontSize: 10,
+    fontFamily: "Inter_400Regular",
+    alignSelf: "flex-end",
+  },
   inputBar: {
     flexDirection: "row",
     alignItems: "flex-end",

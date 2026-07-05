@@ -18,9 +18,11 @@ export interface Booking {
   serviceFee: number;
   totalAmount: number;
   paymentMethod: "card" | "apple" | "venmo";
-  status: "confirmed" | "cancelled" | "completed";
+  status: "pending" | "confirmed" | "cancelled" | "completed";
   createdAt: string;
   completedAt: string | null;
+  /** Adventure group unlocked after payment. */
+  groupId?: string | null;
   trip: BookingTripSummary;
 }
 
@@ -30,8 +32,29 @@ export interface CreateBookingInput {
   paymentMethod: "card" | "apple" | "venmo";
 }
 
+export interface PrepareBookingResult {
+  booking: Booking;
+  clientSecret: string | null;
+  publishableKey: string;
+}
+
 export async function createBooking(input: CreateBookingInput): Promise<Booking> {
   const data = await apiClient.post<{ booking: Booking }>("/bookings", input);
+  return data.booking;
+}
+
+/** Start Stripe PaymentIntent for a booking (pay-first flow). */
+export async function prepareBooking(
+  input: CreateBookingInput,
+): Promise<PrepareBookingResult> {
+  return apiClient.post<PrepareBookingResult>("/bookings/prepare", input);
+}
+
+/** Confirm booking after Payment Sheet succeeds. */
+export async function confirmBooking(bookingId: string): Promise<Booking> {
+  const data = await apiClient.post<{ booking: Booking }>("/bookings/confirm", {
+    bookingId,
+  });
   return data.booking;
 }
 

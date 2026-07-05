@@ -1,9 +1,11 @@
 import {
+  IsArray,
   IsBoolean,
   IsEmail,
   IsIn,
   IsInt,
   IsNumber,
+  IsObject,
   IsOptional,
   IsString,
   Max,
@@ -42,6 +44,46 @@ export class LoginBody {
   password!: string;
 }
 
+export class OAuthLoginBody {
+  @IsIn(['google', 'apple'])
+  provider!: 'google' | 'apple';
+
+  @IsString()
+  @MinLength(10)
+  idToken!: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(120)
+  name?: string;
+
+  @IsOptional()
+  @IsEmail()
+  email?: string;
+}
+
+export class NotificationSettingsBody {
+  @IsOptional()
+  @IsBoolean()
+  pushEnabled?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  emailEnabled?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  tripUpdates?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  marketing?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  messages?: boolean;
+}
+
 export class UpdateMeBody {
   @IsOptional()
   @IsIn(['driver', 'rider'])
@@ -60,6 +102,96 @@ export class UpdateMeBody {
   @IsString()
   @MaxLength(32)
   phone?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  bio?: string;
+
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  languages?: string[];
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(120)
+  emergencyName?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(32)
+  emergencyPhone?: string;
+
+  @IsOptional()
+  @IsString()
+  photoUrl?: string;
+
+  @IsOptional()
+  @IsObject()
+  ridePreferences?: Record<string, string>;
+}
+
+export class UpsertVehicleBody {
+  @IsString()
+  @MinLength(1)
+  @MaxLength(60)
+  make!: string;
+
+  @IsString()
+  @MinLength(1)
+  @MaxLength(60)
+  model!: string;
+
+  @IsInt()
+  @Min(1980)
+  @Max(2100)
+  year!: number;
+
+  @IsString()
+  @MinLength(1)
+  @MaxLength(40)
+  color!: string;
+
+  @IsString()
+  @MinLength(1)
+  @MaxLength(20)
+  licensePlate!: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(2)
+  state?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(32)
+  vin?: string;
+}
+
+export class SubmitRatingBody {
+  @IsString()
+  bookingId!: string;
+
+  @IsInt()
+  @Min(1)
+  @Max(5)
+  score!: number;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(400)
+  comment?: string;
+
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  tags?: string[];
+}
+
+export class UpsertPreferencesBody {
+  @IsObject()
+  preferences!: Record<string, string>;
 }
 
 export class TripPreferencesDto {
@@ -141,6 +273,41 @@ export class CreateBookingBody {
 
   @IsIn(['card', 'apple', 'venmo'])
   paymentMethod!: 'card' | 'apple' | 'venmo';
+}
+
+export class ConfirmBookingBody {
+  @IsString()
+  bookingId!: string;
+}
+
+export class OpenConversationBody {
+  @IsString()
+  otherUserId!: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(120)
+  tripLabel?: string;
+}
+
+export class LiveLocationBody {
+  @IsNumber()
+  @Min(-90)
+  @Max(90)
+  latitude!: number;
+
+  @IsNumber()
+  @Min(-180)
+  @Max(180)
+  longitude!: number;
+
+  @IsOptional()
+  @IsNumber()
+  heading?: number;
+
+  @IsOptional()
+  @IsNumber()
+  speed?: number;
 }
 
 export class GroupMessageBody {

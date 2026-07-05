@@ -6,6 +6,7 @@ import {
   FlatList,
   Modal,
   Platform,
+  RefreshControl,
   SafeAreaView,
   StyleSheet,
   Text,
@@ -33,7 +34,24 @@ export default function SearchResults() {
 
   const [allTrips, setAllTrips] = useState<Trip[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  async function loadTrips(opts?: { silent?: boolean }) {
+    if (!opts?.silent) {
+      setLoading(true);
+      setError(null);
+    }
+    try {
+      const rows = await listTrips({ from, to });
+      setAllTrips(rows);
+      setError(null);
+    } catch (err: any) {
+      setError(err?.message ?? "Couldn't load adventures");
+    } finally {
+      if (!opts?.silent) setLoading(false);
+    }
+  }
 
   useEffect(() => {
     let cancelled = false;
@@ -53,6 +71,12 @@ export default function SearchResults() {
       cancelled = true;
     };
   }, [from, to]);
+
+  async function onRefresh() {
+    setRefreshing(true);
+    await loadTrips({ silent: true });
+    setRefreshing(false);
+  }
 
   const trips = useMemo(() => {
     const filtered = allTrips.filter((t) => t.pricePerSeat <= maxPrice);
@@ -134,6 +158,13 @@ export default function SearchResults() {
           renderItem={({ item }) => <TripCard trip={item} />}
           contentContainerStyle={styles.list}
           showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              tintColor={colors.primary}
+            />
+          }
           ListEmptyComponent={
             <View style={styles.empty}>
               <View style={[styles.emptyIcon, { backgroundColor: colors.secondary }]}>

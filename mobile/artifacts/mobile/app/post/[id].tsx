@@ -4,8 +4,10 @@ import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
+  Keyboard,
   KeyboardAvoidingView,
   Platform,
+  RefreshControl,
   SafeAreaView,
   ScrollView,
   StyleSheet,
@@ -21,8 +23,11 @@ import {
   formatTripTime,
   type Trip,
   type TripReply,
+  type TripDetailMeta,
 } from "@/data/trips";
 import { getTrip, replyToTrip } from "@/lib/trips";
+import { findPublicReplyPii, publicReplyPiiMessage } from "@/lib/pii-guard";
+import { shareTripSummary } from "@/lib/share";
 import { useAuth } from "@/context/AuthContext";
 import { useUnread } from "@/context/UnreadContext";
 import { useColors } from "@/hooks/useColors";
@@ -59,11 +64,28 @@ export default function PostDetail() {
 
   const [post, setPost] = useState<Trip | null>(null);
   const [replies, setReplies] = useState<TripReply[]>([]);
+  const [meta, setMeta] = useState<TripDetailMeta | null>(null);
   const [replyText, setReplyText] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [sending, setSending] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  async function onRefresh() {
+    if (!id) return;
+    setRefreshing(true);
+    try {
+      const data = await getTrip(id);
+      setPost(data.trip);
+      setReplies(data.replies);
+      setMeta(data.meta);
+    } catch {
+      // Keep existing content on refresh failure.
+    } finally {
+      setRefreshing(false);
+    }
+  }
 
   // Silent background refresh — keeps replies in sync without a loading flash.
   const silentRefresh = useCallback(async () => {
@@ -72,6 +94,7 @@ export default function PostDetail() {
       const data = await getTrip(id);
       setPost(data.trip);
       setReplies(data.replies);
+      setMeta(data.meta);
     } catch {
       // Ignore poll errors silently.
     }
@@ -87,6 +110,7 @@ export default function PostDetail() {
         if (cancelled) return;
         setPost(data.trip);
         setReplies(data.replies);
+        setMeta(data.meta);
         // Mark replies as read when the user opens the post.
         markTripRead(id);
       })
@@ -106,8 +130,25 @@ export default function PostDetail() {
     };
   }, [id, markTripRead, silentRefresh]);
 
+  const isVoyager = !!user && !!post && user.id === post.driver.id;
+  const voyagerAlreadyReplied =
+    isVoyager && replies.some((r) => r.isDriverReply || r.userId === user?.id);
+
   async function sendReply() {
     if (!post || !replyText.trim() || sending) return;
+    if (voyagerAlreadyReplied) {
+      Alert.alert(
+        "One reply only",
+        "Voyagers can only post one public reply on their adventure.",
+      );
+      return;
+    }
+    const piiHit = findPublicReplyPii(replyText);
+    if (piiHit) {
+      Alert.alert("Keep it public-safe", publicReplyPiiMessage(piiHit));
+      return;
+    }
+    Keyboard.dismiss();
     setSending(true);
     try {
       const reply = await replyToTrip(post.id, replyText.trim());
@@ -163,7 +204,24 @@ export default function PostDetail() {
           <Feather name="arrow-left" size={20} color={colors.foreground} />
         </TouchableOpacity>
         <Text style={[styles.headerTitle, { color: colors.foreground }]}>Voyager Post</Text>
-        <TouchableOpacity style={styles.headerBtn}>
+        <TouchableOpacity
+          style={styles.headerBtn}
+          onPress={async () => {
+            if (!post) return;
+            try {
+              await shareTripSummary({
+                fromCity: post.fromCity,
+                toCity: post.toCity,
+                departureAt: post.departureAt,
+                pricePerSeat: post.pricePerSeat,
+                driverName: post.driver.name,
+              });
+            } catch (e: any) {
+              if (String(e?.message ?? "").toLowerCase().includes("dismiss")) return;
+              Alert.alert("Couldn't share", e?.message ?? "Please try again.");
+            }
+          }}
+        >
           <Feather name="share-2" size={18} color={colors.foreground} />
         </TouchableOpacity>
       </View>
@@ -173,6 +231,14 @@ export default function PostDetail() {
           contentContainerStyle={styles.scroll}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="on-drag"
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              tintColor={colors.primary}
+            />
+          }
         >
           <View style={[styles.postCard, CARD_SHADOW]}>
             <View style={styles.driverRow}>
@@ -275,11 +341,18 @@ export default function PostDetail() {
 
           <View style={styles.repliesSection}>
             <Text style={[styles.sectionTitle, { color: colors.foreground }]}>
-              Replies{" "}
+              Public questions{" "}
               <Text style={{ color: colors.mutedForeground, fontFamily: "Inter_400Regular" }}>
                 ({replies.length})
               </Text>
             </Text>
+            <View style={[styles.publicNotice, { backgroundColor: "#EBF2ED", borderColor: colors.primary }]}>
+              <Feather name="shield" size={14} color={colors.primary} />
+              <Text style={[styles.publicNoticeText, { color: colors.primary }]}>
+                Anyone can read these replies. Do not share phone numbers, emails, addresses, or other personal info.
+                Book your seat to chat privately with the Voyager.
+              </Text>
+            </View>
 
             {replies.length === 0 && (
               <View style={[styles.emptyReplies, { backgroundColor: colors.muted }]}>
@@ -292,7 +365,7 @@ export default function PostDetail() {
 
             {replies.map((reply) => {
               const isOwnPost = !!user && user.id === post.driver.id;
-              const canMessage = isOwnPost && !reply.isDriverReply;
+              const canOpenGroup = isOwnPost && reply.hasBookedSeat && meta?.viewerGroupId;
               return (
                 <View
                   key={reply.id}
@@ -313,20 +386,20 @@ export default function PostDetail() {
                     </View>
                   </View>
                   <Text style={[styles.replyText, { color: colors.foreground }]}>{reply.text}</Text>
-                  {canMessage && (
+                  {canOpenGroup && (
                     <TouchableOpacity
                       style={[styles.messageBtn, { backgroundColor: colors.secondary, borderColor: colors.primary }]}
                       onPress={() =>
                         router.push({
-                          pathname: "/chat/[id]",
-                          params: { id: "c1", riderId: reply.userId, riderName: reply.userName, tripId: post.id },
+                          pathname: "/group/[id]",
+                          params: { id: meta!.viewerGroupId! },
                         })
                       }
                       activeOpacity={0.85}
                     >
-                      <Feather name="message-circle" size={14} color={colors.primary} />
+                      <Feather name="users" size={14} color={colors.primary} />
                       <Text style={[styles.messageBtnText, { color: colors.primary }]}>
-                        Message {reply.userName.split(" ")[0]}
+                        Open Adventure group
                       </Text>
                     </TouchableOpacity>
                   )}
@@ -337,17 +410,29 @@ export default function PostDetail() {
         </ScrollView>
 
         <>
+          {voyagerAlreadyReplied ? (
+            <View style={[styles.inputBar, { backgroundColor: colors.background, borderTopColor: colors.border }]}>
+              <View style={[styles.voyagerHint, { backgroundColor: colors.muted }]}>
+                <Feather name="check-circle" size={12} color={colors.mutedForeground} />
+                <Text style={[styles.voyagerHintText, { color: colors.mutedForeground }]}>
+                  You already posted your one public reply on this adventure
+                </Text>
+              </View>
+            </View>
+          ) : (
           <View style={[styles.inputBar, { backgroundColor: colors.background, borderTopColor: colors.border }]}>
-            {user && user.id === post.driver.id && (
+            {isVoyager && (
               <View style={[styles.voyagerHint, { backgroundColor: colors.secondary }]}>
                 <Feather name="navigation" size={12} color={colors.primary} />
-                <Text style={[styles.voyagerHintText, { color: colors.primary }]}>Replying as Voyager — visible to all</Text>
+                <Text style={[styles.voyagerHintText, { color: colors.primary }]}>
+                  One public reply as Voyager — visible to all
+                </Text>
               </View>
             )}
             <View style={[styles.inputWrap, { backgroundColor: colors.card, borderColor: colors.border }]}>
               <TextInput
                 style={[styles.input, { color: colors.foreground }]}
-                placeholder={user && user.id === post.driver.id ? "Reply to your riders..." : "Ask about seats, timing, preferences..."}
+                placeholder={isVoyager ? "Reply to your riders..." : "Ask a public question (no personal info)..."}
                 placeholderTextColor={colors.mutedForeground}
                 value={replyText}
                 onChangeText={setReplyText}
@@ -364,7 +449,29 @@ export default function PostDetail() {
               </TouchableOpacity>
             </View>
           </View>
-          {user && user.id !== post.driver.id && (
+          )}
+          {user && user.id !== post.driver.id && meta?.viewerGroupId && (
+            <View style={[styles.bookBar, { backgroundColor: colors.card, borderTopColor: colors.border }]}>
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.bookLabel, { color: colors.mutedForeground }]}>Seat booked</Text>
+                <Text style={[styles.bookPrice, { color: colors.primary, fontSize: 16 }]}>Private group chat is open</Text>
+              </View>
+              <TouchableOpacity
+                style={[styles.bookBtn, { backgroundColor: colors.primary }]}
+                onPress={() =>
+                  router.push({
+                    pathname: "/group/[id]",
+                    params: { id: meta.viewerGroupId },
+                  })
+                }
+                activeOpacity={0.88}
+              >
+                <Feather name="message-circle" size={16} color="#fff" />
+                <Text style={styles.bookBtnText}>Open group</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+          {user && user.id !== post.driver.id && !meta?.viewerGroupId && (
             <View style={[styles.bookBar, { backgroundColor: colors.card, borderTopColor: colors.border }]}>
               <View>
                 <Text style={[styles.bookPrice, { color: colors.primary }]}>${post.pricePerSeat}</Text>
@@ -425,6 +532,15 @@ const styles = StyleSheet.create({
   prefChip: { flexDirection: "row", alignItems: "center", gap: 5, paddingHorizontal: 10, paddingVertical: 5, borderRadius: 20, borderWidth: 1 },
   prefText: { fontSize: 11, fontFamily: "Inter_500Medium" },
   repliesSection: { gap: 12 },
+  publicNotice: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 9,
+    padding: 12,
+    borderRadius: 14,
+    borderWidth: 1,
+  },
+  publicNoticeText: { flex: 1, fontSize: 12, fontFamily: "Inter_400Regular", lineHeight: 18 },
   sectionTitle: { fontSize: 16, fontFamily: "Inter_600SemiBold", letterSpacing: -0.2 },
   emptyReplies: { flexDirection: "row", alignItems: "center", gap: 10, padding: 16, borderRadius: 14, justifyContent: "center" },
   emptyText: { fontSize: 14, fontFamily: "Inter_400Regular" },

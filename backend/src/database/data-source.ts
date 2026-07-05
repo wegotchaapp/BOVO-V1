@@ -1,4 +1,5 @@
 import 'dotenv/config';
+import * as path from 'path';
 import { DataSource } from 'typeorm';
 import { User } from './entities/user.entity';
 import { RefreshToken } from './entities/refresh-token.entity';
@@ -102,6 +103,8 @@ export const AppDataSource = new DataSource({
     MobileTripGroupMessage,
     MobileDriverTrip,
   ],
-  migrations: ['src/database/migrations/*.ts'],
+  // __filename ends in .js when compiled, .ts when running under ts-node.
+  // This resolves to the correct migration files in both environments.
+  migrations: [path.join(__dirname, 'migrations', __filename.endsWith('.js') ? '*.js' : '*.ts')],
   logging: true,
 });

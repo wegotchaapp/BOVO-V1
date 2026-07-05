@@ -3,6 +3,7 @@ import { useRouter } from "expo-router";
 import React, { useState } from "react";
 import {
   Alert,
+  Keyboard,
   KeyboardAvoidingView,
   Platform,
   SafeAreaView,
@@ -14,6 +15,7 @@ import {
   View,
 } from "react-native";
 
+import { SocialAuthButtons } from "@/components/SocialAuthButtons";
 import { useAuth } from "@/context/AuthContext";
 import { useColors } from "@/hooks/useColors";
 
@@ -28,6 +30,7 @@ export default function Register() {
   const [loading, setLoading] = useState(false);
 
   async function handleRegister() {
+    Keyboard.dismiss();
     if (!name || !email || !phone || !password) {
       Alert.alert("Missing fields", "Please fill in all fields.");
       return;
@@ -82,6 +85,7 @@ export default function Register() {
         <ScrollView
           contentContainerStyle={[styles.container, { paddingTop: Platform.OS === "web" ? 67 : 20 }]}
           keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="on-drag"
           showsVerticalScrollIndicator={false}
         >
           <TouchableOpacity onPress={() => router.back()} style={styles.back}>
@@ -130,16 +134,7 @@ export default function Register() {
               <View style={[styles.orLine, { backgroundColor: colors.border }]} />
             </View>
 
-            <View style={styles.socialRow}>
-              <TouchableOpacity style={[styles.socialBtn, { borderColor: colors.border, backgroundColor: colors.card }]}>
-                <Text style={styles.socialIcon}>🇬</Text>
-                <Text style={[styles.socialText, { color: colors.foreground }]}>Google</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={[styles.socialBtn, { borderColor: colors.border, backgroundColor: colors.card }]}>
-                <Text style={styles.socialIcon}>🍎</Text>
-                <Text style={[styles.socialText, { color: colors.foreground }]}>Apple</Text>
-              </TouchableOpacity>
-            </View>
+            <SocialAuthButtons />
 
             <View style={styles.termsRow}>
               <Text style={[styles.terms, { color: colors.mutedForeground }]}>

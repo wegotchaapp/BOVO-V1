@@ -6,6 +6,9 @@ import {
   tripsTable,
   tripRepliesTable,
   tripReplyReadsTable,
+  bookingsTable,
+  tripGroupsTable,
+  tripGroupMembersTable,
   usersTable,
   type TripRow,
   type TripReplyRow,
@@ -17,6 +20,7 @@ import {
   CreateTripReplyBody,
 } from "@workspace/api-zod";
 import { requireUser } from "../../middlewares/require-user";
+import { findPublicReplyPii } from "../../lib/pii-guard";
 
 const router: IRouter = Router();
 
@@ -80,13 +84,19 @@ function tripToDto(
   };
 }
 
-function replyToDto(r: TripReplyRow, isDriverReply: boolean, userName: string) {
+function replyToDto(
+  r: TripReplyRow,
+  isDriverReply: boolean,
+  userName: string,
+  hasBookedSeat = false,
+) {
   return {
     id: r.id,
     userId: r.userId,
     userName,
     text: r.text,
     isDriverReply,
+    hasBookedSeat,
     createdAt: r.createdAt.toISOString(),
   };
 }
@@ -292,13 +302,57 @@ router.get("/:id", requireUser, async (req, res): Promise<void> => {
     .where(eq(tripRepliesTable.tripId, tripId))
     .orderBy(asc(tripRepliesTable.createdAt));
 
+  const confirmedBookings = await db
+    .select({ riderId: bookingsTable.riderId })
+    .from(bookingsTable)
+    .where(
+      and(
+        eq(bookingsTable.tripId, tripId),
+        eq(bookingsTable.status, "confirmed"),
+      ),
+    );
+  const bookedRiderIds = [
+    ...new Set(confirmedBookings.map((b) => b.riderId)),
+  ];
+  const bookedRiderSet = new Set(bookedRiderIds);
+
   const replies = replyRows.map((rr) =>
-    replyToDto(rr.reply, rr.reply.userId === row.trip.driverId, rr.authorName),
+    replyToDto(
+      rr.reply,
+      rr.reply.userId === row.trip.driverId,
+      rr.authorName,
+      bookedRiderSet.has(rr.reply.userId),
+    ),
   );
+
+  const viewerId = req.authUser!.id;
+  const viewerHasBooked = bookedRiderSet.has(viewerId);
+  let viewerGroupId: string | null = null;
+  const [group] = await db
+    .select({ id: tripGroupsTable.id })
+    .from(tripGroupsTable)
+    .where(eq(tripGroupsTable.tripId, tripId));
+  if (group) {
+    const [membership] = await db
+      .select({ id: tripGroupMembersTable.id })
+      .from(tripGroupMembersTable)
+      .where(
+        and(
+          eq(tripGroupMembersTable.groupId, group.id),
+          eq(tripGroupMembersTable.userId, viewerId),
+        ),
+      );
+    if (membership) viewerGroupId = group.id;
+  }
 
   res.json({
     trip: tripToDto(row.trip, driverFromUserRow(row.driver), replies.length),
     replies,
+    meta: {
+      bookedRiderIds,
+      viewerHasBooked,
+      viewerGroupId,
+    },
   });
   void GetTripResponse;
 });
@@ -375,6 +429,39 @@ router.post("/:id/replies", requireUser, async (req, res): Promise<void> => {
   }
 
   const userId = req.authUser!.id;
+  const text = parsed.data.text.trim();
+  if (!text) {
+    res.status(400).json({ error: "Reply cannot be empty." });
+    return;
+  }
+
+  const piiHit = findPublicReplyPii(text);
+  if (piiHit) {
+    res.status(400).json({
+      error: `Public replies cannot include ${piiHit}. Book your seat to chat privately with the Voyager.`,
+    });
+    return;
+  }
+
+  if (userId === trip.driverId) {
+    const [existingDriverReply] = await db
+      .select({ id: tripRepliesTable.id })
+      .from(tripRepliesTable)
+      .where(
+        and(
+          eq(tripRepliesTable.tripId, tripId),
+          eq(tripRepliesTable.userId, userId),
+        ),
+      )
+      .limit(1);
+    if (existingDriverReply) {
+      res.status(400).json({
+        error: "Voyagers can only post one public reply on their adventure.",
+      });
+      return;
+    }
+  }
+
   const id = newId("rp");
 
   const [inserted] = await db
@@ -383,7 +470,7 @@ router.post("/:id/replies", requireUser, async (req, res): Promise<void> => {
       id,
       tripId,
       userId,
-      text: parsed.data.text.trim(),
+      text,
     })
     .returning();
 
@@ -392,8 +479,24 @@ router.post("/:id/replies", requireUser, async (req, res): Promise<void> => {
     .from(usersTable)
     .where(eq(usersTable.id, userId));
 
+  const [booking] = await db
+    .select({ id: bookingsTable.id })
+    .from(bookingsTable)
+    .where(
+      and(
+        eq(bookingsTable.tripId, tripId),
+        eq(bookingsTable.riderId, userId),
+        eq(bookingsTable.status, "confirmed"),
+      ),
+    );
+
   res.status(201).json({
-    reply: replyToDto(inserted, userId === trip.driverId, author?.name ?? "Unknown"),
+    reply: replyToDto(
+      inserted,
+      userId === trip.driverId,
+      author?.name ?? "Unknown",
+      !!booking,
+    ),
   });
 });
 

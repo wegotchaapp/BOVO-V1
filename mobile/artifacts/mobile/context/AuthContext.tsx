@@ -18,6 +18,33 @@ export interface User {
   isFoundingMember: boolean;
   subscriptionStatus: string | null;
   trialEndsAt: string | null;
+  bio: string;
+  languages: string[];
+  emergencyName: string;
+  emergencyPhone: string;
+  photoUrl: string | null;
+  ridePreferences: Record<string, string>;
+  preferencesCount: number;
+  notificationSettings: NotificationSettings;
+  deletionRequestedAt: string | null;
+}
+
+export interface NotificationSettings {
+  pushEnabled: boolean;
+  emailEnabled: boolean;
+  tripUpdates: boolean;
+  marketing: boolean;
+  messages: boolean;
+}
+
+export interface OnboardingProfile {
+  name: string;
+  bio: string;
+  languages: string[];
+  emergencyName: string;
+  emergencyPhone: string;
+  photoUrl?: string | null;
+  role: UserRole;
 }
 
 interface AuthContextType {
@@ -32,10 +59,21 @@ interface AuthContextType {
     phone: string,
     password: string,
   ) => Promise<void>;
+  loginWithOAuth: (input: {
+    provider: "google" | "apple";
+    idToken: string;
+    name?: string;
+    email?: string;
+  }) => Promise<User>;
   setRole: (role: UserRole) => Promise<void>;
-  completeOnboarding: () => Promise<void>;
+  completeOnboarding: (profile: OnboardingProfile) => Promise<void>;
+  patchMe: (patch: Record<string, unknown>) => Promise<void>;
+  updateNotificationSettings: (
+    settings: Partial<NotificationSettings>,
+  ) => Promise<void>;
   logout: () => Promise<void>;
   deleteAccount: () => Promise<void>;
+  cancelAccountDeletion: () => Promise<void>;
   setActiveRide: (rideId: string | null) => void;
   refreshMe: () => Promise<void>;
 }
@@ -48,11 +86,15 @@ const ACTIVE_RIDE_KEY = "@wegotcha/active_ride";
 const DELETION_GRACE_DAYS = 7;
 
 function normalizeUser(raw: any): User {
+  const ridePreferences =
+    raw.ridePreferences && typeof raw.ridePreferences === "object"
+      ? (raw.ridePreferences as Record<string, string>)
+      : {};
   return {
     id: String(raw.id),
     name: String(raw.name),
     email: String(raw.email),
-    phone: String(raw.phone),
+    phone: String(raw.phone ?? ""),
     role: (raw.role ?? null) as UserRole,
     rating: Number(raw.rating ?? 5),
     trips: Number(raw.trips ?? 0),
@@ -66,6 +108,29 @@ function normalizeUser(raw: any): User {
     trialEndsAt:
       typeof raw.trialEndsAt === "string" && raw.trialEndsAt
         ? raw.trialEndsAt
+        : null,
+    bio: String(raw.bio ?? ""),
+    languages: Array.isArray(raw.languages)
+      ? raw.languages.map(String)
+      : [],
+    emergencyName: String(raw.emergencyName ?? ""),
+    emergencyPhone: String(raw.emergencyPhone ?? ""),
+    photoUrl:
+      typeof raw.photoUrl === "string" && raw.photoUrl ? raw.photoUrl : null,
+    ridePreferences,
+    preferencesCount: Number(
+      raw.preferencesCount ?? Object.keys(ridePreferences).length,
+    ),
+    notificationSettings: {
+      pushEnabled: raw.notificationSettings?.pushEnabled ?? true,
+      emailEnabled: raw.notificationSettings?.emailEnabled ?? true,
+      tripUpdates: raw.notificationSettings?.tripUpdates ?? true,
+      marketing: raw.notificationSettings?.marketing ?? false,
+      messages: raw.notificationSettings?.messages ?? true,
+    },
+    deletionRequestedAt:
+      typeof raw.deletionRequestedAt === "string" && raw.deletionRequestedAt
+        ? raw.deletionRequestedAt
         : null,
   };
 }
@@ -145,6 +210,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     await AsyncStorage.setItem(TOKEN_KEY, res.token);
     const normalized = normalizeUser(res.user);
     setUser(normalized);
+    if (normalized.deletionRequestedAt) {
+      setDeletionScheduledAt(normalized.deletionRequestedAt);
+      await AsyncStorage.setItem(
+        DELETION_KEY,
+        JSON.stringify({
+          userId: normalized.id,
+          scheduledAt: normalized.deletionRequestedAt,
+        }),
+      );
+    }
     return normalized;
   }
 
@@ -162,6 +237,32 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setUser(normalizeUser(res.user));
   }
 
+  async function loginWithOAuth(input: {
+    provider: "google" | "apple";
+    idToken: string;
+    name?: string;
+    email?: string;
+  }): Promise<User> {
+    const res = await apiClient.post<{ user: unknown; token: string }>(
+      "/auth/oauth",
+      input,
+    );
+    await AsyncStorage.setItem(TOKEN_KEY, res.token);
+    const normalized = normalizeUser(res.user);
+    setUser(normalized);
+    return normalized;
+  }
+
+  async function updateNotificationSettings(
+    settings: Partial<NotificationSettings>,
+  ) {
+    const res = await apiClient.put<{ user: unknown }>(
+      "/auth/me/notifications",
+      settings,
+    );
+    setUser(normalizeUser(res.user));
+  }
+
   async function patchMe(patch: Record<string, unknown>) {
     const updated = await apiClient.patch("/auth/me", patch);
     setUser(normalizeUser(updated));
@@ -172,10 +273,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     await patchMe({ role });
   }
 
-  async function completeOnboarding() {
+  async function completeOnboarding(profile: OnboardingProfile) {
     if (!user) return;
-    // `isVerified` is server-gated by a real ID-check flow (placeholder for now).
-    await patchMe({ onboarded: true });
+    await patchMe({
+      name: profile.name,
+      bio: profile.bio,
+      languages: profile.languages,
+      emergencyName: profile.emergencyName,
+      emergencyPhone: profile.emergencyPhone,
+      ...(profile.photoUrl ? { photoUrl: profile.photoUrl } : {}),
+      role: profile.role,
+      onboarded: true,
+    });
   }
 
   async function logout() {
@@ -187,27 +296,54 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setActiveRideId(null);
   }
 
-  /**
-   * Schedules account deletion.
-   * Profile data is retained for 7 days (CCPA / regulatory compliance).
-   * After 7 days, loadUser() permanently clears the local token on next open.
-   * The server retains the user row for now — a server-side purge job can be
-   * added later when full data-deletion endpoints are implemented.
-   */
   async function refreshMe() {
     const fresh = await refreshUserFromServer();
-    if (fresh) setUser(fresh);
+    if (fresh) {
+      setUser(fresh);
+      if (fresh.deletionRequestedAt) {
+        setDeletionScheduledAt(fresh.deletionRequestedAt);
+        await AsyncStorage.setItem(
+          DELETION_KEY,
+          JSON.stringify({
+            userId: fresh.id,
+            scheduledAt: fresh.deletionRequestedAt,
+          }),
+        );
+      } else {
+        setDeletionScheduledAt(null);
+        await AsyncStorage.removeItem(DELETION_KEY);
+      }
+    }
   }
 
+  /** CCPA: schedule server-side purge after 7 days and revoke sessions. */
   async function deleteAccount() {
     if (!user) return;
-    const scheduledAt = new Date().toISOString();
+    const res = await apiClient.post<{
+      deletionRequestedAt: string;
+      purgeAt: string;
+    }>("/auth/account/delete", {});
     await AsyncStorage.setItem(
       DELETION_KEY,
-      JSON.stringify({ userId: user.id, scheduledAt }),
+      JSON.stringify({
+        userId: user.id,
+        scheduledAt: res.deletionRequestedAt,
+      }),
     );
-    setDeletionScheduledAt(scheduledAt);
-    await logout();
+    setDeletionScheduledAt(res.deletionRequestedAt);
+    await AsyncStorage.multiRemove([TOKEN_KEY, ACTIVE_RIDE_KEY]);
+    setUser(null);
+    setActiveRideId(null);
+  }
+
+  async function cancelAccountDeletion() {
+    const res = await apiClient.post<{ user: unknown }>(
+      "/auth/account/cancel-deletion",
+      {},
+    );
+    await AsyncStorage.removeItem(DELETION_KEY);
+    setDeletionScheduledAt(null);
+    setUser(normalizeUser(res.user));
   }
 
   return (
@@ -219,10 +355,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         deletionScheduledAt,
         login,
         register,
+        loginWithOAuth,
         setRole,
         completeOnboarding,
+        patchMe,
+        updateNotificationSettings,
         logout,
         deleteAccount,
+        cancelAccountDeletion,
         setActiveRide,
         refreshMe,
       }}

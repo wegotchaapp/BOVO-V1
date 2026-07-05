@@ -59,6 +59,9 @@
   },
   "dependencies": {
     "@stripe/stripe-react-native": "^0.50.3",
+    "expo-apple-authentication": "^8.0.8",
+    "expo-auth-session": "^7.0.11",
+    "expo-crypto": "^15.0.9",
     "react-native-maps": "1.20.1"
   }
 }

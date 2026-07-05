@@ -1,5 +1,5 @@
 import { apiClient } from "./api";
-import type { Trip, TripReply, TripPreferences } from "@/data/trips";
+import type { Trip, TripReply, TripPreferences, TripDetailMeta } from "@/data/trips";
 
 export interface CreateTripInput {
   fromCity: string;
@@ -35,8 +35,17 @@ export async function listMyTrips(): Promise<Trip[]> {
 
 export async function getTrip(
   id: string,
-): Promise<{ trip: Trip; replies: TripReply[] }> {
-  return apiClient.get<{ trip: Trip; replies: TripReply[] }>(`/trips/${id}`);
+): Promise<{ trip: Trip; replies: TripReply[]; meta: TripDetailMeta }> {
+  return apiClient.get<{ trip: Trip; replies: TripReply[]; meta: TripDetailMeta }>(
+    `/trips/${id}`,
+  ).then((data) => ({
+    ...data,
+    meta: data.meta ?? {
+      bookedRiderIds: [],
+      viewerHasBooked: false,
+      viewerGroupId: null,
+    },
+  }));
 }
 
 export async function createTrip(input: CreateTripInput): Promise<Trip> {

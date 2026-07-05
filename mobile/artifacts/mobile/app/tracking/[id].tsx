@@ -1,11 +1,14 @@
 import { Feather } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
+  ActivityIndicator,
   Alert,
   Animated,
+  Linking,
   Platform,
   SafeAreaView,
+  Share,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -14,29 +17,11 @@ import {
 
 import TrackingMap from "@/components/TrackingMap";
 import { useColors } from "@/hooks/useColors";
-import { useLiveLocation } from "@/hooks/useLiveLocation";
-import { useDriverSimulation } from "@/hooks/useDriverSimulation";
+import { useTripLiveTracking } from "@/hooks/useTripLiveTracking";
 import { CARD_SHADOW } from "@/constants/colors";
-
-const CITY_COORDS: Record<string, { latitude: number; longitude: number }> = {
-  dallas: { latitude: 32.7767, longitude: -96.797 },
-  austin: { latitude: 30.2672, longitude: -97.7431 },
-  houston: { latitude: 29.7604, longitude: -95.3698 },
-  "san antonio": { latitude: 29.4241, longitude: -98.4936 },
-  "fort worth": { latitude: 32.7555, longitude: -97.3308 },
-  plano: { latitude: 33.0198, longitude: -96.6989 },
-  waco: { latitude: 31.5493, longitude: -97.1467 },
-  "corpus christi": { latitude: 27.8006, longitude: -97.3964 },
-  lubbock: { latitude: 33.5779, longitude: -101.8552 },
-  amarillo: { latitude: 35.222, longitude: -101.8313 },
-  "el paso": { latitude: 31.7619, longitude: -106.485 },
-  arlington: { latitude: 32.7357, longitude: -97.1081 },
-};
-
-function getCityCoord(city: string) {
-  const key = city.toLowerCase().split(",")[0].trim();
-  return CITY_COORDS[key] ?? CITY_COORDS.dallas;
-}
+import { getBooking, type Booking } from "@/lib/bookings";
+import { cityShort, getCityCoord } from "@/lib/city-coords";
+import { phoneToTelHref } from "@/lib/tracking";
 
 function midpoint(
   a: { latitude: number; longitude: number },
@@ -64,186 +49,363 @@ function formatSpeed(mps: number | undefined) {
   return `${Math.round(mph)} mph`;
 }
 
+function mapsUrl(lat: number, lng: number): string {
+  return `https://maps.google.com/?q=${lat},${lng}`;
+}
+
 export default function TripTracking() {
   const colors = useColors();
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
   const pulseAnim = useRef(new Animated.Value(1)).current;
 
-  const fromCity = "Dallas";
-  const toCity = "Austin";
-  const fromCoord = getCityCoord(fromCity);
-  const toCoord = getCityCoord(toCity);
+  const [booking, setBooking] = useState<Booking | null>(null);
+  const [bookingLoading, setBookingLoading] = useState(true);
 
-  // Real route data from Mapbox Directions API — received via postMessage from the map WebView
-  const [routeDurationSeconds, setRouteDurationSeconds] = useState<number | undefined>(undefined);
-  const [routeDistanceMeters, setRouteDistanceMeters] = useState<number | undefined>(undefined);
+  useEffect(() => {
+    if (!id) {
+      setBookingLoading(false);
+      return;
+    }
+    let cancelled = false;
+    setBookingLoading(true);
+    getBooking(id)
+      .then((b) => {
+        if (!cancelled) setBooking(b);
+      })
+      .catch(() => {
+        if (!cancelled) setBooking(null);
+      })
+      .finally(() => {
+        if (!cancelled) setBookingLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [id]);
 
-  // Simulated driver moving along the route (replaces with real driver GPS via WS in production).
-  // routeDurationSeconds replaces the hardcoded 195-min fallback once the Mapbox route loads.
-  const { driverCoord, progress, etaMinutes, etaSource } = useDriverSimulation(
+  const fromCityFull = booking?.trip.fromCity ?? "Austin, TX";
+  const toCityFull = booking?.trip.toCity ?? "Houston, TX";
+  const fromCity = cityShort(fromCityFull);
+  const toCity = cityShort(toCityFull);
+  const fromCoord = useMemo(() => getCityCoord(fromCityFull), [fromCityFull]);
+  const toCoord = useMemo(() => getCityCoord(toCityFull), [toCityFull]);
+
+  const [routeDurationSeconds, setRouteDurationSeconds] = useState<
+    number | undefined
+  >(undefined);
+  const [routeDistanceMeters, setRouteDistanceMeters] = useState<
+    number | undefined
+  >(undefined);
+
+  const live = useTripLiveTracking(
+    booking?.id,
     fromCoord,
     toCoord,
-    0.32,
-    195,
     routeDurationSeconds,
   );
 
-  // Rider's real GPS location
-  const { coord: riderCoord, hasPermission, error: locationError, isTracking } = useLiveLocation(true);
+  const driverName = live.snapshot?.driver.name ?? booking?.trip.driverName ?? "Voyager";
+  const driverCar =
+    live.snapshot?.driver.car || booking?.trip.car || "Vehicle";
+  const driverPhone = live.snapshot?.driver.phone ?? null;
+  const driverInitials = driverName
+    .split(" ")
+    .map((p) => p[0])
+    .join("")
+    .slice(0, 2)
+    .toUpperCase();
 
-  // Region centers on driver, bounded to show full route
+  // Prefer live driver GPS; fall back to route start until Voyager shares GPS.
+  const driverCoord = live.driverCoord ?? {
+    latitude: fromCoord.latitude,
+    longitude: fromCoord.longitude,
+    heading: 0,
+  };
+  const riderCoord = live.riderCoord;
+  const progress = live.progress;
+  const etaMinutes = live.etaMinutes;
+  const etaSource = live.etaSource;
   const region = midpoint(fromCoord, toCoord);
-
-  // Legacy currentCoord for prop compatibility
-  const currentCoord = driverCoord;
 
   useEffect(() => {
     const pulse = Animated.loop(
       Animated.sequence([
-        Animated.timing(pulseAnim, { toValue: 1.5, duration: 800, useNativeDriver: true }),
-        Animated.timing(pulseAnim, { toValue: 1, duration: 800, useNativeDriver: true }),
+        Animated.timing(pulseAnim, {
+          toValue: 1.5,
+          duration: 800,
+          useNativeDriver: true,
+        }),
+        Animated.timing(pulseAnim, {
+          toValue: 1,
+          duration: 800,
+          useNativeDriver: true,
+        }),
       ]),
     );
     pulse.start();
     return () => pulse.stop();
-  }, []);
+  }, [pulseAnim]);
 
-  function handleShareLocation() {
-    if (!riderCoord) {
+  const onRouteInfo = useCallback(
+    (info: { durationSeconds: number; distanceMeters: number }) => {
+      setRouteDurationSeconds(info.durationSeconds);
+      setRouteDistanceMeters(info.distanceMeters);
+    },
+    [],
+  );
+
+  async function handleShareLocation() {
+    const point = live.myCoord;
+    if (!point) {
       Alert.alert(
-        "Location Unavailable",
-        locationError ?? "Enable location access in Settings to share your live position.",
+        "Location unavailable",
+        live.locationError ??
+          "Enable location access in Settings to share your live position.",
       );
       return;
     }
-    Alert.alert(
-      "Share Live Trip",
-      `Your trip link has been copied. Your GPS position (${riderCoord.latitude.toFixed(4)}, ${riderCoord.longitude.toFixed(4)}) is being tracked.`,
+    const link = mapsUrl(point.latitude, point.longitude);
+    const message = `I'm on a Bovogo adventure (${fromCity} → ${toCity}). My live location: ${link}`;
+    try {
+      await Share.share(
+        Platform.OS === "ios"
+          ? { message, url: link }
+          : { message: `${message}` },
+      );
+    } catch (e: any) {
+      if (e?.message?.includes("dismiss") || e?.message?.includes("cancel")) {
+        return;
+      }
+      Alert.alert("Couldn't share", e?.message ?? "Please try again.");
+    }
+  }
+
+  async function handleCallVoyager() {
+    const href = phoneToTelHref(driverPhone);
+    if (!href) {
+      Alert.alert(
+        "Phone unavailable",
+        "The Voyager has not added a phone number to their profile yet.",
+      );
+      return;
+    }
+    try {
+      const supported = await Linking.canOpenURL(href);
+      if (!supported) {
+        Alert.alert("Can't place call", "Calling is not supported on this device.");
+        return;
+      }
+      await Linking.openURL(href);
+    } catch {
+      Alert.alert("Can't place call", "Something went wrong opening the phone app.");
+    }
+  }
+
+  const speedText =
+    live.myCoord?.speed != null ? formatSpeed(live.myCoord.speed) : null;
+
+  if (bookingLoading || (booking && live.loading && !live.snapshot)) {
+    return (
+      <View style={[styles.root, styles.center, { backgroundColor: colors.background }]}>
+        <ActivityIndicator color={colors.primary} size="large" />
+      </View>
     );
   }
 
-  const speedText = riderCoord?.speed != null ? formatSpeed(riderCoord.speed) : null;
+  if (!booking) {
+    return (
+      <View style={[styles.root, styles.center, { backgroundColor: colors.background }]}>
+        <Text style={{ color: colors.mutedForeground, fontFamily: "Inter_500Medium" }}>
+          Adventure not found
+        </Text>
+        <TouchableOpacity onPress={() => router.back()} style={{ marginTop: 12 }}>
+          <Text style={{ color: colors.primary, fontFamily: "Inter_600SemiBold" }}>Go back</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
+  const gpsLabel = live.myGpsActive
+    ? `Your GPS active${speedText ? ` · ${speedText}` : ""}${
+        live.driverGpsLive ? " · Voyager GPS live" : " · Waiting for Voyager GPS"
+      }`
+    : live.locationError
+      ? "Location permission needed — enable in Settings"
+      : "Acquiring GPS...";
 
   return (
     <View style={[styles.root, { backgroundColor: colors.background }]}>
       <SafeAreaView style={styles.safe}>
-        {/* Header */}
         <View style={[styles.header, { paddingTop: Platform.OS === "web" ? 67 : 0 }]}>
           <TouchableOpacity onPress={() => router.back()} style={styles.headerBtn}>
             <Feather name="arrow-left" size={20} color={colors.foreground} />
           </TouchableOpacity>
           <View style={styles.headerCenter}>
-            <Text style={[styles.headerTitle, { color: colors.foreground }]}>Live Tracking</Text>
+            <Text style={[styles.headerTitle, { color: colors.foreground }]}>
+              Live Tracking
+            </Text>
             <Text style={[styles.headerRoute, { color: colors.mutedForeground }]}>
               {fromCity} → {toCity}
             </Text>
           </View>
           <View style={[styles.liveBadge, { backgroundColor: "#FEF3E2" }]}>
-            <Animated.View style={[styles.liveDot, { backgroundColor: "#C4954A", transform: [{ scale: pulseAnim }] }]} />
-            <Text style={[styles.liveText, { color: "#C4954A" }]}>LIVE</Text>
+            <Animated.View
+              style={[
+                styles.liveDot,
+                {
+                  backgroundColor: live.driverGpsLive ? "#16A34A" : "#C4954A",
+                  transform: [{ scale: pulseAnim }],
+                },
+              ]}
+            />
+            <Text
+              style={[
+                styles.liveText,
+                { color: live.driverGpsLive ? "#16A34A" : "#C4954A" },
+              ]}
+            >
+              {live.driverGpsLive ? "LIVE" : "WAIT"}
+            </Text>
           </View>
         </View>
 
-        {/* GPS status bar */}
-        <View style={[styles.gpsBar, { backgroundColor: isTracking ? colors.secondary : colors.muted }]}>
+        <View
+          style={[
+            styles.gpsBar,
+            { backgroundColor: live.myGpsActive ? colors.secondary : colors.muted },
+          ]}
+        >
           <Feather
-            name={isTracking ? "map-pin" : "map"}
+            name={live.myGpsActive ? "map-pin" : "map"}
             size={12}
-            color={isTracking ? colors.primary : colors.mutedForeground}
+            color={live.myGpsActive ? colors.primary : colors.mutedForeground}
           />
-          <Text style={[styles.gpsBarText, { color: isTracking ? colors.primary : colors.mutedForeground }]}>
-            {isTracking
-              ? `Your GPS active · ${riderCoord ? `${riderCoord.latitude.toFixed(4)}°N, ${Math.abs(riderCoord.longitude).toFixed(4)}°W` : "acquiring..."}${speedText ? ` · ${speedText}` : ""}`
-              : locationError
-              ? "Location permission needed — tap to enable"
-              : "Acquiring GPS..."}
+          <Text
+            style={[
+              styles.gpsBarText,
+              {
+                color: live.myGpsActive ? colors.primary : colors.mutedForeground,
+              },
+            ]}
+          >
+            {gpsLabel}
           </Text>
-          {!isTracking && (
-            <Feather name="chevron-right" size={12} color={colors.mutedForeground} />
-          )}
         </View>
 
-        {/* Map */}
         <View style={styles.mapContainer}>
           <TrackingMap
             region={region}
             fromCoord={fromCoord}
             toCoord={toCoord}
-            currentCoord={currentCoord}
+            currentCoord={driverCoord}
             driverCoord={driverCoord}
             riderCoord={riderCoord}
-            fromLabel={`${fromCity}, TX`}
-            toLabel={`${toCity}, TX`}
+            fromLabel={fromCityFull}
+            toLabel={toCityFull}
             primaryColor={colors.primary}
             borderColor={colors.border}
             accentColor={colors.accent}
             progress={progress}
-            onRouteInfo={useCallback((info) => {
-              setRouteDurationSeconds(info.durationSeconds);
-              setRouteDistanceMeters(info.distanceMeters);
-            }, [])}
+            onRouteInfo={onRouteInfo}
           />
 
-          {/* ETA overlay */}
           <View style={[styles.etaOverlay, { backgroundColor: "rgba(255,255,255,0.95)" }]}>
             <View style={styles.etaHeader}>
               <Text style={[styles.etaLabel, { color: colors.mutedForeground }]}>ETA</Text>
-              {etaSource === "mapbox" && (
-                <View style={[styles.etaSourceBadge, { backgroundColor: colors.secondary }]}>
-                  <Text style={[styles.etaSourceText, { color: colors.primary }]}>LIVE MAP</Text>
-                </View>
-              )}
+              <View
+                style={[
+                  styles.etaSourceBadge,
+                  {
+                    backgroundColor:
+                      etaSource === "live" ? "#ECFDF5" : colors.secondary,
+                  },
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.etaSourceText,
+                    {
+                      color: etaSource === "live" ? "#059669" : colors.primary,
+                    },
+                  ]}
+                >
+                  {etaSource === "live" ? "LIVE GPS" : "ESTIMATE"}
+                </Text>
+              </View>
             </View>
-            <Text style={[styles.etaTime, { color: colors.foreground }]}>{formatETA(etaMinutes)}</Text>
+            <Text style={[styles.etaTime, { color: colors.foreground }]}>
+              {formatETA(etaMinutes)}
+            </Text>
             {routeDistanceMeters != null && (
               <Text style={[styles.etaDistance, { color: colors.mutedForeground }]}>
-                {((routeDistanceMeters / 1000) * 0.621371).toFixed(0)} mi total
+                {((routeDistanceMeters / 1000) * 0.621371).toFixed(0)} mi route
               </Text>
             )}
           </View>
 
-          {/* Progress pill */}
           <View style={[styles.progressPill, { backgroundColor: "rgba(27,61,47,0.9)" }]}>
-            <View style={[styles.progressTrack, { backgroundColor: "rgba(255,255,255,0.25)" }]}>
-              <View style={[styles.progressFill, { width: `${Math.round(progress * 100)}%` as any, backgroundColor: "#C4954A" }]} />
+            <View
+              style={[styles.progressTrack, { backgroundColor: "rgba(255,255,255,0.25)" }]}
+            >
+              <View
+                style={[
+                  styles.progressFill,
+                  {
+                    width: `${Math.round(progress * 100)}%` as any,
+                    backgroundColor: "#C4954A",
+                  },
+                ]}
+              />
             </View>
             <Text style={styles.progressText}>{Math.round(progress * 100)}%</Text>
           </View>
         </View>
 
-        {/* Driver card */}
         <View style={[styles.driverCard, CARD_SHADOW]}>
           <View style={[styles.driverAvatar, { backgroundColor: colors.secondary }]}>
-            <Text style={[styles.driverInitials, { color: colors.primary }]}>JD</Text>
+            <Text style={[styles.driverInitials, { color: colors.primary }]}>
+              {driverInitials}
+            </Text>
           </View>
           <View style={styles.driverInfo}>
-            <Text style={[styles.driverName, { color: colors.foreground }]}>John D.</Text>
+            <Text style={[styles.driverName, { color: colors.foreground }]}>
+              {driverName}
+            </Text>
             <View style={styles.driverMeta}>
-              <Text style={[styles.driverCar, { color: colors.mutedForeground }]}>Toyota Camry · TX-AB1234</Text>
-              <View style={[styles.ratingChip, { backgroundColor: "#FEF3E2" }]}>
-                <Feather name="star" size={10} color="#C4954A" />
-                <Text style={[styles.ratingText, { color: "#C4954A" }]}>4.8</Text>
-              </View>
+              <Text style={[styles.driverCar, { color: colors.mutedForeground }]}>
+                {driverCar}
+              </Text>
             </View>
           </View>
           <View style={styles.driverActions}>
             <TouchableOpacity
               style={[styles.actionBtn, { backgroundColor: colors.secondary }]}
-              onPress={() => router.push({ pathname: "/chat/[id]", params: { id: "c1" } })}
+              onPress={() => {
+                if (booking.groupId) {
+                  router.push({
+                    pathname: "/group/[id]",
+                    params: { id: booking.groupId },
+                  });
+                  return;
+                }
+                Alert.alert(
+                  "Group chat",
+                  "Private chat opens after booking is confirmed.",
+                );
+              }}
             >
               <Feather name="message-circle" size={18} color={colors.primary} />
             </TouchableOpacity>
             <TouchableOpacity
               style={[styles.actionBtn, { backgroundColor: colors.secondary }]}
-              onPress={() => Alert.alert("Call Voyager", "Calling will be enabled before launch.")}
+              onPress={handleCallVoyager}
             >
               <Feather name="phone" size={18} color={colors.primary} />
             </TouchableOpacity>
           </View>
         </View>
 
-        {/* Bottom actions */}
         <View style={styles.bottomActions}>
           <TouchableOpacity
             style={[styles.shareBtn, { backgroundColor: colors.secondary }]}
@@ -270,118 +432,128 @@ export default function TripTracking() {
 
 const styles = StyleSheet.create({
   root: { flex: 1 },
+  center: { alignItems: "center", justifyContent: "center" },
   safe: { flex: 1 },
   header: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    paddingHorizontal: 20,
-    paddingVertical: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
   },
-  headerBtn: { width: 40, height: 40, borderRadius: 20, alignItems: "center", justifyContent: "center" },
+  headerBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: "center",
+    justifyContent: "center",
+  },
   headerCenter: { flex: 1, alignItems: "center", gap: 2 },
-  headerTitle: { fontSize: 16, fontFamily: "Inter_600SemiBold" },
-  headerRoute: { fontSize: 11, fontFamily: "Inter_400Regular" },
-  liveBadge: { flexDirection: "row", alignItems: "center", gap: 6, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20 },
-  liveDot: { width: 7, height: 7, borderRadius: 4 },
+  headerTitle: { fontSize: 16, fontFamily: "Inter_700Bold" },
+  headerRoute: { fontSize: 12, fontFamily: "Inter_400Regular" },
+  liveBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 20,
+  },
+  liveDot: { width: 8, height: 8, borderRadius: 4 },
   liveText: { fontSize: 11, fontFamily: "Inter_700Bold", letterSpacing: 0.5 },
   gpsBar: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 7,
-    marginHorizontal: 16,
-    paddingHorizontal: 14,
+    gap: 8,
+    paddingHorizontal: 16,
     paddingVertical: 8,
-    borderRadius: 12,
-    marginBottom: 10,
   },
-  gpsBarText: { flex: 1, fontSize: 11, fontFamily: "Inter_400Regular" },
-  mapContainer: {
-    flex: 1,
-    marginHorizontal: 16,
-    borderRadius: 20,
-    overflow: "hidden",
-    position: "relative",
-  },
+  gpsBarText: { flex: 1, fontSize: 11, fontFamily: "Inter_500Medium" },
+  mapContainer: { flex: 1, marginHorizontal: 12, borderRadius: 20, overflow: "hidden" },
   etaOverlay: {
     position: "absolute",
-    top: 14,
-    right: 14,
-    paddingHorizontal: 14,
-    paddingVertical: 8,
+    top: 12,
+    left: 12,
     borderRadius: 14,
-    alignItems: "center",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 4,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    minWidth: 100,
   },
-  etaHeader: { flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 2 },
-  etaLabel: { fontSize: 10, fontFamily: "Inter_500Medium" },
-  etaSourceBadge: { paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6 },
-  etaSourceText: { fontSize: 8, fontFamily: "Inter_600SemiBold", letterSpacing: 0.3 },
-  etaTime: { fontSize: 18, fontFamily: "Inter_700Bold" },
-  etaDistance: { fontSize: 9, fontFamily: "Inter_400Regular", marginTop: 1 },
+  etaHeader: { flexDirection: "row", alignItems: "center", gap: 6 },
+  etaLabel: { fontSize: 10, fontFamily: "Inter_600SemiBold", letterSpacing: 0.6 },
+  etaSourceBadge: { paddingHorizontal: 6, paddingVertical: 2, borderRadius: 8 },
+  etaSourceText: { fontSize: 9, fontFamily: "Inter_700Bold" },
+  etaTime: { fontSize: 22, fontFamily: "Inter_700Bold", marginTop: 2 },
+  etaDistance: { fontSize: 11, fontFamily: "Inter_400Regular", marginTop: 2 },
   progressPill: {
     position: "absolute",
-    bottom: 14,
-    left: 14,
-    right: 14,
+    bottom: 12,
+    left: 12,
+    right: 12,
+    borderRadius: 14,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
     flexDirection: "row",
     alignItems: "center",
     gap: 10,
-    paddingHorizontal: 14,
-    paddingVertical: 9,
-    borderRadius: 20,
   },
-  progressTrack: { flex: 1, height: 5, borderRadius: 3, overflow: "hidden" },
-  progressFill: { height: 5, borderRadius: 3 },
-  progressText: { color: "#fff", fontSize: 12, fontFamily: "Inter_600SemiBold", minWidth: 32, textAlign: "right" },
+  progressTrack: { flex: 1, height: 6, borderRadius: 3, overflow: "hidden" },
+  progressFill: { height: 6, borderRadius: 3 },
+  progressText: { color: "#fff", fontSize: 12, fontFamily: "Inter_700Bold" },
   driverCard: {
+    marginHorizontal: 12,
+    marginTop: 12,
     backgroundColor: "#fff",
-    marginHorizontal: 16,
-    marginTop: 14,
     borderRadius: 18,
-    padding: 16,
+    padding: 14,
     flexDirection: "row",
     alignItems: "center",
     gap: 12,
   },
-  driverAvatar: { width: 48, height: 48, borderRadius: 24, alignItems: "center", justifyContent: "center" },
-  driverInitials: { fontSize: 18, fontFamily: "Inter_700Bold" },
-  driverInfo: { flex: 1, gap: 4 },
-  driverName: { fontSize: 16, fontFamily: "Inter_600SemiBold" },
+  driverAvatar: {
+    width: 46,
+    height: 46,
+    borderRadius: 23,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  driverInitials: { fontSize: 15, fontFamily: "Inter_700Bold" },
+  driverInfo: { flex: 1, gap: 3 },
+  driverName: { fontSize: 15, fontFamily: "Inter_600SemiBold" },
   driverMeta: { flexDirection: "row", alignItems: "center", gap: 8 },
   driverCar: { fontSize: 12, fontFamily: "Inter_400Regular" },
-  ratingChip: { flexDirection: "row", alignItems: "center", gap: 3, paddingHorizontal: 7, paddingVertical: 3, borderRadius: 20 },
-  ratingText: { fontSize: 11, fontFamily: "Inter_600SemiBold" },
   driverActions: { flexDirection: "row", gap: 8 },
-  actionBtn: { width: 40, height: 40, borderRadius: 20, alignItems: "center", justifyContent: "center" },
-  bottomActions: { flexDirection: "row", paddingHorizontal: 16, paddingVertical: 16, gap: 12 },
+  actionBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  bottomActions: {
+    flexDirection: "row",
+    gap: 10,
+    paddingHorizontal: 12,
+    paddingTop: 12,
+    paddingBottom: Platform.OS === "ios" ? 24 : 16,
+  },
   shareBtn: {
-    width: 110,
-    height: 50,
-    borderRadius: 25,
+    flex: 1,
+    height: 52,
+    borderRadius: 26,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    gap: 7,
+    gap: 8,
   },
-  shareBtnText: { fontSize: 13, fontFamily: "Inter_600SemiBold" },
+  shareBtnText: { fontSize: 14, fontFamily: "Inter_600SemiBold" },
   safetyBtn: {
     flex: 1,
-    height: 60,
-    borderRadius: 30,
+    height: 52,
+    borderRadius: 26,
     alignItems: "center",
     justifyContent: "center",
-    gap: 2,
-    shadowColor: "#DC2626",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.35,
-    shadowRadius: 8,
-    elevation: 6,
   },
-  safetyText: { fontSize: 20, fontFamily: "Inter_700Bold", color: "#fff", letterSpacing: 1 },
-  safetySubText: { fontSize: 9, fontFamily: "Inter_500Medium", color: "rgba(255,255,255,0.8)", letterSpacing: 0.3 },
+  safetyText: { color: "#fff", fontSize: 15, fontFamily: "Inter_700Bold" },
+  safetySubText: { color: "rgba(255,255,255,0.85)", fontSize: 10, fontFamily: "Inter_400Regular" },
 });

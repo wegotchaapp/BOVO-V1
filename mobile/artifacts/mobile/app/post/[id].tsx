@@ -461,7 +461,7 @@ export default function PostDetail() {
                 onPress={() =>
                   router.push({
                     pathname: "/group/[id]",
-                    params: { id: meta.viewerGroupId },
+                    params: { id: meta.viewerGroupId ?? "" },
                   })
                 }
                 activeOpacity={0.88}

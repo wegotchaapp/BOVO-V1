@@ -1,5 +1,6 @@
 import { Feather } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
+import * as Location from "expo-location";
 import { useRouter } from "expo-router";
 import React, { useState } from "react";
 import {
@@ -83,8 +84,30 @@ export default function Onboarding() {
     return true;
   }
 
+  /**
+   * Asked right after the Emergency Contact step so SOS can share the user's
+   * live location with 911 and their contact. Onboarding continues either way.
+   */
+  async function requestSosLocationPermission() {
+    if (Platform.OS === "web") return;
+    try {
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== "granted") {
+        Alert.alert(
+          "Location for SOS",
+          "Without location access, SOS alerts can't include your live location. You can enable it anytime in device settings.",
+        );
+      }
+    } catch {
+      // Never block onboarding on a permission prompt failure.
+    }
+  }
+
   async function advance() {
     Keyboard.dismiss();
+    if (step === 4) {
+      await requestSosLocationPermission();
+    }
     if (step < STEPS.length - 1) {
       setStep(step + 1);
     } else {

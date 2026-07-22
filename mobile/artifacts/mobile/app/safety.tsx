@@ -17,6 +17,7 @@ import {
 
 import { useColors } from "@/hooks/useColors";
 import { CARD_SHADOW } from "@/constants/colors";
+import { triggerSos } from "@/lib/safety";
 
 const HOLD_DURATION = 3000;
 const COUNTDOWN_SECONDS = 10;
@@ -62,16 +63,25 @@ export default function Safety() {
           clearInterval(countdownRef.current!);
           setSosTriggered(false);
           holdProgress.setValue(0);
-          Alert.alert(
-            "SOS Dispatched",
-            "Your location and trip details have been sent to your emergency contacts and Bovogo safety team. If you're in immediate danger, call 911.",
-            [{ text: "OK" }],
-          );
+          dispatchSOS();
           return 0;
         }
         return prev - 1;
       });
     }, 1000);
+  }
+
+  async function dispatchSOS() {
+    // Auto-texts the emergency contact with live location, then opens the 911
+    // text composer and dialer (the OS requires one tap from the user).
+    try {
+      await triggerSos();
+    } catch {
+      Alert.alert(
+        "SOS",
+        "We couldn't open your phone's dialer automatically. Please call 911 directly.",
+      );
+    }
   }
 
   function cancelSOS() {

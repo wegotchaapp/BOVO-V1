@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Bovogo — Expo Go QR Code</title>
+  <title>Bovogo — Open the app</title>
   <style>
     body {
       font-family: system-ui, -apple-system, Segoe UI, sans-serif;
@@ -21,60 +21,94 @@
       color: #0a1a12;
       border-radius: 24px;
       padding: 32px 28px;
-      max-width: 420px;
+      max-width: 480px;
       width: 100%;
       text-align: center;
       box-shadow: 0 20px 50px rgba(0,0,0,0.35);
     }
     h1 { margin: 0 0 8px; font-size: 22px; }
-    p { margin: 0 0 20px; color: #445; line-height: 1.45; font-size: 15px; }
+    p { margin: 0 0 16px; color: #445; line-height: 1.45; font-size: 15px; }
+    .primary {
+      display: block;
+      background: #1A5C38;
+      color: #fff;
+      text-decoration: none;
+      padding: 14px 18px;
+      border-radius: 14px;
+      font-weight: 700;
+      margin: 12px 0;
+    }
     img {
-      width: 280px;
-      height: 280px;
+      width: 260px;
+      height: 260px;
       background: #fff;
       border: 8px solid #fff;
       border-radius: 12px;
+      margin-top: 8px;
     }
     .link {
-      margin-top: 18px;
+      margin-top: 14px;
       padding: 12px 14px;
       background: #EBF2ED;
       border-radius: 12px;
       font-family: ui-monospace, Consolas, monospace;
-      font-size: 14px;
+      font-size: 13px;
       word-break: break-all;
       color: #0B3D2E;
       font-weight: 600;
     }
     .steps {
       text-align: left;
-      margin-top: 22px;
-      padding-top: 18px;
+      margin-top: 20px;
+      padding-top: 16px;
       border-top: 1px solid #e5e7eb;
       color: #334;
       font-size: 14px;
       line-height: 1.5;
     }
     .steps ol { margin: 8px 0 0; padding-left: 20px; }
+    .warn {
+      margin-top: 14px;
+      padding: 12px;
+      background: #FEF3E2;
+      color: #7A4E00;
+      border-radius: 12px;
+      font-size: 13px;
+      text-align: left;
+    }
   </style>
 </head>
 <body>
   <div class="card">
-    <h1>Scan with Expo Go</h1>
-    <p>Open the Expo Go app on your phone and scan this code.</p>
+    <h1>Bovogo is ready</h1>
+    <p>Your phone cannot reach this PC over Wi‑Fi (Windows Firewall). Use the web app, or open Expo via the public tunnel below.</p>
+
+    <a class="primary" href="http://localhost:8082" target="_blank" rel="noreferrer">
+      Open web app on this PC
+    </a>
+
+    <p style="margin-top:20px;margin-bottom:4px"><strong>Phone (Expo Go)</strong> — scan or paste this tunnel URL:</p>
     <img
-      src="https://api.qrserver.com/v1/create-qr-code/?size=400x400&margin=12&data=exp%3A%2F%2F192.168.1.198%3A8082"
-      alt="Expo Go QR code for exp://192.168.1.198:8082"
+      src="https://api.qrserver.com/v1/create-qr-code/?size=400x400&margin=12&data=https%3A%2F%2Fextends-regards-non-generous.trycloudflare.com"
+      alt="Expo QR for Cloudflare Metro tunnel"
     />
-    <div class="link">exp://192.168.1.198:8082</div>
+    <div class="link">https://extends-regards-non-generous.trycloudflare.com</div>
+
     <div class="steps">
-      <strong>If the camera won’t scan:</strong>
+      <strong>On your phone:</strong>
       <ol>
-        <li>Open <strong>Expo Go</strong> on your phone</li>
+        <li>Open <strong>Expo Go</strong></li>
         <li>Tap <strong>Enter URL manually</strong></li>
-        <li>Paste: <code>exp://192.168.1.198:8082</code></li>
-        <li>Phone and PC must be on the same Wi‑Fi</li>
+        <li>Paste the tunnel URL above</li>
+        <li>Wait for the bundle to load (first load can take 1–2 minutes)</li>
       </ol>
+    </div>
+
+    <div class="warn">
+      API is also tunneled (so login works without LAN firewall):
+      <code>https://cheats-hourly-handle-colors.trycloudflare.com</code>
+      <br /><br />
+      Permanent fix: run PowerShell <strong>as Administrator</strong> and allow ports 3000 + 8081.
     </div>
   </div>
 </body>

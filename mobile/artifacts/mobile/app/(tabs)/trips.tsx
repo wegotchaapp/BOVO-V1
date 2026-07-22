@@ -33,6 +33,8 @@ interface TripItem {
   price: number;
   status: "upcoming" | "completed" | "cancelled";
   role: "driver" | "rider";
+  /** Drivers must record the pre-trip car video before the ride starts. */
+  started?: boolean;
   rated?: boolean;
 }
 
@@ -79,10 +81,11 @@ function bookingToItem(b: Booking): TripItem {
 
 function tripToItem(t: Trip): TripItem {
   const departed = new Date(t.departureAt).getTime() < Date.now();
+  const inProgress = t.status === "in_progress";
   const status: TripItem["status"] =
     t.status === "cancelled"
       ? "cancelled"
-      : t.status === "completed" || departed
+      : t.status === "completed" || (departed && !inProgress)
       ? "completed"
       : "upcoming";
   return {
@@ -96,6 +99,7 @@ function tripToItem(t: Trip): TripItem {
     price: t.pricePerSeat,
     status,
     role: "driver",
+    started: inProgress || Boolean(t.startedAt),
   };
 }
 
@@ -204,6 +208,12 @@ export default function TripsTab() {
 
   function renderTrip({ item }: { item: TripItem }) {
     const isUpcoming = item.status === "upcoming";
+    // Drivers must record the mandatory car video before tracking unlocks.
+    const needsStartVideo = item.role === "driver" && !item.started;
+    const goLive = () =>
+      needsStartVideo
+        ? router.push({ pathname: "/pre-trip-video" as any, params: { tripId: item.id } })
+        : router.push({ pathname: "/tracking/[id]", params: { id: item.id } });
     const statusConfig = {
       upcoming: { bg: "#EBF2ED", text: colors.primary, label: "Upcoming" },
       completed: { bg: colors.muted, text: colors.mutedForeground, label: "Completed" },
@@ -213,11 +223,7 @@ export default function TripsTab() {
     return (
       <TouchableOpacity
         style={[styles.card, CARD_SHADOW]}
-        onPress={() =>
-          isUpcoming
-            ? router.push({ pathname: "/tracking/[id]", params: { id: item.id } })
-            : undefined
-        }
+        onPress={() => (isUpcoming ? goLive() : undefined)}
         activeOpacity={isUpcoming ? 0.88 : 1}
       >
         <View style={styles.cardTop}>
@@ -262,11 +268,25 @@ export default function TripsTab() {
           </View>
           {isUpcoming && (
             <TouchableOpacity
-              style={[styles.actionChip, { backgroundColor: colors.secondary }]}
-              onPress={() => router.push({ pathname: "/tracking/[id]", params: { id: item.id } })}
+              style={[
+                styles.actionChip,
+                { backgroundColor: needsStartVideo ? "#FEF3E2" : colors.secondary },
+              ]}
+              onPress={goLive}
             >
-              <Feather name="map-pin" size={11} color={colors.primary} />
-              <Text style={[styles.chipText, { color: colors.primary }]}>Track</Text>
+              <Feather
+                name={needsStartVideo ? "video" : "map-pin"}
+                size={11}
+                color={needsStartVideo ? "#C4954A" : colors.primary}
+              />
+              <Text
+                style={[
+                  styles.chipText,
+                  { color: needsStartVideo ? "#C4954A" : colors.primary },
+                ]}
+              >
+                {needsStartVideo ? "Start Adventure" : "Track"}
+              </Text>
             </TouchableOpacity>
           )}
           {isUpcoming && item.role === "driver" && (

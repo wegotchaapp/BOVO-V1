@@ -746,6 +746,7 @@ export class NotificationsService implements OnModuleInit {
       sos_alert: 'safety_sos_contact',
       t_s_action: 'trust_safety_action',
       insurance: 'payment_receipt',
+      founding_insurance: 'founding_insurance_placeholder',
       payment_received: 'payment_receipt',
     };
     return templateMap[category] || 'booking_confirmed';

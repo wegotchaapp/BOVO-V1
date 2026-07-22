@@ -23,7 +23,8 @@
       "infoPlist": {
         "NSLocationWhenInUseUsageDescription": "Bovogo uses your location during trips for live tracking.",
         "NSLocationAlwaysAndWhenInUseUsageDescription": "Bovogo uses your location to show your position during live trips and help drivers and riders find each other.",
-        "NSCameraUsageDescription": "Bovogo uses the camera to take profile and vehicle photos.",
+        "NSCameraUsageDescription": "Bovogo uses the camera to take profile and vehicle photos and to record the mandatory pre-trip vehicle video.",
+        "NSMicrophoneUsageDescription": "Bovogo uses the microphone while recording the mandatory pre-trip vehicle video.",
         "NSPhotoLibraryUsageDescription": "Bovogo lets you choose profile and vehicle photos from your library."
       }
     },
@@ -38,6 +39,7 @@
         "ACCESS_COARSE_LOCATION",
         "ACCESS_FINE_LOCATION",
         "CAMERA",
+        "RECORD_AUDIO",
         "READ_MEDIA_IMAGES"
       ]
     },
@@ -56,6 +58,14 @@
         }
       ],
       [
+        "expo-camera",
+        {
+          "cameraPermission": "Bovogo uses the camera to record the mandatory pre-trip vehicle video.",
+          "microphonePermission": "Bovogo uses the microphone while recording the mandatory pre-trip vehicle video.",
+          "recordAudioAndroid": true
+        }
+      ],
+      [
         "expo-image-picker",
         {
           "photosPermission": "Bovogo lets you choose profile and vehicle photos from your library.",
@@ -68,7 +78,8 @@
           "merchantIdentifier": "merchant.com.bovogo",
           "enableGooglePay": true
         }
-      ]
+      ],
+      "expo-video"
     ],
     "experiments": {
       "typedRoutes": true,

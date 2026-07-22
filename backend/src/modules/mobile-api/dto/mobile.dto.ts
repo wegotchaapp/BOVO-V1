@@ -132,6 +132,25 @@ export class UpdateMeBody {
   ridePreferences?: Record<string, string>;
 }
 
+export class SosBody {
+  @IsOptional()
+  @IsNumber()
+  @Min(-90)
+  @Max(90)
+  latitude?: number;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(-180)
+  @Max(180)
+  longitude?: number;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(64)
+  tripId?: string;
+}
+
 export class UpsertVehicleBody {
   @IsString()
   @MinLength(1)

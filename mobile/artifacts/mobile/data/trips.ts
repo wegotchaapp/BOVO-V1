@@ -37,7 +37,11 @@ export interface Trip {
   note: string;
   car: string;
   preferences: TripPreferences;
-  status: "active" | "cancelled" | "completed";
+  status: "active" | "in_progress" | "cancelled" | "completed";
+  /** URL of the mandatory pre-trip vehicle video (null until recorded). */
+  startVideoUrl?: string | null;
+  /** ISO-8601 timestamp set when the Voyager starts the ride. */
+  startedAt?: string | null;
   replyCount: number;
   createdAt: string;
 }

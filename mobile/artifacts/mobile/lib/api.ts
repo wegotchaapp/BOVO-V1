@@ -64,10 +64,53 @@ async function request<T>(
   return data as T;
 }
 
+/**
+ * Multipart POST (file uploads). Content-Type is left unset so fetch can
+ * write the multipart boundary itself.
+ */
+async function postForm<T>(path: string, form: FormData): Promise<T> {
+  const token = await AsyncStorage.getItem(TOKEN_KEY);
+  const headers: Record<string, string> = {
+    Accept: "application/json",
+  };
+  if (token) headers["Authorization"] = `Bearer ${token}`;
+
+  const res = await fetch(`${BASE_URL}/api${path}`, {
+    method: "POST",
+    headers,
+    body: form,
+  });
+
+  const text = await res.text();
+  let data: unknown = null;
+  if (text) {
+    try {
+      data = JSON.parse(text);
+    } catch {
+      data = text;
+    }
+  }
+
+  if (!res.ok) {
+    let msg = `Upload failed (${res.status})`;
+    if (data && typeof data === "object") {
+      const errVal = (data as Record<string, unknown>).error;
+      if (typeof errVal === "string" && errVal.length > 0) msg = errVal;
+    }
+    throw new ApiError(res.status, msg, data);
+  }
+
+  return data as T;
+}
+
 export const apiClient = {
   get: <T = unknown>(path: string) => request<T>("GET", path),
   post: <T = unknown>(path: string, body?: unknown) =>
     request<T>("POST", path, body ?? {}),
+  postForm: <T = unknown>(path: string, form: FormData) =>
+    postForm<T>(path, form),
+  put: <T = unknown>(path: string, body?: unknown) =>
+    request<T>("PUT", path, body ?? {}),
   patch: <T = unknown>(path: string, body?: unknown) =>
     request<T>("PATCH", path, body ?? {}),
   delete: <T = unknown>(path: string) => request<T>("DELETE", path),

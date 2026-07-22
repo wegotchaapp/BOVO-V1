@@ -1,11 +1,11 @@
 import { useRouter } from "expo-router";
 import * as AppleAuthentication from "expo-apple-authentication";
 import * as Google from "expo-auth-session/providers/google";
+import { makeRedirectUri } from "expo-auth-session";
 import * as WebBrowser from "expo-web-browser";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
-  Alert,
   Platform,
   StyleSheet,
   Text,
@@ -15,6 +15,7 @@ import {
 
 import { useAuth } from "@/context/AuthContext";
 import { useColors } from "@/hooks/useColors";
+import { showAlert } from "@/lib/alert";
 import { getGoogleClientIds } from "@/lib/socialAuth";
 
 WebBrowser.maybeCompleteAuthSession();
@@ -26,43 +27,78 @@ export function SocialAuthButtons() {
   const [busy, setBusy] = useState<"google" | "apple" | null>(null);
   const googleIds = getGoogleClientIds();
 
+  const redirectUri = useMemo(
+    () =>
+      makeRedirectUri({
+        scheme: "bovogo",
+        path: "oauthredirect",
+      }),
+    [],
+  );
+
+  useEffect(() => {
+    if (__DEV__) {
+      console.log("[Google OAuth] redirectUri:", redirectUri);
+    }
+  }, [redirectUri]);
+
   const [request, response, promptAsync] = Google.useAuthRequest({
     webClientId: googleIds.web || undefined,
     iosClientId: googleIds.ios || undefined,
     androidClientId: googleIds.android || undefined,
+    redirectUri,
   });
 
   useEffect(() => {
-    if (response?.type !== "success") return;
-    const idToken =
-      response.authentication?.idToken ||
-      (response.params as { id_token?: string } | undefined)?.id_token;
-    if (!idToken) {
-      Alert.alert(
-        "Google Sign-In",
-        "Google did not return an ID token. Use a Web OAuth client ID in EXPO_PUBLIC_GOOGLE_CLIENT_ID.",
-      );
+    if (!response) return;
+
+    if (response.type === "success") {
+      const idToken =
+        response.authentication?.idToken ||
+        (response.params as { id_token?: string } | undefined)?.id_token;
+      if (!idToken) {
+        void showAlert(
+          "Google Sign-In",
+          "Google did not return an ID token. Use a Web OAuth client ID in EXPO_PUBLIC_GOOGLE_CLIENT_ID and register the redirect URI shown in the dev console.",
+        );
+        setBusy(null);
+        return;
+      }
+      (async () => {
+        try {
+          setBusy("google");
+          const user = await loginWithOAuth({ provider: "google", idToken });
+          router.replace(user.onboarded ? "/(tabs)" : "/onboarding");
+        } catch (e: any) {
+          await showAlert("Google Sign-In failed", e?.message ?? "Please try again.");
+        } finally {
+          setBusy(null);
+        }
+      })();
+      return;
+    }
+
+    if (response.type === "error") {
+      const msg =
+        response.error?.message ||
+        response.params?.error_description ||
+        response.params?.error ||
+        "Google sign-in was rejected. Check that your redirect URI is registered in Google Cloud Console.";
+      void showAlert("Google Sign-In failed", String(msg));
       setBusy(null);
       return;
     }
-    (async () => {
-      try {
-        setBusy("google");
-        const user = await loginWithOAuth({ provider: "google", idToken });
-        router.replace(user.onboarded ? "/(tabs)" : "/onboarding");
-      } catch (e: any) {
-        Alert.alert("Google Sign-In failed", e?.message ?? "Please try again.");
-      } finally {
-        setBusy(null);
-      }
-    })();
+
+    if (response.type === "dismiss" || response.type === "cancel") {
+      setBusy(null);
+    }
   }, [response, loginWithOAuth, router]);
 
   async function handleGoogle() {
     if (!googleIds.configured) {
-      Alert.alert(
+      await showAlert(
         "Google Sign-In not configured",
-        "Add EXPO_PUBLIC_GOOGLE_CLIENT_ID to mobile/.env (Google Cloud Console → OAuth 2.0 Web client ID), then restart Expo.",
+        "Add EXPO_PUBLIC_GOOGLE_CLIENT_ID to mobile/.env (Google Cloud Console → OAuth 2.0 Web client ID), register the redirect URI from the dev console, then restart Expo with --clear.",
       );
       return;
     }
@@ -70,14 +106,14 @@ export function SocialAuthButtons() {
     try {
       await promptAsync();
     } catch (e: any) {
-      Alert.alert("Google Sign-In failed", e?.message ?? "Please try again.");
+      await showAlert("Google Sign-In failed", e?.message ?? "Please try again.");
       setBusy(null);
     }
   }
 
   async function handleApple() {
     if (Platform.OS !== "ios") {
-      Alert.alert(
+      await showAlert(
         "Apple Sign-In",
         "Apple Sign-In is only available on iPhone and iPad.",
       );
@@ -110,7 +146,7 @@ export function SocialAuthButtons() {
       router.replace(user.onboarded ? "/(tabs)" : "/onboarding");
     } catch (e: any) {
       if (e?.code === "ERR_REQUEST_CANCELED") return;
-      Alert.alert("Apple Sign-In failed", e?.message ?? "Please try again.");
+      await showAlert("Apple Sign-In failed", e?.message ?? "Please try again.");
     } finally {
       setBusy(null);
     }

@@ -172,6 +172,8 @@ export function tripToDto(
       ac: t.pref_ac,
     },
     status: t.status,
+    startVideoUrl: t.start_video_url ?? null,
+    startedAt: t.started_at ? t.started_at.toISOString() : null,
     replyCount,
     createdAt: t.created_at.toISOString(),
   };

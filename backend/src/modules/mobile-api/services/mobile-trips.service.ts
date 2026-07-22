@@ -5,7 +5,12 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
+import { ConfigService } from '@nestjs/config';
 import { FindOptionsWhere, ILike, In, Repository } from 'typeorm';
+import * as AWS from 'aws-sdk';
+import * as fs from 'fs';
+import * as path from 'path';
+import { randomUUID } from 'crypto';
 import {
   MobileBooking,
   MobileTrip,
@@ -18,10 +23,38 @@ import {
 import { CreateTripBody, CreateReplyBody } from '../dto/mobile.dto';
 import { driverSummary, replyToDto, tripToDto } from '../mobile.mappers';
 import { findPublicReplyPii } from '../pii-guard';
+import { MobileEmailNotificationsService } from './mobile-email-notifications.service';
+
+const UPLOADS_DIR = path.join(process.cwd(), 'uploads');
+const START_VIDEO_BUCKET = 'bovogo-trip-videos';
+const ALLOWED_VIDEO_MIME = new Set([
+  'video/mp4',
+  'video/quicktime',
+  'video/webm',
+  'video/3gpp',
+  'video/x-matroska',
+]);
+const VIDEO_EXT_BY_MIME: Record<string, string> = {
+  'video/mp4': 'mp4',
+  'video/quicktime': 'mov',
+  'video/webm': 'webm',
+  'video/3gpp': '3gp',
+  'video/x-matroska': 'mkv',
+};
+
+export interface UploadedVideoFile {
+  buffer: Buffer;
+  mimetype: string;
+  originalname: string;
+  size: number;
+}
 
 @Injectable()
 export class MobileTripsService {
+  private readonly s3: AWS.S3;
+
   constructor(
+    private readonly config: ConfigService,
     @InjectRepository(MobileTrip)
     private readonly trips: Repository<MobileTrip>,
     @InjectRepository(MobileTripReply)
@@ -36,7 +69,14 @@ export class MobileTripsService {
     private readonly groups: Repository<MobileTripGroup>,
     @InjectRepository(MobileTripGroupMember)
     private readonly groupMembers: Repository<MobileTripGroupMember>,
-  ) {}
+    private readonly emailNotifications: MobileEmailNotificationsService,
+  ) {
+    this.s3 = new AWS.S3({
+      accessKeyId: this.config.get('AWS_ACCESS_KEY_ID'),
+      secretAccessKey: this.config.get('AWS_SECRET_ACCESS_KEY'),
+      region: this.config.get('AWS_REGION'),
+    });
+  }
 
   async list(from?: string, to?: string) {
     const where: FindOptionsWhere<MobileTrip> = { status: 'active' };
@@ -174,6 +214,121 @@ export class MobileTripsService {
       await this.trips.save(trip);
     }
     return { ok: true };
+  }
+
+  /**
+   * Stores the mandatory pre-trip car video recorded live by the driver.
+   * The trip cannot transition to `in_progress` until this succeeds.
+   */
+  async uploadStartVideo(
+    driverId: string,
+    tripId: string,
+    file: UploadedVideoFile | undefined,
+  ) {
+    const trip = await this.requireOwnTrip(driverId, tripId);
+    if (trip.status === 'cancelled' || trip.status === 'completed') {
+      throw new BadRequestException(
+        'This adventure is no longer active, so a start video cannot be added.',
+      );
+    }
+
+    if (!file || !file.buffer?.length) {
+      throw new BadRequestException('A video file is required.');
+    }
+    if (!ALLOWED_VIDEO_MIME.has(file.mimetype)) {
+      throw new BadRequestException(
+        'Unsupported video format. Please record the video with your camera.',
+      );
+    }
+
+    const ext = VIDEO_EXT_BY_MIME[file.mimetype] ?? 'mp4';
+    const key = `trips/${tripId}/start-video-${randomUUID()}.${ext}`;
+    await this.storeVideo(key, file.buffer, file.mimetype);
+
+    const appUrl = this.config.get('APP_URL') || 'http://localhost:3000';
+    trip.start_video_url = `${appUrl}/uploads/${START_VIDEO_BUCKET}/${key}`;
+    await this.trips.save(trip);
+
+    const driver = await this.users.findOne({ where: { id: driverId } });
+    if (driver) {
+      await this.emailNotifications.sendPreTripVideoReceivedEmail({
+        driver,
+        trip,
+      });
+    }
+
+    return { ok: true, startVideoUrl: trip.start_video_url };
+  }
+
+  /** Marks the trip started. Rejects unless the mandatory car video was uploaded. */
+  async start(driverId: string, tripId: string) {
+    const trip = await this.requireOwnTrip(driverId, tripId);
+    if (trip.status === 'cancelled' || trip.status === 'completed') {
+      throw new BadRequestException('This adventure can no longer be started.');
+    }
+    if (!trip.start_video_url) {
+      throw new BadRequestException(
+        'You must record a video of your car before starting the ride.',
+      );
+    }
+    if (trip.status !== 'in_progress') {
+      trip.status = 'in_progress';
+      trip.started_at = new Date();
+      await this.trips.save(trip);
+    }
+
+    const driver = await this.users.findOne({ where: { id: driverId } });
+    return {
+      trip: tripToDto(
+        trip,
+        driverSummary(
+          driver ?? { id: driverId, name: 'Voyager', rating: 5, trips: 0 },
+        ),
+        0,
+      ),
+    };
+  }
+
+  private async requireOwnTrip(driverId: string, tripId: string) {
+    const trip = await this.trips.findOne({ where: { id: tripId } });
+    if (!trip) throw new NotFoundException('Adventure not found');
+    if (trip.driver_id !== driverId) {
+      throw new ForbiddenException(
+        'Only the Voyager who posted this adventure can start it.',
+      );
+    }
+    return trip;
+  }
+
+  private async storeVideo(key: string, buffer: Buffer, mimeType: string) {
+    const awsKey = this.config.get<string>('AWS_ACCESS_KEY_ID');
+    const awsSecret = this.config.get<string>('AWS_SECRET_ACCESS_KEY');
+
+    // Real AWS access keys are AKIA + 16 uppercase alphanumerics; placeholders
+    // like AKIA_local_mock / AKIA_your-aws-key fall through to local storage.
+    const hasRealAwsCreds =
+      !!awsKey && !!awsSecret && /^AKIA[0-9A-Z]{16}$/.test(awsKey);
+
+    if (hasRealAwsCreds) {
+      await this.s3
+        .putObject({
+          Bucket: START_VIDEO_BUCKET,
+          Key: key,
+          Body: buffer,
+          ContentType: mimeType,
+          ACL: 'private',
+        })
+        .promise();
+      return;
+    }
+
+    // Local/dev fallback mirrors profiles.service.ts: write under uploads/.
+    const filePath = path.join(UPLOADS_DIR, START_VIDEO_BUCKET, key);
+    const dir = path.dirname(filePath);
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true });
+    }
+    fs.writeFileSync(filePath, buffer);
   }
 
   async reply(userId: string, tripId: string, dto: CreateReplyBody) {

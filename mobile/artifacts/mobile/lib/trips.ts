@@ -57,6 +57,41 @@ export async function deleteTrip(id: string): Promise<void> {
   await apiClient.delete<{ ok: true }>(`/trips/${id}`);
 }
 
+/**
+ * Uploads the mandatory pre-trip vehicle video recorded live with the camera.
+ * The backend refuses to start the trip until this succeeds.
+ */
+export async function uploadStartVideo(
+  tripId: string,
+  fileUri: string,
+): Promise<{ startVideoUrl: string }> {
+  const name = fileUri.split("/").pop() || "start-video.mp4";
+  const ext = name.includes(".") ? name.split(".").pop()!.toLowerCase() : "mp4";
+  const mimeByExt: Record<string, string> = {
+    mp4: "video/mp4",
+    mov: "video/quicktime",
+    webm: "video/webm",
+    "3gp": "video/3gpp",
+    mkv: "video/x-matroska",
+  };
+  const form = new FormData();
+  form.append("video", {
+    uri: fileUri,
+    name,
+    type: mimeByExt[ext] ?? "video/mp4",
+  } as unknown as Blob);
+  return apiClient.postForm<{ ok: true; startVideoUrl: string }>(
+    `/trips/${tripId}/start-video`,
+    form,
+  );
+}
+
+/** Marks the trip started (requires the start video to be uploaded first). */
+export async function startTrip(tripId: string): Promise<Trip> {
+  const data = await apiClient.post<{ trip: Trip }>(`/trips/${tripId}/start`);
+  return data.trip;
+}
+
 export async function replyToTrip(
   tripId: string,
   text: string,

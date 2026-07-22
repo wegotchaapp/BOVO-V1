@@ -20,6 +20,7 @@ import Animated, {
 
 import { useColors } from "@/hooks/useColors";
 import { CARD_SHADOW } from "@/constants/colors";
+import { useAuth } from "@/context/AuthContext";
 import { getBooking, type Booking } from "@/lib/bookings";
 
 function cityShort(c: string): string {
@@ -41,6 +42,7 @@ function formatDate(iso: string): string {
 export default function BookingConfirmed() {
   const colors = useColors();
   const router = useRouter();
+  const { user } = useAuth();
   const { id } = useLocalSearchParams<{ id?: string }>();
 
   const [booking, setBooking] = useState<Booking | null>(null);
@@ -149,10 +151,14 @@ export default function BookingConfirmed() {
           )}
 
           <Animated.View style={[styles.badges, contentStyle]}>
-            <View style={[styles.badge, { backgroundColor: "#EBF2ED" }]}>
-              <Feather name="shield" size={14} color={colors.primary} />
-              <Text style={[styles.badgeText, { color: colors.primary }]}>Adventure insured</Text>
-            </View>
+            {user?.isFoundingMember ? (
+              <View style={[styles.badge, { backgroundColor: "#EBF2ED" }]}>
+                <Feather name="shield" size={14} color={colors.primary} />
+                <Text style={[styles.badgeText, { color: colors.primary }]}>
+                  Adventure insured
+                </Text>
+              </View>
+            ) : null}
             <View style={[styles.badge, { backgroundColor: "#FEF3E2" }]}>
               <Feather name="award" size={14} color="#C4954A" />
               <Text style={[styles.badgeText, { color: "#C4954A" }]}>Verified driver</Text>

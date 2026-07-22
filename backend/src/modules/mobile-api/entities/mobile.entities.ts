@@ -235,7 +235,13 @@ export class MobileTrip {
   pref_ac!: boolean;
 
   @Column({ type: 'varchar', length: 12, default: 'active' })
-  status!: 'active' | 'cancelled' | 'completed';
+  status!: 'active' | 'in_progress' | 'cancelled' | 'completed';
+
+  @Column({ type: 'text', nullable: true })
+  start_video_url!: string | null;
+
+  @Column({ type: 'timestamptz', nullable: true })
+  started_at!: Date | null;
 
   @CreateDateColumn({ type: 'timestamptz' })
   created_at!: Date;

@@ -21,6 +21,7 @@ import { useTripLiveTracking } from "@/hooks/useTripLiveTracking";
 import { CARD_SHADOW } from "@/constants/colors";
 import { getBooking, type Booking } from "@/lib/bookings";
 import { cityShort, getCityCoord } from "@/lib/city-coords";
+import { triggerSos } from "@/lib/safety";
 import { phoneToTelHref } from "@/lib/tracking";
 
 function midpoint(
@@ -179,6 +180,32 @@ export default function TripTracking() {
       }
       Alert.alert("Couldn't share", e?.message ?? "Please try again.");
     }
+  }
+
+  function handleSOS() {
+    Alert.alert(
+      "Activate SOS?",
+      "This will text your emergency contact with your live location and open a call and text to 911.",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Activate SOS",
+          style: "destructive",
+          onPress: () => {
+            // Pass the already-live GPS fix so the flow doesn't wait for a new one.
+            triggerSos({
+              coord: live.myCoord
+                ? {
+                    latitude: live.myCoord.latitude,
+                    longitude: live.myCoord.longitude,
+                  }
+                : null,
+              tripId: booking?.tripId,
+            });
+          },
+        },
+      ],
+    );
   }
 
   async function handleCallVoyager() {
@@ -418,11 +445,11 @@ export default function TripTracking() {
 
           <TouchableOpacity
             style={[styles.safetyBtn, { backgroundColor: "#DC2626" }]}
-            onPress={() => router.push("/safety" as any)}
+            onPress={handleSOS}
             activeOpacity={0.85}
           >
             <Text style={styles.safetyText}>SOS</Text>
-            <Text style={styles.safetySubText}>Hold for help</Text>
+            <Text style={styles.safetySubText}>Tap for help</Text>
           </TouchableOpacity>
         </View>
       </SafeAreaView>

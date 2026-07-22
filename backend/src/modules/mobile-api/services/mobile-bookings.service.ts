@@ -20,6 +20,7 @@ import {
 import { CreateBookingBody, LiveLocationBody } from '../dto/mobile.dto';
 import { bookingToDto } from '../mobile.mappers';
 import { MobileConversationsService } from './mobile-conversations.service';
+import { MobileEmailNotificationsService } from './mobile-email-notifications.service';
 
 const SERVICE_FEE_RATE = 0.06;
 
@@ -43,6 +44,7 @@ export class MobileBookingsService {
     private readonly dataSource: DataSource,
     private readonly config: ConfigService,
     private readonly conversations: MobileConversationsService,
+    private readonly emailNotifications: MobileEmailNotificationsService,
   ) {}
 
   private stripeOrNull(): Stripe | null {
@@ -213,6 +215,13 @@ export class MobileBookingsService {
       await this.conversations
         .ensureForBooking(result._driverId, result._riderId, result._tripLabel)
         .catch(() => undefined);
+      await this.notifyRiderBookingConfirmed(
+        riderId,
+        booking.id,
+        booking.trip_id,
+        result.booking.trip.driverName,
+        String(result.booking.totalAmount),
+      );
       return { booking: result.booking };
     });
   }
@@ -276,7 +285,33 @@ export class MobileBookingsService {
       await this.conversations
         .ensureForBooking(result._driverId, result._riderId, result._tripLabel)
         .catch(() => undefined);
+      await this.notifyRiderBookingConfirmed(
+        riderId,
+        result.booking.id,
+        dto.tripId,
+        result.booking.trip.driverName,
+        String(result.booking.totalAmount),
+      );
       return { booking: result.booking };
+    });
+  }
+
+  private async notifyRiderBookingConfirmed(
+    riderId: string,
+    bookingId: string,
+    tripId: string,
+    driverName: string,
+    totalAmount: string,
+  ) {
+    const rider = await this.users.findOne({ where: { id: riderId } });
+    const trip = await this.trips.findOne({ where: { id: tripId } });
+    if (!rider || !trip) return;
+    await this.emailNotifications.sendBookingConfirmedEmail({
+      rider,
+      trip,
+      driverName,
+      bookingId,
+      totalAmount,
     });
   }
 

@@ -16,6 +16,7 @@ import {
 
 import { CARD_SHADOW } from "@/constants/colors";
 import { useColors } from "@/hooks/useColors";
+import { triggerSos } from "@/lib/safety";
 
 const OPTIONS = [
   {
@@ -60,7 +61,10 @@ export default function SafetyUnsafe() {
 
   function handleOption(id: string) {
     if (id === "911") {
-      Alert.alert("Calling 911", "In a real emergency, this would dial 911 immediately.", [{ text: "OK" }]);
+      // Real SOS: emergency-contact SMS via backend + 911 text composer + dialer.
+      triggerSos().catch(() => {
+        Alert.alert("SOS", "Couldn't open the dialer automatically. Please call 911 directly.");
+      });
     } else if (id === "record") {
       Alert.alert("Recording Started", "Silent recording is running. It will stop when you end the trip.", [{ text: "OK" }]);
     } else if (id === "share") {

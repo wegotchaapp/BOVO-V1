@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { NotificationsModule } from '../notifications/notifications.module';
 import {
   MobileBooking,
   MobileConversation,
@@ -28,6 +29,8 @@ import { MobileNotificationsService } from './services/mobile-notifications.serv
 import { MobileConversationsService } from './services/mobile-conversations.service';
 import { MobileVehiclesService } from './services/mobile-vehicles.service';
 import { MobileRatingsService } from './services/mobile-ratings.service';
+import { MobileSafetyService } from './services/mobile-safety.service';
+import { MobileEmailNotificationsService } from './services/mobile-email-notifications.service';
 import { MobileAuthController } from './controllers/mobile-auth.controller';
 import { MobileTripsController } from './controllers/mobile-trips.controller';
 import { MobileBookingsController } from './controllers/mobile-bookings.controller';
@@ -39,6 +42,7 @@ import { MobileConversationsController } from './controllers/mobile-conversation
 import { MobileVehiclesController } from './controllers/mobile-vehicles.controller';
 import { MobileRatingsController } from './controllers/mobile-ratings.controller';
 import { MobilePreferencesController } from './controllers/mobile-preferences.controller';
+import { MobileSafetyController } from './controllers/mobile-safety.controller';
 
 /**
  * Bovogo mobile compatibility layer. Serves the exact `/api/*` REST contract
@@ -48,6 +52,7 @@ import { MobilePreferencesController } from './controllers/mobile-preferences.co
  */
 @Module({
   imports: [
+    NotificationsModule,
     TypeOrmModule.forFeature([
       MobileUser,
       MobileSession,
@@ -78,6 +83,7 @@ import { MobilePreferencesController } from './controllers/mobile-preferences.co
     MobileVehiclesController,
     MobileRatingsController,
     MobilePreferencesController,
+    MobileSafetyController,
   ],
   providers: [
     MobileAuthGuard,
@@ -91,6 +97,8 @@ import { MobilePreferencesController } from './controllers/mobile-preferences.co
     MobileConversationsService,
     MobileVehiclesService,
     MobileRatingsService,
+    MobileSafetyService,
+    MobileEmailNotificationsService,
   ],
 })
 export class MobileApiModule {}

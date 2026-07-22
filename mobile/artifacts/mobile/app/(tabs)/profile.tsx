@@ -18,6 +18,7 @@ import { useAuth } from "@/context/AuthContext";
 import { useColors } from "@/hooks/useColors";
 import { CARD_SHADOW } from "@/constants/colors";
 import { openSupportConversation } from "@/lib/conversations";
+import { confirm, showAlert } from "@/lib/alert";
 
 interface MenuItem {
   icon: string;
@@ -165,48 +166,33 @@ export default function ProfileTab() {
   ];
 
   async function handleLogout() {
-    Alert.alert("Log Out", "Are you sure you want to log out?", [
-      { text: "Cancel", style: "cancel" },
-      {
-        text: "Log Out",
-        style: "destructive",
-        onPress: async () => {
-          await logout();
-          router.replace("/");
-        },
-      },
-    ]);
+    const ok = await confirm("Log Out", "Are you sure you want to log out?", {
+      confirmText: "Log Out",
+      cancelText: "Cancel",
+      destructive: true,
+    });
+    if (!ok) return;
+    await logout();
+    router.replace("/");
   }
 
-  function handleDeleteAccount() {
-    Alert.alert(
+  async function handleDeleteAccount() {
+    const step1 = await confirm(
       "Delete Account",
       "Are you sure you want to delete your Bovogo account?\n\nYour profile, trip history, and data will be permanently erased after a 7-day grace period. You can contact support within 7 days to cancel this request.",
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Schedule Deletion",
-          style: "destructive",
-          onPress: () => {
-            Alert.alert(
-              "Confirm Account Deletion",
-              "This will log you out immediately. Your data will be permanently deleted in 7 days.\n\nContact support@wegotcha.com within 7 days to reverse this.",
-              [
-                { text: "Go Back", style: "cancel" },
-                {
-                  text: "Yes, Delete My Account",
-                  style: "destructive",
-                  onPress: async () => {
-                    await deleteAccount();
-                    router.replace("/");
-                  },
-                },
-              ],
-            );
-          },
-        },
-      ],
+      { confirmText: "Schedule Deletion", cancelText: "Cancel", destructive: true },
     );
+    if (!step1) return;
+
+    const step2 = await confirm(
+      "Confirm Account Deletion",
+      "This will log you out immediately. Your data will be permanently deleted in 7 days.\n\nContact support@wegotcha.com within 7 days to reverse this.",
+      { confirmText: "Yes, Delete My Account", cancelText: "Go Back", destructive: true },
+    );
+    if (!step2) return;
+
+    await deleteAccount();
+    router.replace("/");
   }
 
   const deletionDate = deletionScheduledAt
@@ -245,9 +231,9 @@ export default function ProfileTab() {
               onPress={async () => {
                 try {
                   await cancelAccountDeletion();
-                  Alert.alert("Deletion cancelled", "Your account will remain active.");
+                  await showAlert("Deletion cancelled", "Your account will remain active.");
                 } catch (e: any) {
-                  Alert.alert("Couldn't cancel", e?.message ?? "Please try again.");
+                  await showAlert("Couldn't cancel", e?.message ?? "Please try again.");
                 }
               }}
               style={{ marginTop: 8 }}

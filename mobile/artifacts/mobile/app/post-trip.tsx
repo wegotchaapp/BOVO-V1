@@ -21,6 +21,7 @@ import { ALL_CITY_OPTIONS, MVP_CITIES, isMvpCity } from "@/data/cities";
 import { filterNeighborhoods, getNeighborhoods } from "@/data/locations";
 import { useColors } from "@/hooks/useColors";
 import { calculateSuggestedPrice, getDistanceMiles } from "@/lib/pricing";
+import { showAlert, showSuccess } from "@/lib/alert";
 import { createTrip } from "@/lib/trips";
 
 const MAX_MESSAGE = 500;
@@ -398,11 +399,13 @@ export default function PostTrip() {
         pricePerSeat,
         note: messageTrimmed,
       });
-      Alert.alert("Adventure Posted!", "Your trip is now live on the feed. Sailors can reply to join.", [
-        { text: "View Feed", onPress: () => router.replace("/(tabs)") },
-      ]);
+      await showSuccess(
+        "Adventure Posted!",
+        "Your trip is now live on the feed. Sailors can reply to join.",
+        () => router.replace("/(tabs)"),
+      );
     } catch (err) {
-      Alert.alert(
+      await showAlert(
         "Couldn't post trip",
         err instanceof Error ? err.message : "Please try again in a moment.",
       );

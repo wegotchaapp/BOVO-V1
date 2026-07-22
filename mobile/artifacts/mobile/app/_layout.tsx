@@ -76,6 +76,7 @@ function RootLayoutNav() {
         <Stack.Screen name="payment" options={{ headerShown: false }} />
         <Stack.Screen name="post/[id]" options={{ headerShown: false }} />
         <Stack.Screen name="post-trip" options={{ headerShown: false }} />
+        <Stack.Screen name="pre-trip-video" options={{ headerShown: false }} />
         <Stack.Screen name="earnings" options={{ headerShown: false }} />
         <Stack.Screen name="vehicle" options={{ headerShown: false }} />
         <Stack.Screen name="safety-unsafe" options={{ headerShown: false }} />

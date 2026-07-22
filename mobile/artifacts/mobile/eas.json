@@ -8,20 +8,23 @@
       "developmentClient": true,
       "distribution": "internal",
       "env": {
-        "EXPO_PUBLIC_API_URL": "http://localhost:3000"
+        "EXPO_PUBLIC_API_URL": "http://localhost:3000",
+        "EXPO_PUBLIC_GOOGLE_CLIENT_ID": ""
       }
     },
     "preview": {
       "distribution": "internal",
       "ios": { "simulator": false },
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://staging-api.bovogo.com"
+        "EXPO_PUBLIC_API_URL": "https://staging-api.bovogo.com",
+        "EXPO_PUBLIC_GOOGLE_CLIENT_ID": ""
       }
     },
     "production": {
       "autoIncrement": true,
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://api.bovogo.com"
+        "EXPO_PUBLIC_API_URL": "https://api.bovogo.com",
+        "EXPO_PUBLIC_GOOGLE_CLIENT_ID": ""
       }
     }
   },

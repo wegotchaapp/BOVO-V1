@@ -13,10 +13,18 @@ import axios from 'axios';
 import { RealtimeGateway } from '../../common/gateways/realtime.gateway';
 import { NotificationsService } from '../notifications/notifications.service';
 
+/**
+ * Kept short: an SOS must not stall behind a slow third party. If Noonlight
+ * hasn't answered in this window we escalate locally and move on.
+ */
+const NOONLIGHT_TIMEOUT_MS = 5_000;
+
 @Injectable()
 export class SafetyService {
   private mapboxAccessToken: string;
   private appUrl: string;
+  private noonlightApiUrl: string;
+  private noonlightApiKey: string;
 
   constructor(
     @InjectRepository(TripPing)
@@ -42,6 +50,57 @@ export class SafetyService {
   ) {
     this.mapboxAccessToken = this.config.get<string>('MAPBOX_ACCESS_TOKEN') || '';
     this.appUrl = this.config.get<string>('APP_URL') || 'https://bovogo.app';
+    this.noonlightApiUrl =
+      this.config.get<string>('NOONLIGHT_API_URL') || 'https://api-sandbox.noonlight.com';
+    this.noonlightApiKey = this.config.get<string>('NOONLIGHT_API_KEY') || '';
+  }
+
+  /**
+   * Creates a Noonlight alarm so a real dispatcher is engaged alongside our own
+   * escalation. Never throws: the local SOS flow (emergency contacts, ops
+   * paging, 911 on-device) must complete even if Noonlight is unreachable.
+   * Returns the alarm id, or null when unconfigured or the call fails.
+   */
+  private async createNoonlightAlarm(input: {
+    person: { name: string; phone: string };
+    location: Record<string, unknown>;
+    instructions: string;
+  }): Promise<string | null> {
+    if (!this.noonlightApiKey) {
+      this.logger.warn(
+        'NOONLIGHT_API_KEY is not set — SOS will escalate locally only, with no professional dispatch.',
+      );
+      return null;
+    }
+
+    try {
+      const res = await axios.post(
+        `${this.noonlightApiUrl}/dispatch/v1/alarms`,
+        {
+          name: input.person.name,
+          phone: input.person.phone,
+          location: input.location,
+          instructions: { entry: input.instructions },
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${this.noonlightApiKey}`,
+            'Content-Type': 'application/json',
+          },
+          timeout: NOONLIGHT_TIMEOUT_MS,
+        },
+      );
+
+      const alarmId: string | null = res.data?.id ?? null;
+      this.logger.info({ alarmId }, 'Noonlight alarm created');
+      return alarmId;
+    } catch (err) {
+      this.logger.error(
+        { err },
+        'Noonlight dispatch failed — continuing with local SOS escalation',
+      );
+      return null;
+    }
   }
 
   async receivePing(
@@ -314,6 +373,14 @@ export class SafetyService {
       phone: user.phone || '',
     };
 
+    // Dispatch to Noonlight first so professional responders are engaged as
+    // early as possible; the call is non-throwing and returns null on failure.
+    const noonlightAlarmId = await this.createNoonlightAlarm({
+      person,
+      location,
+      instructions: `Bovogo SOS activated via ${triggerType}. ${tripContext}`.trim(),
+    });
+
     const sosEvent = this.sosRepo.create({
       user_id: userId,
       booking_id: bookingId || null,
@@ -321,7 +388,7 @@ export class SafetyService {
       status: SosStatus.ACTIVE,
       latitude: lat,
       longitude: lng,
-      noonlight_alarm_id: null,
+      noonlight_alarm_id: noonlightAlarmId,
     });
     const savedSos = await this.sosRepo.save(sosEvent);
 
@@ -334,9 +401,9 @@ export class SafetyService {
     });
     await this.incidentRepo.save(incident);
 
-    if (bookingId && booking) {
-      await this.notifyEmergencyContacts(user, lat, lng);
-    }
+    // Always notify emergency contacts. Previously this was gated on a booking
+    // existing, so an SOS raised outside a trip silently told nobody.
+    await this.notifyEmergencyContacts(user, lat, lng);
 
     await this.pageTeamAndEscalate(
       booking!,
@@ -345,7 +412,7 @@ export class SafetyService {
 
     return {
       sos_id: savedSos.id,
-      noonlight_alarm_id: null,
+      noonlight_alarm_id: noonlightAlarmId,
     };
   }
 

@@ -1,5 +1,7 @@
 import { Platform, Share } from "react-native";
 
+import { getSosLocation } from "./safety";
+
 export interface TripShareInput {
   fromCity: string;
   toCity: string;
@@ -21,6 +23,41 @@ function formatShareDate(iso: string): string {
     hour: "numeric",
     minute: "2-digit",
   });
+}
+
+export interface LiveShareInput {
+  fromCity?: string;
+  toCity?: string;
+  /** ISO timestamp of the expected arrival, when a trip is under way. */
+  etaAt?: string | null;
+  contactName?: string | null;
+}
+
+/**
+ * Shares the user's real live GPS position plus route/ETA through the OS share
+ * sheet, so it can go to any contact or messaging app. Returns false when no
+ * location fix could be obtained, so the caller can explain why.
+ */
+export async function shareLiveLocation(input: LiveShareInput = {}): Promise<boolean> {
+  const coord = await getSosLocation();
+  if (!coord) return false;
+
+  const parts = ["I'm sharing my live Bovogo adventure with you."];
+  if (input.fromCity && input.toCity) {
+    parts.push(`Route: ${cityShort(input.fromCity)} → ${cityShort(input.toCity)}`);
+  }
+  if (input.etaAt) {
+    parts.push(`ETA: ${formatShareDate(input.etaAt)}`);
+  }
+  parts.push(
+    `My live location: https://www.google.com/maps?q=${coord.latitude},${coord.longitude}`,
+  );
+
+  const message = parts.join("\n");
+  await Share.share(
+    Platform.OS === "ios" ? { message } : { message, title: "My live Bovogo adventure" },
+  );
+  return true;
 }
 
 export async function shareTripSummary(input: TripShareInput): Promise<void> {

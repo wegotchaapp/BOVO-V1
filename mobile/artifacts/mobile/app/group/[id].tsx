@@ -3,7 +3,6 @@ import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
-  Alert,
   KeyboardAvoidingView,
   Platform,
   RefreshControl,
@@ -16,6 +15,8 @@ import {
   View,
 } from "react-native";
 
+import { Alert } from "@/lib/alert";
+
 import { useColors } from "@/hooks/useColors";
 import { CARD_SHADOW } from "@/constants/colors";
 import { useAuth } from "@/context/AuthContext";
@@ -26,6 +27,7 @@ import {
   type TripGroupDetail,
   type TripGroupMessage,
 } from "@/lib/groups";
+import { openConversation } from "@/lib/conversations";
 
 const POLL_INTERVAL_MS = 4000;
 
@@ -95,6 +97,7 @@ export default function GroupDetail() {
   const [composerText, setComposerText] = useState("");
   const [sending, setSending] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [openingDm, setOpeningDm] = useState<string | null>(null);
 
   // We keep the latest detail in a ref so the polling closure always sees
   // fresh state without restarting the interval on every data change.
@@ -230,6 +233,23 @@ export default function GroupDetail() {
   }
 
   const { group, members, messages } = data;
+
+  /** Opens (or reuses) a private thread with another member of this adventure. */
+  async function openDmWith(otherUserId: string, name: string) {
+    if (otherUserId === user?.id || openingDm) return;
+    setOpeningDm(otherUserId);
+    try {
+      const conv = await openConversation(
+        otherUserId,
+        `${group.fromCity?.replace(/, TX$/i, "") ?? ""} → ${group.toCity?.replace(/, TX$/i, "") ?? ""}`.trim(),
+      );
+      router.push({ pathname: "/chat/[id]", params: { id: conv.id } });
+    } catch (e: any) {
+      Alert.alert(`Couldn't message ${name}`, e?.message ?? "Please try again.");
+    } finally {
+      setOpeningDm(null);
+    }
+  }
   const isMember = !!members.find((m) => m.userId === user?.id);
   const isDriver = !!members.find((m) => m.userId === user?.id && m.role === "driver");
 
@@ -310,7 +330,18 @@ export default function GroupDetail() {
             <Text style={[styles.sectionLabel, { color: colors.mutedForeground }]}>MEMBERS</Text>
             <View style={styles.membersRow}>
               {members.map((m) => (
-                <View key={m.userId} style={styles.memberChip}>
+                // Tap anyone but yourself to open a private 1:1 with them.
+                <TouchableOpacity
+                  key={m.userId}
+                  style={styles.memberChip}
+                  disabled={m.userId === user?.id || openingDm === m.userId}
+                  activeOpacity={0.7}
+                  accessibilityRole="button"
+                  accessibilityLabel={
+                    m.userId === user?.id ? "You" : `Message ${m.name}`
+                  }
+                  onPress={() => openDmWith(m.userId, m.name)}
+                >
                   <View
                     style={[
                       styles.memberAvatar,
@@ -337,7 +368,14 @@ export default function GroupDetail() {
                       <Text style={[styles.driverTagText, { color: "#C4954A" }]}>Voyager</Text>
                     </View>
                   )}
-                </View>
+                  {m.userId !== user?.id ? (
+                    openingDm === m.userId ? (
+                      <ActivityIndicator size="small" color={colors.primary} />
+                    ) : (
+                      <Feather name="message-circle" size={11} color={colors.mutedForeground} />
+                    )
+                  ) : null}
+                </TouchableOpacity>
               ))}
             </View>
           </View>

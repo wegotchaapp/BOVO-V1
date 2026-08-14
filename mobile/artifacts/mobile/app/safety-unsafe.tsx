@@ -2,7 +2,6 @@ import { Feather } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import React, { useState } from "react";
 import {
-  Alert,
   Keyboard,
   Platform,
   SafeAreaView,
@@ -13,6 +12,8 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+
+import { Alert } from "@/lib/alert";
 
 import { CARD_SHADOW } from "@/constants/colors";
 import { useColors } from "@/hooks/useColors";

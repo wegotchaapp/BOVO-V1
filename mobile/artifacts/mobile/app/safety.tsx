@@ -2,7 +2,6 @@ import { Feather } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import React, { useEffect, useRef, useState } from "react";
 import {
-  Alert,
   Animated,
   Modal,
   Platform,
@@ -15,9 +14,13 @@ import {
   View,
 } from "react-native";
 
+import { Alert } from "@/lib/alert";
+
 import { useColors } from "@/hooks/useColors";
+import { useAuth } from "@/context/AuthContext";
 import { CARD_SHADOW } from "@/constants/colors";
 import { triggerSos } from "@/lib/safety";
+import { shareLiveLocation } from "@/lib/share";
 
 const HOLD_DURATION = 3000;
 const COUNTDOWN_SECONDS = 10;
@@ -25,6 +28,10 @@ const COUNTDOWN_SECONDS = 10;
 export default function Safety() {
   const colors = useColors();
   const router = useRouter();
+  const { user } = useAuth();
+  const emergencyName = user?.emergencyName?.trim() ?? "";
+  const emergencyPhone = user?.emergencyPhone?.trim() ?? "";
+  const [sharing, setSharing] = useState(false);
 
   const holdProgress = useRef(new Animated.Value(0)).current;
   const holdAnim = useRef<Animated.CompositeAnimation | null>(null);
@@ -97,6 +104,25 @@ export default function Safety() {
 
   const progressDeg = holdProgress.interpolate({ inputRange: [0, 1], outputRange: ["0deg", "360deg"] });
 
+  /** Real OS share sheet carrying an actual GPS fix, not a canned message. */
+  async function handleShareLive() {
+    if (sharing) return;
+    setSharing(true);
+    try {
+      const shared = await shareLiveLocation({ contactName: emergencyName });
+      if (!shared) {
+        Alert.alert(
+          "Location unavailable",
+          "We couldn't get a GPS fix. Check that location access is enabled for Bovogo and try again.",
+        );
+      }
+    } catch (e: any) {
+      Alert.alert("Couldn't share", e?.message ?? "Please try again.");
+    } finally {
+      setSharing(false);
+    }
+  }
+
   const actions = [
     {
       icon: "alert-triangle",
@@ -109,28 +135,27 @@ export default function Safety() {
     {
       icon: "share-2",
       title: "Share Live Adventure",
-      subtitle: "Send your route + ETA to a contact",
-      onPress: () => Alert.alert("Share Adventure", "Sharing your live adventure link with your emergency contact."),
+      subtitle: sharing ? "Getting your location…" : "Send your route + ETA to a contact",
+      onPress: handleShareLive,
       color: colors.primary,
       bg: colors.secondary,
     },
     {
       icon: "phone",
-      title: "Emergency Contacts",
-      subtitle: "3 contacts added and ready",
-      onPress: () => Alert.alert("Emergency Contacts", "Contact management available in Settings."),
-      color: colors.primary,
-      bg: colors.secondary,
+      title: "Emergency Contact",
+      // Reflects the contact actually on file rather than a hardcoded count.
+      subtitle: emergencyName
+        ? `${emergencyName} · ${emergencyPhone || "no number saved"}`
+        : "None saved — tap to add one",
+      onPress: () => router.push("/preferences" as any),
+      color: emergencyName ? colors.primary : "#D97706",
+      bg: emergencyName ? colors.secondary : "#FEF3E2",
     },
     {
       icon: "book-open",
       title: "Safety Tips",
       subtitle: "Best practices for safe carpooling",
-      onPress: () =>
-        Alert.alert(
-          "Safety Tips",
-          "1. Verify driver's ID before boarding.\n2. Share your trip with a trusted contact.\n3. Sit in the back seat.\n4. Trust your instincts — cancel if uncomfortable.\n5. Keep your phone charged.",
-        ),
+      onPress: () => router.push("/safety-tips" as any),
       color: colors.primary,
       bg: colors.secondary,
     },

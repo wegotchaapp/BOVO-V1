@@ -3,7 +3,6 @@ import * as ImagePicker from "expo-image-picker";
 import { useRouter } from "expo-router";
 import React, { useState } from "react";
 import {
-  Alert,
   Image,
   Platform,
   ScrollView,
@@ -12,6 +11,9 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+
+import { Alert } from "@/lib/alert";
+import { formatUsd, PREMIUM_PRICE_PER_MONTH } from "@/lib/pricing";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useAuth } from "@/context/AuthContext";
@@ -40,7 +42,7 @@ const TRAVEL_PLUS_BENEFITS: BenefitRow[] = [
   { label: "Service fee on bookings", free: "12%", plus: "0%" },
   { label: "Priority match in queue", free: false, plus: true },
   { label: "Free trip cancellation", free: "1/mo", plus: "Unlimited" },
-  { label: "Premium driver badge", free: false, plus: true },
+  { label: "Premium Voyager badge", free: false, plus: true },
   { label: "24/7 priority support", free: false, plus: true },
 ];
 
@@ -201,7 +203,7 @@ export default function ProfileTab() {
 
   const badges = [
     { icon: "check-circle", label: "Verified", color: "#059669", bg: "#ECFDF5", show: user?.isVerified },
-    { icon: "award", label: "Top Rider", color: "#C4954A", bg: "#FEF3E2", show: (user?.trips ?? 0) >= 5 },
+    { icon: "award", label: "Top Sailor", color: "#C4954A", bg: "#FEF3E2", show: (user?.trips ?? 0) >= 5 },
     { icon: "map-pin", label: "Texan", color: colors.primary, bg: colors.secondary, show: true },
   ].filter((b) => b.show);
 
@@ -321,7 +323,7 @@ export default function ProfileTab() {
             <Text style={styles.travelPlusBadgeText}>TRAVEL+</Text>
           </View>
           <Text style={styles.travelPlusPrice}>
-            $22<Text style={styles.travelPlusPriceUnit}>/mo</Text>
+            {formatUsd(PREMIUM_PRICE_PER_MONTH)}<Text style={styles.travelPlusPriceUnit}>/mo</Text>
           </Text>
         </View>
         <Text style={styles.travelPlusTitle}>Unlock the full Bovogo experience</Text>
@@ -381,14 +383,14 @@ export default function ProfileTab() {
               ? "Manage subscription"
               : user?.isFoundingMember
                 ? "Start 1-year free trial"
-                : "Subscribe — $22/month"}
+                : `Subscribe — ${formatUsd(PREMIUM_PRICE_PER_MONTH)}/month`}
           </Text>
           <Feather name="arrow-right" size={16} color="#fff" />
         </TouchableOpacity>
         <Text style={styles.travelPlusFinePrint}>
           {user?.isFoundingMember
-            ? "Founding members get 1 year free · Cancel anytime · $22/month after"
-            : "Cancel anytime · $22/month"}
+            ? `Founding members get 1 year free · Cancel anytime · ${formatUsd(PREMIUM_PRICE_PER_MONTH)}/month after`
+            : `Cancel anytime · ${formatUsd(PREMIUM_PRICE_PER_MONTH)}/month`}
         </Text>
       </View>
 

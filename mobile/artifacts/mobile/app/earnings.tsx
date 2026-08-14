@@ -17,8 +17,6 @@ import { CARD_SHADOW } from "@/constants/colors";
 import { useColors } from "@/hooks/useColors";
 import { apiClient } from "@/lib/api";
 
-const IRS_RATE = 0.67 * 0.75; // $0.5025/mile — IRS rate × Bovogo 0.75 factor
-
 type Period = "month" | "all";
 
 interface EarningsTrip {
@@ -117,13 +115,6 @@ export default function Earnings() {
           />
         }
       >
-        <View style={[styles.notice, { backgroundColor: colors.secondary }]}>
-          <Feather name="info" size={14} color={colors.primary} />
-          <Text style={[styles.noticeText, { color: colors.primary }]}>
-            Bovogo is a cost-sharing platform. You save on actual travel expenses — not profit. IRS rate: $0.67/mile.
-          </Text>
-        </View>
-
         <View style={styles.periodRow}>
           {(["month", "all"] as const).map((p) => {
             const active = p === period;
@@ -203,23 +194,27 @@ export default function Earnings() {
               <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Cost Breakdown</Text>
               <View style={styles.breakdownRow}>
                 <Text style={[styles.breakdownLabel, { color: colors.mutedForeground }]}>
-                  Rider payments collected
+                  Sailor payments collected
                 </Text>
                 <Text style={[styles.breakdownValue, { color: colors.foreground }]}>
                   ${data.grossTotal.toFixed(2)}
                 </Text>
               </View>
+              {/* The Bovogo fee is charged to the Sailor on top of the seat
+                  cost-share — it never comes out of the Voyager's recovery. */}
               <View style={styles.breakdownRow}>
                 <Text style={[styles.breakdownLabel, { color: colors.mutedForeground }]}>
-                  Bovogo service fee
+                  Bovogo fee (paid by Sailors)
                 </Text>
-                <Text style={[styles.breakdownValue, { color: colors.destructive }]}>
-                  −${data.platformFeeTotal.toFixed(2)}
+                <Text style={[styles.breakdownValue, { color: colors.mutedForeground }]}>
+                  ${data.platformFeeTotal.toFixed(2)}
                 </Text>
               </View>
               <View style={[styles.divider, { backgroundColor: colors.border }]} />
               <View style={styles.breakdownRow}>
-                <Text style={[styles.breakdownBold, { color: colors.foreground }]}>Net savings</Text>
+                <Text style={[styles.breakdownBold, { color: colors.foreground }]}>
+                  You keep
+                </Text>
                 <Text style={[styles.breakdownBold, { color: colors.primary }]}>
                   ${data.netTotal.toFixed(2)}
                 </Text>
@@ -245,7 +240,7 @@ export default function Earnings() {
                   No completed trips yet
                 </Text>
                 <Text style={[styles.emptyBody, { color: colors.mutedForeground }]}>
-                  Once you complete a trip with riders, your cost-recovery and IRS records will show up here automatically.
+                  Once you complete an adventure with Sailors, your cost-recovery and tax records will show up here automatically.
                 </Text>
                 <TouchableOpacity
                   onPress={() => router.push("/post-trip")}
@@ -257,7 +252,6 @@ export default function Earnings() {
               </View>
             ) : (
               data.trips.map((trip) => {
-                const irsCost = (trip.miles * IRS_RATE).toFixed(2);
                 return (
                   <View key={trip.id} style={[styles.tripCard, CARD_SHADOW]}>
                     <View style={styles.tripTop}>
@@ -281,7 +275,8 @@ export default function Earnings() {
                     <View style={[styles.tripIrs, { backgroundColor: colors.muted }]}>
                       <Feather name="navigation" size={11} color={colors.mutedForeground} />
                       <Text style={[styles.tripIrsText, { color: colors.mutedForeground }]}>
-                        IRS cost ({trip.miles} mi × $0.67) = ${irsCost} — within recovery limit
+                        {trip.miles} miles travelled · {trip.seatsBooked} seat
+                        {trip.seatsBooked === 1 ? "" : "s"} shared
                       </Text>
                     </View>
                   </View>

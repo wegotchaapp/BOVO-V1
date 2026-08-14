@@ -3,7 +3,6 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
   ActivityIndicator,
-  Alert,
   Keyboard,
   KeyboardAvoidingView,
   Platform,
@@ -16,6 +15,8 @@ import {
   View,
 } from "react-native";
 
+import { Alert } from "@/lib/alert";
+
 import { CARD_SHADOW } from "@/constants/colors";
 import { useColors } from "@/hooks/useColors";
 import { getBooking, type Booking } from "@/lib/bookings";
@@ -25,7 +26,7 @@ const TAGS = [
   { id: "clean", label: "Clean Car", icon: "star" },
   { id: "punctual", label: "On Time", icon: "clock" },
   { id: "friendly", label: "Friendly", icon: "smile" },
-  { id: "safe", label: "Safe Driver", icon: "shield" },
+  { id: "safe", label: "Safe Voyager", icon: "shield" },
   { id: "music", label: "Great Music", icon: "music" },
   { id: "quiet", label: "Respectful", icon: "volume-x" },
   { id: "smooth", label: "Smooth Ride", icon: "navigation" },

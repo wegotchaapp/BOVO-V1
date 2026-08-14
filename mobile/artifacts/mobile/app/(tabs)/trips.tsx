@@ -1,9 +1,8 @@
 import { Feather } from "@expo/vector-icons";
 import { useFocusEffect, useRouter } from "expo-router";
-import React, { useCallback, useState } from "react";
+import React, { useCallback, useState, useMemo } from "react";
 import {
   ActivityIndicator,
-  Alert,
   FlatList,
   Platform,
   RefreshControl,
@@ -12,9 +11,16 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+
+import { Alert } from "@/lib/alert";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useColors } from "@/hooks/useColors";
+import {
+  EMPTY_SAILOR_NO_TRIPS,
+  EMPTY_VOYAGER_NO_POSTS,
+  pickLine,
+} from "@/constants/voice";
 import { CARD_SHADOW } from "@/constants/colors";
 import { useAuth } from "@/context/AuthContext";
 import { listMyBookings, type Booking } from "@/lib/bookings";
@@ -206,6 +212,16 @@ export default function TripsTab() {
     tab === "upcoming" ? t.status === "upcoming" : t.status !== "upcoming",
   );
 
+  // Voice differs by role: a Voyager is nudged to post, a Sailor to book.
+  const emptyVoice = useMemo(
+    () =>
+      pickLine(
+        isDriver ? EMPTY_VOYAGER_NO_POSTS : EMPTY_SAILOR_NO_TRIPS,
+        user?.id,
+      ),
+    [isDriver, user?.id],
+  );
+
   function renderTrip({ item }: { item: TripItem }) {
     const isUpcoming = item.status === "upcoming";
     // Drivers must record the mandatory car video before tracking unlocks.
@@ -287,6 +303,19 @@ export default function TripsTab() {
               >
                 {needsStartVideo ? "Start Adventure" : "Track"}
               </Text>
+            </TouchableOpacity>
+          )}
+          {/* Odometer logging lives behind the manifest, and only makes sense
+              once the Voyager has actually started the adventure. */}
+          {isUpcoming && item.role === "driver" && item.started && (
+            <TouchableOpacity
+              style={[styles.actionChip, { backgroundColor: colors.secondary }]}
+              onPress={() =>
+                router.push({ pathname: "/manifest/[tripId]", params: { tripId: item.id } })
+              }
+            >
+              <Feather name="clipboard" size={11} color={colors.primary} />
+              <Text style={[styles.chipText, { color: colors.primary }]}>Manifest</Text>
             </TouchableOpacity>
           )}
           {isUpcoming && item.role === "driver" && (
@@ -375,14 +404,10 @@ export default function TripsTab() {
                 <Feather name="map" size={32} color={colors.primary} />
               </View>
               <Text style={[styles.emptyTitle, { color: colors.foreground }]}>
-                {error ? "Couldn't load your adventures" : "No adventures yet"}
+                {error ? "Couldn't load your adventures" : emptyVoice.title}
               </Text>
               <Text style={[styles.emptySub, { color: colors.mutedForeground }]}>
-                {error
-                  ? error
-                  : isDriver
-                  ? "Post your first adventure to start sharing travel costs."
-                  : "Book your first adventure to get started."}
+                {error ? error : emptyVoice.body}
               </Text>
               <TouchableOpacity
                 style={[styles.findBtn, { backgroundColor: colors.primary }]}

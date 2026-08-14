@@ -3,7 +3,6 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
-  Alert,
   Keyboard,
   KeyboardAvoidingView,
   Platform,
@@ -16,6 +15,8 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+
+import { Alert } from "@/lib/alert";
 
 import {
   formatTimeAgo,
@@ -432,7 +433,7 @@ export default function PostDetail() {
             <View style={[styles.inputWrap, { backgroundColor: colors.card, borderColor: colors.border }]}>
               <TextInput
                 style={[styles.input, { color: colors.foreground }]}
-                placeholder={isVoyager ? "Reply to your riders..." : "Ask a public question (no personal info)..."}
+                placeholder={isVoyager ? "Reply to your Sailors..." : "Ask a public question (no personal info)..."}
                 placeholderTextColor={colors.mutedForeground}
                 value={replyText}
                 onChangeText={setReplyText}

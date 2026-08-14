@@ -72,7 +72,7 @@ export default function Landing() {
         <View style={styles.headline}>
           <Text style={styles.title}>Travel Texas,{"\n"}Safely Together.</Text>
           <Text style={styles.tagline}>
-            Verified drivers. Real-time safety.{"\n"}Community you can trust.
+            Verified Voyagers. Real-time safety.{"\n"}Community you can trust.
           </Text>
         </View>
 

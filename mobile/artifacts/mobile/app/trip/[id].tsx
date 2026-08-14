@@ -3,7 +3,6 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
   ActivityIndicator,
-  Alert,
   Platform,
   SafeAreaView,
   ScrollView,
@@ -13,6 +12,8 @@ import {
   View,
 } from "react-native";
 
+import { Alert } from "@/lib/alert";
+
 import { DriverAvatar } from "@/components/TripCard";
 import {
   approximateArrivalTime,
@@ -21,6 +22,7 @@ import {
   type TripDetailMeta,
 } from "@/data/trips";
 import { getTrip } from "@/lib/trips";
+import { openConversation } from "@/lib/conversations";
 import { shareTripSummary } from "@/lib/share";
 import { useColors } from "@/hooks/useColors";
 import { CARD_SHADOW } from "@/constants/colors";
@@ -34,6 +36,7 @@ export default function TripDetails() {
   const [meta, setMeta] = useState<TripDetailMeta | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [opening, setOpening] = useState(false);
 
   useEffect(() => {
     if (!id) return;
@@ -145,32 +148,47 @@ export default function TripDetails() {
           </View>
           <TouchableOpacity
             style={[styles.msgBtn, { backgroundColor: colors.secondary }]}
-            onPress={() => {
-              if (meta?.viewerGroupId) {
-                router.push({
-                  pathname: "/group/[id]",
-                  params: { id: meta.viewerGroupId },
-                });
+            disabled={opening}
+            accessibilityRole="button"
+            accessibilityLabel={`Message ${trip.driver.name}`}
+            onPress={async () => {
+              // Only booked Sailors get a private line to the Voyager —
+              // everyone else asks in the public replies on the post.
+              if (!meta?.viewerGroupId) {
+                Alert.alert(
+                  "Book to chat privately",
+                  "Pay for your seat first. After booking you can message your Voyager directly, and you'll both join the Adventure group.",
+                  [
+                    { text: "Not now", style: "cancel" },
+                    {
+                      text: "Continue to payment",
+                      onPress: () =>
+                        router.push({ pathname: "/payment", params: { tripId: trip.id } }),
+                    },
+                  ],
+                );
                 return;
               }
-              Alert.alert(
-                "Book to chat privately",
-                "Pay for your seat first. After booking, you and the Voyager will be added to a private Adventure group.",
-                [
-                  { text: "Not now", style: "cancel" },
-                  {
-                    text: "Continue to payment",
-                    onPress: () =>
-                      router.push({
-                        pathname: "/payment",
-                        params: { tripId: trip.id },
-                      }),
-                  },
-                ],
-              );
+
+              setOpening(true);
+              try {
+                const conv = await openConversation(
+                  trip.driver.id,
+                  `${trip.fromCity.replace(/, TX$/i, "")} → ${trip.toCity.replace(/, TX$/i, "")}`,
+                );
+                router.push({ pathname: "/chat/[id]", params: { id: conv.id } });
+              } catch (e: any) {
+                Alert.alert("Couldn't open the chat", e?.message ?? "Please try again.");
+              } finally {
+                setOpening(false);
+              }
             }}
           >
-            <Feather name="message-circle" size={18} color={colors.primary} />
+            {opening ? (
+              <ActivityIndicator size="small" color={colors.primary} />
+            ) : (
+              <Feather name="message-circle" size={18} color={colors.primary} />
+            )}
           </TouchableOpacity>
         </View>
 

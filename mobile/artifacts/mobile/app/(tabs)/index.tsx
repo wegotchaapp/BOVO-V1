@@ -3,23 +3,23 @@ import { useFocusEffect, useRouter } from "expo-router";
 import React, { useCallback, useMemo, useState } from "react";
 import {
   ActivityIndicator,
-  Alert,
-  Dimensions,
+  useWindowDimensions,
   Modal,
   Platform,
   RefreshControl,
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
+
+import { Alert } from "@/lib/alert";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { WeatherBackground } from "@/components/weather/WeatherBackground";
 import { DestinationWeatherInsight } from "@/components/weather/DestinationWeatherInsight";
-
-const WEATHER_HEIGHT = Dimensions.get("window").height * 0.38;
 
 import { useColors } from "@/hooks/useColors";
 import { useAuth } from "@/context/AuthContext";
@@ -36,11 +36,56 @@ import {
   formatTripTime,
   type Trip,
 } from "@/data/trips";
+import { filterNeighborhoods, getNeighborhoods } from "@/data/locations";
+import { cityShort } from "@/lib/city-coords";
 import { listTrips } from "@/lib/trips";
 import { CARD_SHADOW } from "@/constants/colors";
 
 
+const MAX_PASSENGERS = 6;
+const MAX_LUGGAGE = 6;
+
 // ─── Shared sub-components ────────────────────────────────────────────────────
+
+/** −/+ counter used for passenger and luggage selection on the search card. */
+function SearchStepper({
+  value, min, max, onChange, colors, label,
+}: {
+  value: number;
+  min: number;
+  max: number;
+  onChange: (next: number) => void;
+  colors: ReturnType<typeof useColors>;
+  label: string;
+}) {
+  function button(delta: -1 | 1, icon: "minus" | "plus") {
+    const next = value + delta;
+    const disabled = next < min || next > max;
+    return (
+      <TouchableOpacity
+        style={[
+          styles.stepperBtn,
+          { backgroundColor: disabled ? colors.muted : colors.secondary, opacity: disabled ? 0.5 : 1 },
+        ]}
+        onPress={() => !disabled && onChange(next)}
+        disabled={disabled}
+        activeOpacity={0.7}
+        accessibilityRole="button"
+        accessibilityLabel={`${delta > 0 ? "Increase" : "Decrease"} ${label}`}
+      >
+        <Feather name={icon} size={14} color={disabled ? colors.mutedForeground : colors.primary} />
+      </TouchableOpacity>
+    );
+  }
+
+  return (
+    <View style={styles.stepperGroup}>
+      {button(-1, "minus")}
+      <Text style={[styles.passNum, { color: colors.foreground }]}>{value}</Text>
+      {button(1, "plus")}
+    </View>
+  );
+}
 
 function DriverAvatar({ name, size = 40 }: { name: string; size?: number }) {
   const colors = useColors();
@@ -135,12 +180,13 @@ function PostCard({ post, onPress, hasNewReplies }: { post: Trip; onPress: () =>
   );
 }
 
-// ─── Rider view ───────────────────────────────────────────────────────────────
+// ─── Sailor view ──────────────────────────────────────────────────────────────
 
-function RiderView({
-  from, to, setFrom, setTo,
+function SailorView({
+  from, to, fromArea, toArea,
   dateLabel, onDatePress,
   openPicker, swapCities, search,
+  passengers, setPassengers, luggage, setLuggage,
   router, colors,
   posts, loading, error,
   tripUnreads, markTripRead,
@@ -156,6 +202,9 @@ function RiderView({
                 <Text style={[styles.stopLabel, { color: colors.mutedForeground }]}>From</Text>
                 <TouchableOpacity onPress={() => openPicker("from")} activeOpacity={0.7}>
                   <Text style={[styles.cityText, { color: colors.foreground }]}>{from}</Text>
+                  <Text style={[styles.areaText, { color: colors.mutedForeground }]}>
+                    {fromArea || "Any area"}
+                  </Text>
                 </TouchableOpacity>
               </View>
             </View>
@@ -166,6 +215,9 @@ function RiderView({
                 <Text style={[styles.stopLabel, { color: colors.mutedForeground }]}>To</Text>
                 <TouchableOpacity onPress={() => openPicker("to")} activeOpacity={0.7}>
                   <Text style={[styles.cityText, { color: colors.foreground }]}>{to}</Text>
+                  <Text style={[styles.areaText, { color: colors.mutedForeground }]}>
+                    {toArea || "Any area"}
+                  </Text>
                 </TouchableOpacity>
               </View>
             </View>
@@ -182,6 +234,40 @@ function RiderView({
           <Text style={[styles.metaText, { color: colors.foreground }]}>{dateLabel}</Text>
           <Feather name="chevron-down" size={14} color={colors.mutedForeground} style={{ marginLeft: "auto" }} />
         </TouchableOpacity>
+
+        <View style={[styles.divider, { backgroundColor: colors.border }]} />
+
+        <View style={styles.metaRow}>
+          <Feather name="users" size={15} color={colors.primary} />
+          <Text style={[styles.metaText, { color: colors.foreground }]}>
+            {passengers} passenger{passengers === 1 ? "" : "s"}
+          </Text>
+          <SearchStepper
+            value={passengers}
+            min={1}
+            max={MAX_PASSENGERS}
+            onChange={setPassengers}
+            colors={colors}
+            label="passengers"
+          />
+        </View>
+
+        <View style={[styles.divider, { backgroundColor: colors.border }]} />
+
+        <View style={styles.metaRow}>
+          <Feather name="briefcase" size={15} color={colors.primary} />
+          <Text style={[styles.metaText, { color: colors.foreground }]}>
+            {luggage} bag{luggage === 1 ? "" : "s"}
+          </Text>
+          <SearchStepper
+            value={luggage}
+            min={0}
+            max={MAX_LUGGAGE}
+            onChange={setLuggage}
+            colors={colors}
+            label="luggage"
+          />
+        </View>
       </View>
 
       <TouchableOpacity style={[styles.searchBtn, { backgroundColor: colors.primary }]} onPress={search} activeOpacity={0.88}>
@@ -220,7 +306,7 @@ function RiderView({
         <View style={[styles.feedState, { backgroundColor: colors.muted }]}>
           <Feather name="inbox" size={20} color={colors.mutedForeground} />
           <Text style={[styles.feedStateText, { color: colors.mutedForeground }]}>
-            No driver posts yet. Pull down to refresh, or check back soon.
+            No adventures posted yet. Pull down to refresh, or check back soon.
           </Text>
         </View>
       ) : (
@@ -240,9 +326,9 @@ function RiderView({
   );
 }
 
-// ─── Driver view ──────────────────────────────────────────────────────────────
+// ─── Voyager view ─────────────────────────────────────────────────────────────
 
-function DriverView({ router, colors, user, posts, loading, tripUnreads, markTripRead }: any) {
+function VoyagerView({ router, colors, user, posts, loading, tripUnreads, markTripRead }: any) {
   const myPosts: Trip[] = useMemo(
     () => posts.filter((t: Trip) => user && t.driver.id === user.id),
     [posts, user],
@@ -283,7 +369,7 @@ function DriverView({ router, colors, user, posts, loading, tripUnreads, markTri
             </Text>
             <Feather name="star" size={14} color="#C4954A" />
           </View>
-          <Text style={[styles.driverStatLabel, { color: colors.mutedForeground }]}>Driver rating</Text>
+          <Text style={[styles.driverStatLabel, { color: colors.mutedForeground }]}>Voyager rating</Text>
         </View>
       </View>
 
@@ -297,7 +383,7 @@ function DriverView({ router, colors, user, posts, loading, tripUnreads, markTri
         </View>
         <View style={styles.postTripCtaText}>
           <Text style={styles.postTripCtaTitle}>Post a New Adventure</Text>
-          <Text style={styles.postTripCtaSub}>Announce your drive · IRS rate auto-calculated</Text>
+          <Text style={styles.postTripCtaSub}>Announce your drive · $32.40 per seat</Text>
         </View>
         <Feather name="arrow-right" size={18} color="rgba(255,255,255,0.7)" />
       </TouchableOpacity>
@@ -339,7 +425,7 @@ function DriverView({ router, colors, user, posts, loading, tripUnreads, markTri
         <View style={[styles.feedState, { backgroundColor: colors.muted }]}>
           <Feather name="inbox" size={22} color={colors.mutedForeground} />
           <Text style={[styles.feedStateText, { color: colors.mutedForeground }]}>
-            No active posts — post a trip above
+            No adventures posted yet — post one above
           </Text>
         </View>
       ) : (
@@ -430,6 +516,9 @@ function formatSearchDate(d: Date): string {
 export default function HomeTab() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
+  // Weather fills the whole viewport and stays fixed behind the scroll, so the
+  // live scene reads across the entire page rather than a band at the top.
+  const { height: viewportHeight } = useWindowDimensions();
   const router = useRouter();
   const { user } = useAuth();
   const { tripUnreads, markTripRead } = useUnread();
@@ -450,6 +539,15 @@ export default function HomeTab() {
   });
   const [pickerVisible, setPickerVisible] = useState(false);
   const [pickerTarget, setPickerTarget] = useState<"from" | "to">("from");
+  // Two-step picker: choose a city, then an area within it (mirrors posting).
+  const [pickerStep, setPickerStep] = useState<"city" | "area">("city");
+  const [pickerTempCity, setPickerTempCity] = useState<string>("");
+  const [pickerSearch, setPickerSearch] = useState("");
+  const [fromArea, setFromArea] = useState("");
+  const [toArea, setToArea] = useState("");
+
+  const [passengers, setPassengers] = useState(1);
+  const [luggage, setLuggage] = useState(0);
 
   const [posts, setPosts] = useState<Trip[]>([]);
   const [postsLoading, setPostsLoading] = useState(true);
@@ -487,6 +585,9 @@ export default function HomeTab() {
 
   function openPicker(target: "from" | "to") {
     setPickerTarget(target);
+    setPickerStep("city");
+    setPickerTempCity("");
+    setPickerSearch("");
     setPickerVisible(true);
   }
 
@@ -498,15 +599,38 @@ export default function HomeTab() {
       );
       return;
     }
-    if (pickerTarget === "from") setFrom(city.label);
-    else setTo(city.label);
+
+    if (pickerTarget === "from") {
+      setFrom(city.label);
+      setFromArea("");
+    } else {
+      setTo(city.label);
+      setToArea("");
+    }
+
+    // Cities with mapped areas get a second step; the rest close immediately.
+    if (getNeighborhoods(city.label).length > 0) {
+      setPickerTempCity(city.label);
+      setPickerSearch("");
+      setPickerStep("area");
+      return;
+    }
+    setPickerVisible(false);
+  }
+
+  function selectArea(area: string) {
+    if (pickerTarget === "from") setFromArea(area);
+    else setToArea(area);
     setPickerVisible(false);
   }
 
   function swapCities() {
-    const tmp = from;
+    const tmpCity = from;
+    const tmpArea = fromArea;
     setFrom(to);
-    setTo(tmp);
+    setFromArea(toArea);
+    setTo(tmpCity);
+    setToArea(tmpArea);
   }
 
   function search() {
@@ -518,7 +642,18 @@ export default function HomeTab() {
       Alert.alert("Pick two different cities", "Origin and destination must be different.");
       return;
     }
-    router.push({ pathname: "/search-results", params: { from, to, date: formatSearchDate(date) } });
+    router.push({
+      pathname: "/search-results",
+      params: {
+        from,
+        to,
+        fromArea,
+        toArea,
+        date: formatSearchDate(date),
+        passengers: String(passengers),
+        luggage: String(luggage),
+      },
+    });
   }
 
   const firstName = user?.name?.split(" ")[0] ?? "there";
@@ -527,10 +662,10 @@ export default function HomeTab() {
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
-      {/* Live weather hero — top 38% of screen, absolute behind scroll */}
+      {/* Live weather — full viewport, fixed behind the scroll */}
       <WeatherBackground
         city={weatherCity}
-        height={WEATHER_HEIGHT}
+        height={viewportHeight}
         backgroundColor={colors.background}
       />
 
@@ -549,9 +684,9 @@ export default function HomeTab() {
         <View style={styles.topBar}>
           {/* Left column */}
           <View style={styles.topBarLeft}>
-            <Text style={[styles.greetLabel, { color: colors.mutedForeground }]}>Hello,</Text>
-            <Text style={[styles.greetName, { color: colors.foreground }]}>
-              {firstName} <Text style={{ color: colors.primary }}>👋</Text>
+            <Text style={styles.greetLabel}>Hello,</Text>
+            <Text style={styles.greetName}>
+              {firstName} <Text>👋</Text>
             </Text>
           </View>
 
@@ -565,7 +700,7 @@ export default function HomeTab() {
               >
                 <Feather name="user" size={13} color={mode === "rider" ? "#fff" : colors.mutedForeground} />
                 <Text style={[styles.modeBtnText, { color: mode === "rider" ? "#fff" : colors.mutedForeground }]}>
-                  Rider
+                  Sailor
                 </Text>
               </TouchableOpacity>
               <TouchableOpacity
@@ -575,7 +710,7 @@ export default function HomeTab() {
               >
                 <Feather name="navigation" size={13} color={mode === "driver" ? "#fff" : colors.mutedForeground} />
                 <Text style={[styles.modeBtnText, { color: mode === "driver" ? "#fff" : colors.mutedForeground }]}>
-                  Driver
+                  Voyager
                 </Text>
               </TouchableOpacity>
             </View>
@@ -586,9 +721,11 @@ export default function HomeTab() {
         <View style={{ height: 20 }} />
 
         {mode === "rider" ? (
-          <RiderView
-            from={from} to={to} setFrom={setFrom} setTo={setTo}
+          <SailorView
+            from={from} to={to} fromArea={fromArea} toArea={toArea}
             dateLabel={formatSearchDate(date)}
+            passengers={passengers} setPassengers={setPassengers}
+            luggage={luggage} setLuggage={setLuggage}
             onDatePress={() => setCalendarOpen(true)}
             openPicker={openPicker} swapCities={swapCities} search={search}
             router={router} colors={colors}
@@ -596,7 +733,7 @@ export default function HomeTab() {
             tripUnreads={tripUnreads} markTripRead={markTripRead}
           />
         ) : (
-          <DriverView
+          <VoyagerView
             router={router} colors={colors} user={user}
             posts={posts} loading={postsLoading}
             tripUnreads={tripUnreads} markTripRead={markTripRead}
@@ -680,22 +817,104 @@ export default function HomeTab() {
         </View>
       </Modal>
 
-      {/* City picker modal */}
+      {/* City → area picker modal */}
       <Modal visible={pickerVisible} transparent animationType="slide" onRequestClose={() => setPickerVisible(false)}>
         <View style={styles.overlay}>
           <View style={[styles.sheet, { backgroundColor: colors.card }]}>
             <View style={styles.sheetHandle} />
             <View style={styles.sheetHeader}>
-              <Text style={[styles.sheetTitle, { color: colors.foreground }]}>
-                Select {pickerTarget === "from" ? "Origin" : "Destination"}
+              {pickerStep === "area" ? (
+                <TouchableOpacity
+                  onPress={() => {
+                    setPickerStep("city");
+                    setPickerSearch("");
+                  }}
+                  style={styles.sheetBackBtn}
+                  accessibilityRole="button"
+                  accessibilityLabel="Back to cities"
+                >
+                  <Feather name="chevron-left" size={20} color={colors.foreground} />
+                </TouchableOpacity>
+              ) : null}
+              <Text style={[styles.sheetTitle, { color: colors.foreground, flex: 1 }]}>
+                {pickerStep === "city"
+                  ? `Select ${pickerTarget === "from" ? "Origin" : "Destination"}`
+                  : `Area in ${cityShort(pickerTempCity)}`}
               </Text>
               <TouchableOpacity onPress={() => setPickerVisible(false)}>
                 <Feather name="x" size={22} color={colors.mutedForeground} />
               </TouchableOpacity>
             </View>
+
+            {/* Area lists run long, so they get a search box. */}
+            {pickerStep === "area" ? (
+              <View style={[styles.searchBox, { backgroundColor: colors.muted }]}>
+                <Feather name="search" size={15} color={colors.mutedForeground} />
+                <TextInput
+                  style={[styles.searchInput, { color: colors.foreground }]}
+                  placeholder="Search areas…"
+                  placeholderTextColor={colors.mutedForeground}
+                  value={pickerSearch}
+                  onChangeText={setPickerSearch}
+                  clearButtonMode="while-editing"
+                />
+              </View>
+            ) : null}
+
+            {pickerStep === "area" ? (
+              <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+                {/* "Any area" keeps the search broad — it is the default. */}
+                <TouchableOpacity
+                  style={[styles.cityOption, { borderBottomColor: colors.border }]}
+                  onPress={() => selectArea("")}
+                  activeOpacity={0.7}
+                >
+                  <View style={[styles.cityIcon, { backgroundColor: colors.secondary }]}>
+                    <Feather name="globe" size={14} color={colors.primary} />
+                  </View>
+                  <Text style={[styles.cityOptionText, { color: colors.foreground }]}>
+                    Any area in {cityShort(pickerTempCity)}
+                  </Text>
+                  <Feather name="chevron-right" size={14} color={colors.mutedForeground} />
+                </TouchableOpacity>
+
+                {(() => {
+                  const areas = filterNeighborhoods(getNeighborhoods(pickerTempCity), pickerSearch);
+                  if (areas.length === 0) {
+                    return (
+                      <View style={styles.pickerEmpty}>
+                        <Text style={[styles.pickerEmptyText, { color: colors.mutedForeground }]}>
+                          No areas match "{pickerSearch}"
+                        </Text>
+                      </View>
+                    );
+                  }
+                  const selected = pickerTarget === "from" ? fromArea : toArea;
+                  return areas.map((area) => (
+                    <TouchableOpacity
+                      key={area}
+                      style={[styles.cityOption, { borderBottomColor: colors.border }]}
+                      onPress={() => selectArea(area)}
+                      activeOpacity={0.7}
+                    >
+                      <View style={[styles.cityIcon, { backgroundColor: colors.secondary }]}>
+                        <Feather name="map-pin" size={14} color={colors.primary} />
+                      </View>
+                      <Text style={[styles.cityOptionText, { color: colors.foreground }]}>{area}</Text>
+                      {selected === area ? (
+                        <Feather name="check" size={16} color={colors.primary} />
+                      ) : (
+                        <Feather name="chevron-right" size={14} color={colors.mutedForeground} />
+                      )}
+                    </TouchableOpacity>
+                  ));
+                })()}
+              </ScrollView>
+            ) : (
             <ScrollView showsVerticalScrollIndicator={false}>
               {ALL_CITY_OPTIONS.map((city) => {
                 const comingSoon = city.status === "coming-soon";
+                const areaCount = getNeighborhoods(city.label).length;
                 return (
                   <TouchableOpacity
                     key={city.label}
@@ -706,7 +925,14 @@ export default function HomeTab() {
                     <View style={[styles.cityIcon, { backgroundColor: comingSoon ? colors.muted : colors.secondary }]}>
                       <Feather name="map-pin" size={14} color={comingSoon ? colors.mutedForeground : colors.primary} />
                     </View>
-                    <Text style={[styles.cityOptionText, { color: colors.foreground }]}>{city.label}</Text>
+                    <View style={{ flex: 1 }}>
+                      <Text style={[styles.cityOptionText, { color: colors.foreground }]}>{city.label}</Text>
+                      {!comingSoon && areaCount > 0 ? (
+                        <Text style={[styles.cityOptionMeta, { color: colors.mutedForeground }]}>
+                          {areaCount} areas
+                        </Text>
+                      ) : null}
+                    </View>
                     {comingSoon ? (
                       <View style={[styles.comingSoonBadge, { backgroundColor: colors.muted }]}>
                         <Text style={[styles.comingSoonText, { color: colors.mutedForeground }]}>Coming soon</Text>
@@ -718,6 +944,7 @@ export default function HomeTab() {
                 );
               })}
             </ScrollView>
+            )}
           </View>
         </View>
       </Modal>
@@ -736,8 +963,24 @@ const styles = StyleSheet.create({
   topBarLeft:  { flex: 1, paddingRight: 10 },
   topBarRight: { alignItems: "flex-end" },
   greeting:    {},
-  greetLabel:  { fontSize: 13, fontFamily: "Inter_400Regular" },
-  greetName:   { fontSize: 26, fontFamily: "Inter_700Bold", letterSpacing: -0.5, marginTop: 2 },
+  greetLabel:  {
+    fontSize: 13,
+    fontFamily: "Inter_400Regular",
+    color: "rgba(255,255,255,0.85)",
+    textShadowColor: "rgba(0,0,0,0.35)",
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 6,
+  },
+  greetName:   {
+    fontSize: 26,
+    fontFamily: "Inter_700Bold",
+    letterSpacing: -0.5,
+    marginTop: 2,
+    color: "#FFFFFF",
+    textShadowColor: "rgba(0,0,0,0.4)",
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 8,
+  },
 
   modeToggle: { flexDirection: "row", borderRadius: 14, borderWidth: 1, padding: 3, gap: 3 },
   modeBtn: { flexDirection: "row", alignItems: "center", gap: 5, paddingHorizontal: 12, paddingVertical: 7, borderRadius: 11 },
@@ -752,6 +995,7 @@ const styles = StyleSheet.create({
   stopContent: { flex: 1, paddingVertical: 6 },
   stopLabel: { fontSize: 11, fontFamily: "Inter_500Medium", marginBottom: 2 },
   cityText: { fontSize: 16, fontFamily: "Inter_600SemiBold" },
+  areaText: { fontSize: 12, fontFamily: "Inter_400Regular", marginTop: 1 },
   dottedLine: { marginLeft: 4, height: 18, borderLeftWidth: 2, borderStyle: "dashed" },
   swapBtn: { width: 42, height: 42, borderRadius: 21, alignItems: "center", justifyContent: "center" },
   divider: { height: 1 },
@@ -759,7 +1003,9 @@ const styles = StyleSheet.create({
   metaItem: { flex: 1, flexDirection: "row", alignItems: "center", gap: 8 },
   metaText: { fontSize: 14, fontFamily: "Inter_500Medium", flex: 1 },
   metaSep: { width: 1, height: 20, marginHorizontal: 12 },
-  passNum: { fontSize: 16, fontFamily: "Inter_600SemiBold", minWidth: 20, textAlign: "center" },
+  passNum: { fontSize: 16, fontFamily: "Inter_600SemiBold", minWidth: 24, textAlign: "center" },
+  stepperGroup: { flexDirection: "row", alignItems: "center", gap: 10, marginLeft: "auto" },
+  stepperBtn: { width: 30, height: 30, borderRadius: 15, alignItems: "center", justifyContent: "center" },
 
   calendarHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 12 },
   calendarNavBtn: { width: 36, height: 36, borderRadius: 18, alignItems: "center", justifyContent: "center" },
@@ -812,7 +1058,7 @@ const styles = StyleSheet.create({
   postRepliesCount: { fontSize: 12, fontFamily: "Inter_500Medium" },
   newDot: { width: 7, height: 7, borderRadius: 4 },
 
-  // Driver view
+  // Voyager view
   driverStatsCard: { backgroundColor: "#fff", borderRadius: 20, padding: 20, flexDirection: "row", justifyContent: "space-around", alignItems: "center", marginBottom: 16 },
   driverStatItem: { alignItems: "center", gap: 4 },
   driverStatNum: { fontSize: 20, fontFamily: "Inter_700Bold", letterSpacing: -0.5 },
@@ -852,6 +1098,12 @@ const styles = StyleSheet.create({
   cityOption: { flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 14, borderBottomWidth: 1 },
   cityIcon: { width: 32, height: 32, borderRadius: 10, alignItems: "center", justifyContent: "center" },
   cityOptionText: { flex: 1, fontSize: 15, fontFamily: "Inter_500Medium" },
+  cityOptionMeta: { fontSize: 11, fontFamily: "Inter_400Regular", marginTop: 2 },
+  sheetBackBtn: { width: 32, height: 32, alignItems: "center", justifyContent: "center", marginLeft: -6 },
+  searchBox: { flexDirection: "row", alignItems: "center", gap: 8, paddingHorizontal: 12, height: 42, borderRadius: 12, marginBottom: 12 },
+  searchInput: { flex: 1, fontSize: 14, fontFamily: "Inter_400Regular" },
+  pickerEmpty: { paddingVertical: 32, alignItems: "center" },
+  pickerEmptyText: { fontSize: 13, fontFamily: "Inter_400Regular" },
   comingSoonBadge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 20 },
   comingSoonText: { fontSize: 10, fontFamily: "Inter_600SemiBold", letterSpacing: 0.3 },
 });

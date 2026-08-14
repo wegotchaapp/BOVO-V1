@@ -2,7 +2,6 @@ import { Feather } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
-  Alert,
   Keyboard,
   KeyboardAvoidingView,
   Modal,
@@ -16,11 +15,19 @@ import {
   View,
 } from "react-native";
 
+import { Alert } from "@/lib/alert";
+
 import { CARD_SHADOW } from "@/constants/colors";
 import { ALL_CITY_OPTIONS, MVP_CITIES, isMvpCity } from "@/data/cities";
 import { filterNeighborhoods, getNeighborhoods } from "@/data/locations";
 import { useColors } from "@/hooks/useColors";
-import { calculateSuggestedPrice, getDistanceMiles } from "@/lib/pricing";
+import {
+  adventureTotal,
+  formatUsd,
+  getDistanceMiles,
+  REFERENCE_TRIP_MILES,
+  seatPrice,
+} from "@/lib/pricing";
 import { showAlert, showSuccess } from "@/lib/alert";
 import { createTrip } from "@/lib/trips";
 
@@ -323,9 +330,14 @@ export default function PostTrip() {
   const [calendarOpen, setCalendarOpen] = useState(false);
   const [calendarMonth, setCalendarMonth] = useState(() => new Date(date.getFullYear(), date.getMonth(), 1));
 
-  // Auto-calculated price (uses shared IRS utility)
+  // Flat cost-share: $32.40 a seat on every route, so the Voyager knows what
+  // they'll recover before they post and the price never moves.
   const miles = getDistanceMiles(fromCity, toCity);
-  const pricePerSeat = useMemo(() => calculateSuggestedPrice(fromCity, toCity, seats), [fromCity, toCity, seats]);
+  const pricePerSeat = useMemo(() => seatPrice(fromCity, toCity), [fromCity, toCity]);
+  const totalForAdventure = useMemo(
+    () => adventureTotal(fromCity, toCity, seats),
+    [fromCity, toCity, seats],
+  );
 
   // Display strings for the location buttons and preview card
   const displayFrom = fromCity
@@ -481,11 +493,13 @@ export default function PostTrip() {
           keyboardShouldPersistTaps="handled"
           keyboardDismissMode="on-drag"
         >
-          {/* IRS notice */}
+          {/* Cost-share notice */}
           <View style={[styles.notice, { backgroundColor: colors.secondary }]}>
             <Feather name="navigation" size={14} color={colors.primary} />
             <Text style={[styles.noticeText, { color: colors.primary }]}>
-              Price auto-calculated: (miles × $0.67 × 0.75) ÷ seats. You may not charge above actual costs.
+              Every seat is a flat {formatUsd(pricePerSeat)} cost-share — 75% of the IRS rate
+              for a {REFERENCE_TRIP_MILES}-mile trip, split across 3 standard seats. Bovogo is
+              a cost-sharing platform: you recover travel costs, not profit.
             </Text>
           </View>
 
@@ -612,17 +626,28 @@ export default function PostTrip() {
               <Stepper value={luggage} min={0} max={MAX_LUGGAGE} onChange={setLuggage} colors={colors} ariaLabel="luggage spaces" />
             </View>
 
-            {/* Auto-calculated price */}
+            {/* Flat seat price */}
             <View style={[styles.priceRow, { borderTopColor: colors.border }]}>
               <View style={{ flex: 1 }}>
                 <Text style={[styles.stepperLabel, { color: colors.foreground }]}>Amount Per Seat</Text>
                 <Text style={[styles.priceCalc, { color: colors.mutedForeground }]}>
-                  {miles > 0 ? `${miles} mi × $0.67 × 0.75 ÷ ${seats} = ` : "Choose two different cities to calculate"}
-                  {miles > 0 ? <Text style={{ fontFamily: "Inter_600SemiBold" }}>auto</Text> : null}
+                  {miles > 0 ? (
+                    <>
+                      {miles} mi · {seats} seat{seats === 1 ? "" : "s"} ={" "}
+                      <Text style={{ fontFamily: "Inter_600SemiBold" }}>
+                        {formatUsd(totalForAdventure)}
+                      </Text>{" "}
+                      if full
+                    </>
+                  ) : (
+                    "Choose two different cities to see your cost-share"
+                  )}
                 </Text>
               </View>
               <View style={[styles.priceBadge, { backgroundColor: "#F0FAF4" }]}>
-                <Text style={[styles.priceBadgeText, { color: colors.primary }]}>${pricePerSeat}/seat</Text>
+                <Text style={[styles.priceBadgeText, { color: colors.primary }]}>
+                  {formatUsd(pricePerSeat)}/seat
+                </Text>
               </View>
             </View>
 

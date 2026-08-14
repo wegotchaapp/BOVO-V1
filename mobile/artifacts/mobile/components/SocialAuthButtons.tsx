@@ -42,10 +42,14 @@ export function SocialAuthButtons() {
     }
   }, [redirectUri]);
 
+  // expo-auth-session throws synchronously (from a useMemo) if the platform's
+  // client ID is undefined, so an unconfigured placeholder is used here to keep
+  // the hook from crashing the screen. handleGoogle() checks googleIds.configured
+  // before ever calling promptAsync(), so the placeholder is never actually used.
   const [request, response, promptAsync] = Google.useAuthRequest({
-    webClientId: googleIds.web || undefined,
-    iosClientId: googleIds.ios || undefined,
-    androidClientId: googleIds.android || undefined,
+    webClientId: googleIds.web || "not-configured.apps.googleusercontent.com",
+    iosClientId: googleIds.ios || "not-configured.apps.googleusercontent.com",
+    androidClientId: googleIds.android || "not-configured.apps.googleusercontent.com",
     redirectUri,
   });
 

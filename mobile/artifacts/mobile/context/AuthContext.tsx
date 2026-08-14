@@ -1,7 +1,7 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import React, { createContext, useContext, useEffect, useState } from "react";
 
-import { apiClient } from "@/lib/api";
+import { apiClient, ApiError, setSessionExpiredHandler } from "@/lib/api";
 
 export type UserRole = "driver" | "rider" | null;
 
@@ -83,7 +83,18 @@ const AuthContext = createContext<AuthContextType | null>(null);
 const TOKEN_KEY = "@wegotcha/auth_token";
 const DELETION_KEY = "@wegotcha/deletion_scheduled";
 const ACTIVE_RIDE_KEY = "@wegotcha/active_ride";
+/** Last known profile, so a cold start renders instantly instead of blocking. */
+const CACHED_USER_KEY = "@wegotcha/cached_user";
 const DELETION_GRACE_DAYS = 7;
+
+/**
+ * A session is only invalid when the server actually rejects it. Network
+ * failures, timeouts and 5xx must never sign the user out — that was the cause
+ * of the "logged out every time I open the app" behaviour.
+ */
+function isAuthRejection(err: unknown): boolean {
+  return err instanceof ApiError && (err.status === 401 || err.status === 403);
+}
 
 function normalizeUser(raw: any): User {
   const ridePreferences =
@@ -156,6 +167,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     loadUser();
   }, []);
 
+  // One place decides what a rejected session means. Any request that comes
+  // back 401/403 clears the stored token and drops the user to signed-out,
+  // rather than each screen guessing.
+  useEffect(() => {
+    setSessionExpiredHandler(() => {
+      AsyncStorage.multiRemove([TOKEN_KEY, CACHED_USER_KEY, ACTIVE_RIDE_KEY]).catch(
+        () => {},
+      );
+      setUser(null);
+      setActiveRideId(null);
+    });
+    return () => setSessionExpiredHandler(null);
+  }, []);
+
   async function loadUser() {
     try {
       // 7-day grace deletion handling (CCPA)
@@ -170,6 +195,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             TOKEN_KEY,
             DELETION_KEY,
             ACTIVE_RIDE_KEY,
+            CACHED_USER_KEY,
           ]);
           setIsLoading(false);
           return;
@@ -179,18 +205,41 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       const token = await AsyncStorage.getItem(TOKEN_KEY);
       if (token) {
+        // 1. Show the cached profile immediately — no network wait on launch.
+        const cached = await AsyncStorage.getItem(CACHED_USER_KEY);
+        if (cached) {
+          try {
+            setUser(normalizeUser(JSON.parse(cached)));
+          } catch {
+            await AsyncStorage.removeItem(CACHED_USER_KEY);
+          }
+        }
+
+        const rideData = await AsyncStorage.getItem(ACTIVE_RIDE_KEY);
+        if (rideData) setActiveRideId(rideData);
+
+        // 2. Revalidate against the server, and only sign out if it actually
+        //    rejects the session.
         try {
           const me = await apiClient.get("/auth/me");
           setUser(normalizeUser(me));
-          const rideData = await AsyncStorage.getItem(ACTIVE_RIDE_KEY);
-          if (rideData) setActiveRideId(rideData);
-        } catch {
-          // Token invalid or expired — clear it
-          await AsyncStorage.removeItem(TOKEN_KEY);
+          await AsyncStorage.setItem(CACHED_USER_KEY, JSON.stringify(me));
+        } catch (err) {
+          if (isAuthRejection(err)) {
+            await AsyncStorage.multiRemove([TOKEN_KEY, CACHED_USER_KEY]);
+            setUser(null);
+          }
+          // Offline or server hiccup: keep the cached session and carry on.
         }
       }
     } catch {}
     setIsLoading(false);
+  }
+
+  /** Set the signed-in user and mirror it to the offline cache. */
+  function applyUser(next: User) {
+    setUser(next);
+    AsyncStorage.setItem(CACHED_USER_KEY, JSON.stringify(next)).catch(() => {});
   }
 
   function setActiveRide(rideId: string | null) {
@@ -209,7 +258,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     );
     await AsyncStorage.setItem(TOKEN_KEY, res.token);
     const normalized = normalizeUser(res.user);
-    setUser(normalized);
+    applyUser(normalized);
     if (normalized.deletionRequestedAt) {
       setDeletionScheduledAt(normalized.deletionRequestedAt);
       await AsyncStorage.setItem(
@@ -234,7 +283,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       { name, email, phone, password },
     );
     await AsyncStorage.setItem(TOKEN_KEY, res.token);
-    setUser(normalizeUser(res.user));
+    applyUser(normalizeUser(res.user));
   }
 
   async function loginWithOAuth(input: {
@@ -249,7 +298,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     );
     await AsyncStorage.setItem(TOKEN_KEY, res.token);
     const normalized = normalizeUser(res.user);
-    setUser(normalized);
+    applyUser(normalized);
     return normalized;
   }
 
@@ -260,12 +309,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       "/auth/me/notifications",
       settings,
     );
-    setUser(normalizeUser(res.user));
+    applyUser(normalizeUser(res.user));
   }
 
   async function patchMe(patch: Record<string, unknown>) {
     const updated = await apiClient.patch("/auth/me", patch);
-    setUser(normalizeUser(updated));
+    applyUser(normalizeUser(updated));
   }
 
   async function setRole(role: UserRole) {
@@ -291,7 +340,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       await apiClient.post("/auth/logout", {});
     } catch {}
-    await AsyncStorage.multiRemove([TOKEN_KEY, ACTIVE_RIDE_KEY]);
+    await AsyncStorage.multiRemove([TOKEN_KEY, ACTIVE_RIDE_KEY, CACHED_USER_KEY]);
     setUser(null);
     setActiveRideId(null);
   }
@@ -299,7 +348,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   async function refreshMe() {
     const fresh = await refreshUserFromServer();
     if (fresh) {
-      setUser(fresh);
+      applyUser(fresh);
       if (fresh.deletionRequestedAt) {
         setDeletionScheduledAt(fresh.deletionRequestedAt);
         await AsyncStorage.setItem(
@@ -331,7 +380,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }),
     );
     setDeletionScheduledAt(res.deletionRequestedAt);
-    await AsyncStorage.multiRemove([TOKEN_KEY, ACTIVE_RIDE_KEY]);
+    await AsyncStorage.multiRemove([TOKEN_KEY, ACTIVE_RIDE_KEY, CACHED_USER_KEY]);
     setUser(null);
     setActiveRideId(null);
   }
@@ -343,7 +392,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     );
     await AsyncStorage.removeItem(DELETION_KEY);
     setDeletionScheduledAt(null);
-    setUser(normalizeUser(res.user));
+    applyUser(normalizeUser(res.user));
   }
 
   return (

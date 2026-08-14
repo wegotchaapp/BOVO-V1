@@ -4,7 +4,6 @@ import * as Location from "expo-location";
 import { useRouter } from "expo-router";
 import React, { useState } from "react";
 import {
-  Alert,
   Image,
   Keyboard,
   KeyboardAvoidingView,
@@ -17,6 +16,8 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+
+import { Alert } from "@/lib/alert";
 
 import { useAuth, type UserRole } from "@/context/AuthContext";
 import { useColors } from "@/hooks/useColors";
@@ -78,6 +79,9 @@ export default function Onboarding() {
   }
 
   function canAdvance() {
+    // A profile photo is mandatory — Sailors and Voyagers must be able to
+    // recognise each other at pickup, and it anchors face verification.
+    if (step === 0) return !!photoUrl;
     if (step === 1) return displayName.trim().length > 0;
     if (step === 4) return emergencyName.trim().length > 0 && emergencyPhone.trim().length >= 10;
     if (step === 5) return selected !== null;
@@ -167,7 +171,8 @@ export default function Onboarding() {
           <View style={styles.stepContainer}>
             <Text style={[styles.stepTitle, { color: colors.foreground }]}>Add Your Photo</Text>
             <Text style={[styles.stepSub, { color: colors.mutedForeground }]}>
-              A profile photo builds trust with other riders and drivers.
+              A clear photo of your face is required — it's how Sailors and
+              Voyagers recognise each other at pickup.
             </Text>
             <TouchableOpacity
               style={[styles.avatarUpload, { backgroundColor: colors.secondary, borderColor: colors.border }]}
@@ -184,16 +189,16 @@ export default function Onboarding() {
               )}
             </TouchableOpacity>
             {photoUrl ? (
-              <TouchableOpacity style={styles.skipLink} onPress={() => setPhotoUrl(null)}>
-                <Text style={[styles.skipLinkText, { color: colors.mutedForeground }]}>Remove photo</Text>
+              <TouchableOpacity style={styles.skipLink} onPress={pickPhoto}>
+                <Text style={[styles.skipLinkText, { color: colors.mutedForeground }]}>
+                  Choose a different photo
+                </Text>
               </TouchableOpacity>
-            ) : null}
-            <TouchableOpacity
-              style={[styles.skipLink]}
-              onPress={() => setStep(step + 1)}
-            >
-              <Text style={[styles.skipLinkText, { color: colors.mutedForeground }]}>Skip for now</Text>
-            </TouchableOpacity>
+            ) : (
+              <Text style={[styles.skipLinkText, { color: colors.mutedForeground }]}>
+                Required to continue
+              </Text>
+            )}
           </View>
         )}
 
@@ -299,7 +304,7 @@ export default function Onboarding() {
             <View style={[styles.infoNote, { backgroundColor: colors.secondary }]}>
               <Feather name="shield" size={13} color={colors.primary} />
               <Text style={[styles.infoNoteText, { color: colors.primary }]}>
-                Your contact's info is encrypted and never shared with drivers or riders.
+                Your contact's info is encrypted and never shared with Voyagers or Sailors.
               </Text>
             </View>
           </View>

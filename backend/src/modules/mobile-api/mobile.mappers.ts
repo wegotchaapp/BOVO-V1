@@ -10,6 +10,7 @@ import {
   MobileTrip,
   MobileTripReply,
   MobileUser,
+  MobileVehicle,
 } from './entities/mobile.entities';
 import { getHubById } from './pickup-hubs';
 
@@ -121,19 +122,7 @@ export function userToDto(u: MobileUser) {
   };
 }
 
-export function vehicleToDto(v: {
-  id: string;
-  user_id: string;
-  make: string;
-  model: string;
-  year: number;
-  color: string;
-  license_plate: string;
-  state: string;
-  vin: string | null;
-  created_at: Date;
-  updated_at: Date;
-}) {
+export function vehicleToDto(v: MobileVehicle, missing: string[] = []) {
   return {
     id: v.id,
     userId: v.user_id,
@@ -143,7 +132,31 @@ export function vehicleToDto(v: {
     color: v.color,
     licensePlate: v.license_plate,
     state: v.state,
-    vin: v.vin ?? '',
+    vin: v.vin,
+    seatCount: v.seat_count,
+    doorCount: v.door_count,
+    photos: {
+      front: v.photo_front_url,
+      rear: v.photo_rear_url,
+      left: v.photo_left_url,
+      right: v.photo_right_url,
+      interior: v.photo_interior_url,
+    },
+    documents: {
+      insurance: {
+        url: v.insurance_doc_url,
+        expiresAt: v.insurance_expires_at,
+      },
+      registration: {
+        url: v.registration_doc_url,
+        expiresAt: v.registration_expires_at,
+      },
+    },
+    verificationStatus: v.verification_status,
+    verificationNote: v.verification_note,
+    /** Empty when the vehicle satisfies every requirement to carry Sailors. */
+    missingRequirements: missing,
+    isComplete: missing.length === 0,
     createdAt: v.created_at.toISOString(),
     updatedAt: v.updated_at.toISOString(),
   };
@@ -210,6 +223,12 @@ export function bookingToDto(
     pricePerSeat: Number(b.price_per_seat),
     serviceFee: Number(b.service_fee),
     totalAmount: Number(b.total_amount),
+    luggageTier: b.luggage_tier,
+    luggageSurcharge: Number(b.luggage_surcharge ?? 0),
+    insuranceOptedIn: !!b.insurance_opted_in,
+    insurancePremium: Number(b.insurance_premium ?? 0),
+    luggageInsuranceOptedIn: !!b.luggage_insurance_opted_in,
+    luggageInsurancePremium: Number(b.luggage_insurance_premium ?? 0),
     paymentMethod: b.payment_method,
     status: b.status,
     groupId,

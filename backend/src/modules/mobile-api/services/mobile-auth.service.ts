@@ -184,6 +184,15 @@ export class MobileAuthService {
     if (dto.ridePreferences !== undefined) {
       user.ride_preferences = JSON.stringify(dto.ridePreferences ?? {});
     }
+
+    // A profile photo is mandatory. Enforce it here as well as in the client so
+    // onboarding cannot be completed by calling the API directly.
+    if (dto.onboarded === true && !user.photo_url) {
+      throw new BadRequestException(
+        'A profile photo is required before you can finish setting up your account.',
+      );
+    }
+
     const saved = await this.users.save(user);
     return userToDto(saved);
   }

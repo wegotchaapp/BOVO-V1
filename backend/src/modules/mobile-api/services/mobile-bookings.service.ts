@@ -5,6 +5,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { priceBooking } from '../mobile-pricing';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, Repository } from 'typeorm';
 import Stripe from 'stripe';
@@ -22,7 +23,14 @@ import { bookingToDto } from '../mobile.mappers';
 import { MobileConversationsService } from './mobile-conversations.service';
 import { MobileEmailNotificationsService } from './mobile-email-notifications.service';
 
-const SERVICE_FEE_RATE = 0.06;
+/**
+ * Bovogo's platform fee: PLATFORM_FEE_FIXED + PLATFORM_FEE_RATE × subtotal.
+ *
+ * Stripe bills 2.9% + $0.30 on the whole captured amount — this fee included —
+ * so a purely flat fee goes negative as bookings grow. The percentage
+ * component cancels Stripe's, leaving a near-constant net margin per booking
+ * whatever the size. See modules/pricing/pricing.config.ts.
+ */
 
 function round2(n: number): number {
   return Math.round(n * 100) / 100;
@@ -85,6 +93,21 @@ export class MobileBookingsService {
     return this.finalizeBooking(riderId, dto, null);
   }
 
+  /**
+   * Prices a booking request. Trip insurance is default-on: only an explicit
+   * `false` from the client declines it, so a client that omits the field opts
+   * the Sailor in, exactly as the checkout UI presents it.
+   */
+  private priceFor(trip: MobileTrip, dto: CreateBookingBody) {
+    return priceBooking({
+      pricePerSeat: Number(trip.price_per_seat),
+      seats: dto.seats,
+      luggageTier: dto.luggageTier ?? 'carry_on',
+      insuranceOptedIn: dto.insuranceOptedIn !== false,
+      luggageInsuranceOptedIn: dto.luggageInsuranceOptedIn === true,
+    });
+  }
+
   /** Create a pending booking + Stripe PaymentIntent. Seats are reserved on confirm. */
   async prepare(riderId: string, dto: CreateBookingBody) {
     const { stripe, publishableKey } = this.requireStripe();
@@ -93,11 +116,8 @@ export class MobileBookingsService {
     if (!trip) throw new NotFoundException('Trip not found');
     this.assertTripBookable(trip, riderId, dto.seats);
 
-    const pricePerSeat = Number(trip.price_per_seat);
-    const subtotal = round2(pricePerSeat * dto.seats);
-    const serviceFee = round2(subtotal * SERVICE_FEE_RATE);
-    const totalAmount = round2(subtotal + serviceFee);
-    const amountCents = Math.round(totalAmount * 100);
+    const price = this.priceFor(trip, dto);
+    const amountCents = Math.round(price.totalAmount * 100);
     if (amountCents < 50) {
       throw new BadRequestException('Booking total is too low to charge.');
     }
@@ -107,9 +127,15 @@ export class MobileBookingsService {
         trip_id: trip.id,
         rider_id: riderId,
         seats: dto.seats,
-        price_per_seat: pricePerSeat.toFixed(2),
-        service_fee: serviceFee.toFixed(2),
-        total_amount: totalAmount.toFixed(2),
+        price_per_seat: price.pricePerSeat.toFixed(2),
+        service_fee: price.serviceFee.toFixed(2),
+        total_amount: price.totalAmount.toFixed(2),
+        luggage_tier: price.luggageTier,
+        luggage_surcharge: price.luggageSurcharge.toFixed(2),
+        insurance_opted_in: price.insurancePremium > 0,
+        insurance_premium: price.insurancePremium.toFixed(2),
+        luggage_insurance_opted_in: price.luggageInsurancePremium > 0,
+        luggage_insurance_premium: price.luggageInsurancePremium.toFixed(2),
         payment_method: dto.paymentMethod,
         status: 'pending',
         payment_intent_id: null,
@@ -245,10 +271,7 @@ export class MobileBookingsService {
       if (!trip) throw new NotFoundException('Trip not found');
       this.assertTripBookable(trip, riderId, dto.seats);
 
-      const pricePerSeat = Number(trip.price_per_seat);
-      const subtotal = round2(pricePerSeat * dto.seats);
-      const serviceFee = round2(subtotal * SERVICE_FEE_RATE);
-      const totalAmount = round2(subtotal + serviceFee);
+      const price = this.priceFor(trip, dto);
 
       trip.seats_available = trip.seats_available - dto.seats;
       await tripRepo.save(trip);
@@ -258,9 +281,15 @@ export class MobileBookingsService {
           trip_id: trip.id,
           rider_id: riderId,
           seats: dto.seats,
-          price_per_seat: pricePerSeat.toFixed(2),
-          service_fee: serviceFee.toFixed(2),
-          total_amount: totalAmount.toFixed(2),
+          price_per_seat: price.pricePerSeat.toFixed(2),
+          service_fee: price.serviceFee.toFixed(2),
+          total_amount: price.totalAmount.toFixed(2),
+          luggage_tier: price.luggageTier,
+          luggage_surcharge: price.luggageSurcharge.toFixed(2),
+          insurance_opted_in: price.insurancePremium > 0,
+          insurance_premium: price.insurancePremium.toFixed(2),
+          luggage_insurance_opted_in: price.luggageInsurancePremium > 0,
+          luggage_insurance_premium: price.luggageInsurancePremium.toFixed(2),
           payment_method: dto.paymentMethod,
           status: 'confirmed',
           payment_intent_id: paymentIntentId,

@@ -379,7 +379,7 @@ async function seed() {
     const conversation = await conversationRepo.save({
       booking_id: booking.id,
       booking: booking,
-      participants: [driver2.id, rider.id],
+      participant_ids: [driver2.id, rider.id],
     });
 
     // Add some test messages

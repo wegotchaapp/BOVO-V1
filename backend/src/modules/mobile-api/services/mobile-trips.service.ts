@@ -24,6 +24,8 @@ import { CreateTripBody, CreateReplyBody } from '../dto/mobile.dto';
 import { driverSummary, replyToDto, tripToDto } from '../mobile.mappers';
 import { findPublicReplyPii } from '../pii-guard';
 import { MobileEmailNotificationsService } from './mobile-email-notifications.service';
+import { seatPriceForRoute } from '../mobile-pricing';
+import { MobileVehiclesService } from './mobile-vehicles.service';
 
 const UPLOADS_DIR = path.join(process.cwd(), 'uploads');
 const START_VIDEO_BUCKET = 'bovogo-trip-videos';
@@ -70,6 +72,7 @@ export class MobileTripsService {
     @InjectRepository(MobileTripGroupMember)
     private readonly groupMembers: Repository<MobileTripGroupMember>,
     private readonly emailNotifications: MobileEmailNotificationsService,
+    private readonly vehiclesService: MobileVehiclesService,
   ) {
     this.s3 = new AWS.S3({
       accessKeyId: this.config.get('AWS_ACCESS_KEY_ID'),
@@ -163,6 +166,11 @@ export class MobileTripsService {
   }
 
   async create(driverId: string, dto: CreateTripBody) {
+    // A Voyager may only post once their vehicle is fully documented: VIN,
+    // seat/door counts, all five photos, insurance and registration. Enforced
+    // here rather than only in the UI so it cannot be bypassed via the API.
+    await this.vehiclesService.assertReadyToDrive(driverId);
+
     const departure = new Date(dto.departureAt);
     if (Number.isNaN(departure.getTime())) {
       throw new BadRequestException('Invalid departureAt timestamp');
@@ -181,7 +189,9 @@ export class MobileTripsService {
       departure_at: departure,
       seats_available: dto.seatsAvailable,
       luggage_space: dto.luggageSpace ?? 0,
-      price_per_seat: dto.pricePerSeat.toFixed(2),
+      // Server-authoritative: the client's pricePerSeat is ignored so a
+      // Voyager cannot post a seat above the cost-share ceiling.
+      price_per_seat: seatPriceForRoute(dto.fromCity, dto.toCity).toFixed(2),
       note: dto.note ?? '',
       car: dto.car ?? null,
       pref_smoking: dto.preferences?.smoking ?? false,
@@ -399,20 +409,39 @@ export class MobileTripsService {
     return { ok: true };
   }
 
+  /**
+   * Reply counts, computed in the database. Loading the reply rows themselves
+   * would mean pulling 10,000 records into memory to produce 50 integers on a
+   * busy feed.
+   */
+  private replyCountsFor(
+    tripIds: string[],
+  ): Promise<{ trip_id: string; count: string }[]> {
+    if (tripIds.length === 0) return Promise.resolve([]);
+    return this.replies
+      .createQueryBuilder('r')
+      .select('r.trip_id', 'trip_id')
+      .addSelect('COUNT(*)', 'count')
+      .where('r.trip_id IN (:...tripIds)', { tripIds })
+      .groupBy('r.trip_id')
+      .getRawMany();
+  }
+
   private async decorate(rows: MobileTrip[]) {
     if (rows.length === 0) return [];
     const driverIds = [...new Set(rows.map((r) => r.driver_id))];
-    const drivers = await this.users.find({ where: { id: In(driverIds) } });
-    const driverById = new Map(drivers.map((d) => [d.id, d]));
-
     const tripIds = rows.map((r) => r.id);
-    const replyRows = await this.replies.find({
-      where: { trip_id: In(tripIds) },
-    });
-    const counts = new Map<string, number>();
-    for (const r of replyRows) {
-      counts.set(r.trip_id, (counts.get(r.trip_id) ?? 0) + 1);
-    }
+
+    // Independent queries — issue them together rather than back to back, so
+    // the feed costs one round-trip's latency instead of two.
+    const [drivers, countRows] = await Promise.all([
+      this.users.find({ where: { id: In(driverIds) } }),
+      this.replyCountsFor(tripIds),
+    ]);
+    const driverById = new Map(drivers.map((d) => [d.id, d]));
+    const counts = new Map<string, number>(
+      countRows.map((r) => [r.trip_id, Number(r.count)]),
+    );
 
     return rows.map((t) => {
       const d = driverById.get(t.driver_id);

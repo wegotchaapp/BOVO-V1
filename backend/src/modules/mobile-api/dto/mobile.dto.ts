@@ -182,10 +182,48 @@ export class UpsertVehicleBody {
   @MaxLength(2)
   state?: string;
 
+  /** Required. Validated for real VIN shape in the service. */
+  @IsString()
+  @MinLength(17)
+  @MaxLength(17)
+  vin!: string;
+
+  /** Seats available to Sailors, excluding the Voyager's own. */
+  @IsInt()
+  @Min(1)
+  @Max(8)
+  seatCount!: number;
+
+  @IsInt()
+  @Min(2)
+  @Max(6)
+  doorCount!: number;
+
   @IsOptional()
   @IsString()
-  @MaxLength(32)
-  vin?: string;
+  @MaxLength(10)
+  insuranceExpiresAt?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(10)
+  registrationExpiresAt?: string;
+}
+
+export class UploadVehiclePhotoBody {
+  @IsIn(['front', 'rear', 'left', 'right', 'interior'])
+  slot!: 'front' | 'rear' | 'left' | 'right' | 'interior';
+}
+
+export class UploadVehicleDocumentBody {
+  @IsIn(['insurance', 'registration'])
+  kind!: 'insurance' | 'registration';
+
+  /** ISO date (YYYY-MM-DD) the document expires. */
+  @IsOptional()
+  @IsString()
+  @MaxLength(10)
+  expiresAt?: string;
 }
 
 export class SubmitRatingBody {
@@ -292,6 +330,24 @@ export class CreateBookingBody {
 
   @IsIn(['card', 'apple', 'venmo'])
   paymentMethod!: 'card' | 'apple' | 'venmo';
+
+  /** Declared luggage. Defaults to carry-on, which carries no surcharge. */
+  @IsOptional()
+  @IsIn(['carry_on', 'standard', 'large', 'oversized'])
+  luggageTier?: 'carry_on' | 'standard' | 'large' | 'oversized';
+
+  /**
+   * Trip insurance is DEFAULT ON — omitting this opts the Sailor in. Only an
+   * explicit `false` declines it.
+   */
+  @IsOptional()
+  @IsBoolean()
+  insuranceOptedIn?: boolean;
+
+  /** Optional luggage cover; opt-in, unlike trip insurance. */
+  @IsOptional()
+  @IsBoolean()
+  luggageInsuranceOptedIn?: boolean;
 }
 
 export class ConfirmBookingBody {
@@ -334,4 +390,29 @@ export class GroupMessageBody {
   @MinLength(1)
   @MaxLength(1000)
   text!: string;
+}
+
+/**
+ * One photographed odometer reading. Sent as multipart alongside the photo, so
+ * every field arrives as a string and is coerced in the controller — validation
+ * here stays deliberately permissive on type and strict on shape.
+ */
+export class RecordOdometerBody {
+  @IsString()
+  bookingId!: string;
+
+  @IsIn(['pickup', 'dropoff'])
+  kind!: 'pickup' | 'dropoff';
+
+  /** Whole miles from the dashboard. Coerced to a number in the controller. */
+  @IsString()
+  miles!: string;
+
+  @IsOptional()
+  @IsString()
+  latitude?: string;
+
+  @IsOptional()
+  @IsString()
+  longitude?: string;
 }

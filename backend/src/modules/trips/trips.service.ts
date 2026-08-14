@@ -12,7 +12,12 @@ import { TripStatus, BookingStatus } from '../../common/enums';
 import { PinoLogger } from 'nestjs-pino';
 import axios from 'axios';
 import { PricingService } from '../pricing/pricing.service';
-import { PRICING } from '../pricing/pricing.config';
+import {
+  PRICING,
+  breachesCostShareCeiling,
+  irsCeilingForMiles,
+  ratePerMilePerSeat,
+} from '../pricing/pricing.config';
 
 const MAX_DRIVER_TRIPS_PER_7_DAYS = 6;
 
@@ -94,10 +99,24 @@ export class TripsService {
       );
     }
 
-    let opsReviewNote: string | undefined;
+    const opsNotes: string[] = [];
     if (distanceMiles > PRICING.MAX_DISTANCE_MILES) {
-      opsReviewNote = `⚠ Ops review: trip is ${Math.round(distanceMiles)} miles (exceeds ${PRICING.MAX_DISTANCE_MILES}-mile soft cap).`;
+      opsNotes.push(
+        `⚠ Ops review: trip is ${Math.round(distanceMiles)} miles (exceeds ${PRICING.MAX_DISTANCE_MILES}-mile soft cap).`,
+      );
     }
+    // The flat seat price does not scale down on short routes, so a full car
+    // below ~135 miles would recover more than the trip cost. Flagged, not
+    // blocked — pricing is a business decision, but this must never pass
+    // unnoticed.
+    if (breachesCostShareCeiling(distanceMiles)) {
+      opsNotes.push(
+        `⚠ Cost-share review: at ${Math.round(distanceMiles)} miles, ${PRICING.STANDARD_OCCUPANCY_SEDAN} seats collect ` +
+          `$${(PRICING.SEAT_PRICE * PRICING.STANDARD_OCCUPANCY_SEDAN).toFixed(2)} against an IRS ceiling of ` +
+          `$${irsCeilingForMiles(distanceMiles).toFixed(2)}.`,
+      );
+    }
+    const opsReviewNote = opsNotes.length ? opsNotes.join(' ') : undefined;
 
     const standardOccupancy = this.pricingService.getStandardOccupancy();
     const perSeatPrice = this.pricingService.calculateSeatPrice(distanceMiles);
@@ -121,15 +140,25 @@ export class TripsService {
       irs_rate_used: PRICING.IRS_RATE,
       total_occupants_calc: standardOccupancy,
       price_calculation_inputs: {
-        formula: `base_seat_price = (miles × ${PRICING.IRS_RATE} × ${PRICING.SAFETY_FACTOR}) ÷ ${standardOccupancy} (sedan standard occupancy)`,
+        model: 'flat_cost_share',
+        formula:
+          `base_seat_price = $${PRICING.SEAT_PRICE.toFixed(2)} flat, derived from ` +
+          `180 mi × ${PRICING.IRS_RATE} × ${PRICING.SAFETY_FACTOR} ÷ ${standardOccupancy}`,
         distance_miles: distanceMiles,
         irs_mileage_rate: PRICING.IRS_RATE,
         cost_share_factor: PRICING.SAFETY_FACTOR,
         standard_occupancy: standardOccupancy,
+        rate_per_mile_per_seat: Math.round(ratePerMilePerSeat() * 10000) / 10000,
         vehicle_category: 'sedan',
         seats_offered: dto.seats_available,
-        raw_calculation: `${distanceMiles} × ${PRICING.IRS_RATE} × ${PRICING.SAFETY_FACTOR} ÷ ${standardOccupancy} = ${perSeatPrice.toFixed(4)}`,
-        rounding: 'Standard rounding to nearest $0.01',
+        flat_seat_price: PRICING.SEAT_PRICE,
+        pct_of_irs_ceiling_at_full_occupancy: Number(
+          (((perSeatPrice * standardOccupancy) / (distanceMiles * PRICING.IRS_RATE)) * 100).toFixed(2),
+        ),
+        // Evidence the Voyager stays under the IRS ceiling at full occupancy.
+        irs_ceiling_for_trip: Math.round(distanceMiles * PRICING.IRS_RATE * 100) / 100,
+        max_collected_at_full_occupancy:
+          Math.round(perSeatPrice * standardOccupancy * 100) / 100,
         final_price: perSeatPrice,
       },
       luggage_capacity: dto.luggage_capacity || 'small',

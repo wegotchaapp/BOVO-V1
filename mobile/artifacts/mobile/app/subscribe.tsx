@@ -3,7 +3,6 @@ import { useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
   ActivityIndicator,
-  Alert,
   Platform,
   SafeAreaView,
   ScrollView,
@@ -12,6 +11,9 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+
+import { Alert } from "@/lib/alert";
+import { formatUsd, PREMIUM_PRICE_PER_MONTH } from "@/lib/pricing";
 import { StripeProvider, useStripe } from "@/lib/stripeNative";
 
 import { useAuth } from "@/context/AuthContext";
@@ -107,7 +109,9 @@ function SubscribeBody() {
           <Text style={[styles.heroTitle, { color: c.background }]}>
             Bovogo Premium
           </Text>
-          <Text style={[styles.heroPrice, { color: c.background }]}>$22 / month</Text>
+          <Text style={[styles.heroPrice, { color: c.background }]}>
+            {formatUsd(PREMIUM_PRICE_PER_MONTH)} / month
+          </Text>
           {isFoundingMember && (
             <View style={[styles.foundingPill, { backgroundColor: c.accent }]}>
               <Feather name="star" size={12} color={c.primary} />
@@ -162,7 +166,7 @@ function SubscribeBody() {
               <Text style={[styles.ctaText, { color: c.background }]}>
                 {isFoundingMember
                   ? "Start free year"
-                  : "Subscribe — $22/month"}
+                  : `Subscribe — ${formatUsd(PREMIUM_PRICE_PER_MONTH)}/month`}
               </Text>
             )}
           </TouchableOpacity>

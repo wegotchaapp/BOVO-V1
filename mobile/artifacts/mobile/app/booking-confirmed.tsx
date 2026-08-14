@@ -161,7 +161,7 @@ export default function BookingConfirmed() {
             ) : null}
             <View style={[styles.badge, { backgroundColor: "#FEF3E2" }]}>
               <Feather name="award" size={14} color="#C4954A" />
-              <Text style={[styles.badgeText, { color: "#C4954A" }]}>Verified driver</Text>
+              <Text style={[styles.badgeText, { color: "#C4954A" }]}>Verified Voyager</Text>
             </View>
           </Animated.View>
         </View>

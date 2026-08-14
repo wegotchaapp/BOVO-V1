@@ -1,4 +1,5 @@
 import { apiClient } from "./api";
+import { platformFee } from "./pricing";
 
 export interface BookingTripSummary {
   id: string;
@@ -9,6 +10,8 @@ export interface BookingTripSummary {
   car: string;
 }
 
+export type LuggageTier = "carry_on" | "standard" | "large" | "oversized";
+
 export interface Booking {
   id: string;
   tripId: string;
@@ -17,6 +20,12 @@ export interface Booking {
   pricePerSeat: number;
   serviceFee: number;
   totalAmount: number;
+  luggageTier: LuggageTier;
+  luggageSurcharge: number;
+  insuranceOptedIn: boolean;
+  insurancePremium: number;
+  luggageInsuranceOptedIn: boolean;
+  luggageInsurancePremium: number;
   paymentMethod: "card" | "apple" | "venmo";
   status: "pending" | "confirmed" | "cancelled" | "completed";
   createdAt: string;
@@ -30,6 +39,10 @@ export interface CreateBookingInput {
   tripId: string;
   seats: number;
   paymentMethod: "card" | "apple" | "venmo";
+  luggageTier?: LuggageTier;
+  /** Trip insurance is default-on; send false to decline. */
+  insuranceOptedIn?: boolean;
+  luggageInsuranceOptedIn?: boolean;
 }
 
 export interface PrepareBookingResult {
@@ -68,7 +81,10 @@ export async function listMyBookings(): Promise<Booking[]> {
   return data.bookings;
 }
 
-/** Service-fee formula must match the API (artifacts/api-server/src/routes/bookings). */
+/**
+ * Bovogo's platform fee for a booking subtotal. Must match `feeForSubtotal` in
+ * the API's mobile-pricing module — the server value is authoritative.
+ */
 export function computeServiceFee(subtotal: number): number {
-  return Math.round(subtotal * 0.06 * 100) / 100;
+  return platformFee(subtotal);
 }

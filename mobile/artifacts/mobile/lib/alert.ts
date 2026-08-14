@@ -1,4 +1,13 @@
-import { Alert, Platform } from "react-native";
+import { enqueueAlert, type AlertButton } from "@/components/AlertHost";
+
+/**
+ * Cross-platform dialogs.
+ *
+ * Everything here routes through `<AlertHost />` (mounted in app/_layout.tsx),
+ * so dialogs look and behave the same on web and native. Do NOT import `Alert`
+ * from "react-native" — react-native-web does not implement it and every call
+ * is silently dropped in the browser.
+ */
 
 export interface ConfirmOptions {
   confirmText?: string;
@@ -6,87 +15,89 @@ export interface ConfirmOptions {
   destructive?: boolean;
 }
 
-/**
- * Cross-platform confirmation. On web, Alert.alert button callbacks are
- * unreliable — window.confirm is used instead.
- */
+/** Two-button confirmation. Resolves true when the user confirms. */
 export function confirm(
   title: string,
   message: string,
   options: ConfirmOptions = {},
 ): Promise<boolean> {
-  const confirmText = options.confirmText ?? "OK";
-  const cancelText = options.cancelText ?? "Cancel";
-
-  if (Platform.OS === "web") {
-    const full = message ? `${title}\n\n${message}` : title;
-    return Promise.resolve(window.confirm(full));
-  }
-
   return new Promise((resolve) => {
-    Alert.alert(title, message, [
-      { text: cancelText, style: "cancel", onPress: () => resolve(false) },
-      {
-        text: confirmText,
-        style: options.destructive ? "destructive" : "default",
-        onPress: () => resolve(true),
-      },
-    ]);
+    enqueueAlert({
+      title,
+      message,
+      buttons: [
+        { text: options.cancelText ?? "Cancel", style: "cancel" },
+        {
+          text: options.confirmText ?? "OK",
+          style: options.destructive ? "destructive" : "default",
+        },
+      ],
+      resolve: (index) => resolve(index === 1),
+    });
   });
 }
 
-/** Simple OK dialog. */
+/** Single-button notice. Resolves once dismissed. */
 export function showAlert(title: string, message?: string): Promise<void> {
-  if (Platform.OS === "web") {
-    window.alert(message ? `${title}\n\n${message}` : title);
-    return Promise.resolve();
-  }
   return new Promise((resolve) => {
-    Alert.alert(title, message, [{ text: "OK", onPress: () => resolve() }]);
+    enqueueAlert({
+      title,
+      message,
+      buttons: [{ text: "OK" }],
+      resolve: () => resolve(),
+      dismissIndex: 0,
+    });
   });
 }
 
-/**
- * Success feedback with optional follow-up action.
- * On web, shows alert then runs onOk (navigation, etc.).
- */
-export async function showSuccess(
+/** Success notice that runs a follow-up action (navigation, refresh, …) on OK. */
+export function showSuccess(
   title: string,
   message: string,
   onOk?: () => void | Promise<void>,
 ): Promise<void> {
-  if (Platform.OS === "web") {
-    window.alert(`${title}\n\n${message}`);
-    await onOk?.();
-    return;
-  }
   return new Promise((resolve) => {
-    Alert.alert(title, message, [
-      {
-        text: "OK",
-        onPress: async () => {
-          await onOk?.();
-          resolve();
-        },
-      },
-    ]);
+    enqueueAlert({
+      title,
+      message,
+      buttons: [{ text: "OK", onPress: onOk }],
+      resolve: () => resolve(),
+      dismissIndex: 0,
+    });
+  });
+}
+
+/** Dialog with an arbitrary set of action buttons. */
+export function showAlertWithActions(
+  title: string,
+  message: string,
+  buttons: AlertButton[],
+): void {
+  enqueueAlert({
+    title,
+    message,
+    buttons,
+    resolve: () => {},
   });
 }
 
 /**
- * Alert with one or more action buttons (native only uses Alert; web runs
- * first button's onPress after confirm-style alert, or single OK).
+ * Drop-in replacement for react-native's `Alert`, so screens can keep the
+ * familiar call shape while actually working in the browser.
+ *
+ *   import { Alert } from "@/lib/alert";
+ *   Alert.alert("Title", "Message", [{ text: "OK", onPress: … }]);
  */
-export function showAlertWithActions(
-  title: string,
-  message: string,
-  buttons: Array<{ text: string; onPress?: () => void | Promise<void>; style?: "cancel" | "destructive" | "default" }>,
-): void {
-  if (Platform.OS === "web") {
-    const primary = buttons.find((b) => b.style !== "cancel") ?? buttons[0];
-    window.alert(`${title}\n\n${message}`);
-    void primary?.onPress?.();
-    return;
-  }
-  Alert.alert(title, message, buttons);
-}
+export const Alert = {
+  alert(title: string, message?: string, buttons?: AlertButton[]): void {
+    enqueueAlert({
+      title,
+      message,
+      buttons: buttons ?? [{ text: "OK" }],
+      resolve: () => {},
+      dismissIndex: buttons && buttons.length > 1 ? undefined : 0,
+    });
+  },
+};
+
+export type { AlertButton };

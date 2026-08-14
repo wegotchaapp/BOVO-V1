@@ -13,6 +13,7 @@ import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { KeyboardProvider } from "react-native-keyboard-controller";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 
+import { AlertHost } from "@/components/AlertHost";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { AuthProvider, useAuth } from "@/context/AuthContext";
 import { UnreadProvider } from "@/context/UnreadContext";
@@ -71,12 +72,15 @@ function RootLayoutNav() {
         <Stack.Screen name="trip/[id]" options={{ headerShown: false }} />
         <Stack.Screen name="booking-confirmed" options={{ headerShown: false }} />
         <Stack.Screen name="safety" options={{ headerShown: false }} />
+        <Stack.Screen name="safety-tips" options={{ headerShown: false }} />
         <Stack.Screen name="chat/[id]" options={{ headerShown: false }} />
         <Stack.Screen name="tracking/[id]" options={{ headerShown: false }} />
         <Stack.Screen name="payment" options={{ headerShown: false }} />
         <Stack.Screen name="post/[id]" options={{ headerShown: false }} />
         <Stack.Screen name="post-trip" options={{ headerShown: false }} />
         <Stack.Screen name="pre-trip-video" options={{ headerShown: false }} />
+        <Stack.Screen name="manifest/[tripId]" options={{ headerShown: false }} />
+        <Stack.Screen name="odometer/[tripId]" options={{ headerShown: false }} />
         <Stack.Screen name="earnings" options={{ headerShown: false }} />
         <Stack.Screen name="vehicle" options={{ headerShown: false }} />
         <Stack.Screen name="safety-unsafe" options={{ headerShown: false }} />
@@ -117,6 +121,8 @@ export default function RootLayout() {
               <AuthProvider>
                 <UnreadProvider>
                   <RootLayoutNav />
+                  {/* Rendered last so dialogs sit above every screen. */}
+                  <AlertHost />
                 </UnreadProvider>
               </AuthProvider>
             </KeyboardProvider>

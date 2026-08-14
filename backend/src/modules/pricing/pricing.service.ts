@@ -1,5 +1,9 @@
 import { Injectable } from '@nestjs/common';
-import { PRICING } from './pricing.config';
+import {
+  PRICING,
+  platformFeeForSubtotal,
+  seatPriceForMiles,
+} from './pricing.config';
 
 export interface PricingBreakdown {
   base_seat_price: number;
@@ -21,12 +25,29 @@ export interface DriverPayoutInput {
 export interface PlatformRevenueInput {
   total_bookings: number;
   insured_count: number;
+  /** Average pre-fee subtotal per booking; fees scale with it. */
+  avg_subtotal?: number;
+}
+
+function round2(n: number): number {
+  return Math.round(n * 100) / 100;
 }
 
 @Injectable()
 export class PricingService {
-  calculateSeatPrice(_distanceMiles: number): number {
-    return PRICING.BASE_SEAT_PRICE;
+  /**
+   * Cost-share per seat for a route: miles × $0.72 × 75% ÷ 3 seats.
+   * Distance-based at every length, so the total collected is always exactly
+   * 75% of the IRS ceiling — never above it on short routes, and it still
+   * recovers properly on long ones.
+   */
+  calculateSeatPrice(distanceMiles: number): number {
+    return seatPriceForMiles(distanceMiles);
+  }
+
+  /** Bovogo's fee on a booking subtotal. */
+  calculatePlatformFee(subtotal: number): number {
+    return platformFeeForSubtotal(subtotal);
   }
 
   getStandardOccupancy(): number {
@@ -41,7 +62,8 @@ export class PricingService {
     const seatPrice = this.calculateSeatPrice(distanceMiles);
     const luggage = this.getLuggageSurcharge(luggageTier);
     const insurance = insuranceElected ? PRICING.INSURANCE_PREMIUM : 0;
-    return seatPrice + PRICING.PLATFORM_FEE + luggage + insurance;
+    const subtotal = seatPrice + luggage + insurance;
+    return round2(subtotal + this.calculatePlatformFee(subtotal));
   }
 
   calculateDriverPayout(distanceMiles: number, input: DriverPayoutInput): number {
@@ -59,10 +81,16 @@ export class PricingService {
     net: number;
     breakdown: { platform_fees: number; insurance_commission: number; stripe_cost: number };
   } {
-    const platformFees = PRICING.PLATFORM_FEE * input.total_bookings;
+    // Fees now scale with booking size, so an average subtotal is needed to
+    // estimate them in aggregate.
+    const avgSubtotal = input.avg_subtotal ?? 0;
+    const platformFees =
+      platformFeeForSubtotal(avgSubtotal) * input.total_bookings;
     const insuranceCommission = PRICING.INSURANCE_PREMIUM * PRICING.INSURANCE_COMMISSION * input.insured_count;
     const gross = platformFees + insuranceCommission;
-    const stripeCost = 0.029 * gross + 0.30 * input.total_bookings;
+    const stripeCost =
+      PRICING.STRIPE_PERCENT * (avgSubtotal * input.total_bookings + platformFees) +
+      PRICING.STRIPE_FIXED * input.total_bookings;
     return {
       gross: Math.round(gross * 100) / 100,
       net: Math.round((gross - stripeCost) * 100) / 100,
@@ -78,13 +106,18 @@ export class PricingService {
     const base_seat_price = this.calculateSeatPrice(distanceMiles);
     const luggage_surcharge = this.getLuggageSurcharge(luggageTier);
     const insurance_premium = insuranceElected ? PRICING.INSURANCE_PREMIUM : 0;
-    const rider_total = base_seat_price + PRICING.PLATFORM_FEE + luggage_surcharge + insurance_premium;
-    const grossRev = PRICING.PLATFORM_FEE + (insuranceElected ? PRICING.INSURANCE_PREMIUM * PRICING.INSURANCE_COMMISSION : 0);
-    const stripeCost = 0.029 * PRICING.PLATFORM_FEE + 0.30;
+    const subtotal = base_seat_price + luggage_surcharge + insurance_premium;
+    const platform_fee = platformFeeForSubtotal(subtotal);
+    const rider_total = round2(subtotal + platform_fee);
+    const grossRev =
+      platform_fee +
+      (insuranceElected ? PRICING.INSURANCE_PREMIUM * PRICING.INSURANCE_COMMISSION : 0);
+    // Stripe bills on the full captured amount, this fee included.
+    const stripeCost = PRICING.STRIPE_PERCENT * rider_total + PRICING.STRIPE_FIXED;
 
     return {
       base_seat_price,
-      platform_fee: PRICING.PLATFORM_FEE,
+      platform_fee,
       luggage_surcharge,
       insurance_premium,
       rider_total,

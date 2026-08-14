@@ -1,4 +1,4 @@
-import { PRICING } from '../../modules/pricing/pricing.config';
+import { PRICING, platformFeeForSubtotal } from '../../modules/pricing/pricing.config';
 
 export interface RefundCalculationInput {
   totalPaidCents: number;
@@ -18,7 +18,16 @@ export interface RefundCalculationResult {
   requiresFlag: boolean;
 }
 
-const PLATFORM_FEE_CENTS = Math.round(PRICING.PLATFORM_FEE * 100);
+/**
+ * The platform fee scales with booking size, so it can no longer be a module
+ * constant. Derived from the amount actually paid: subtotal = total − fee, and
+ * fee = FIXED + RATE × subtotal, which rearranges to the expression below.
+ */
+function platformFeeCentsFor(totalPaidCents: number): number {
+  const total = totalPaidCents / 100;
+  const subtotal = (total - PRICING.PLATFORM_FEE_FIXED) / (1 + PRICING.PLATFORM_FEE_RATE);
+  return Math.round(platformFeeForSubtotal(Math.max(0, subtotal)) * 100);
+}
 
 export function calculateRefund(input: RefundCalculationInput): RefundCalculationResult {
   const { totalPaidCents, hoursUntilDeparture, isDriverCancelling, isSafetyReason, driverCancellationCount } = input;
@@ -57,7 +66,7 @@ export function calculateRefund(input: RefundCalculationInput): RefundCalculatio
   }
 
   if (hoursUntilDeparture > 6) {
-    const rideAndInsurance = totalPaidCents - PLATFORM_FEE_CENTS;
+    const rideAndInsurance = totalPaidCents - platformFeeCentsFor(totalPaidCents);
     let totalRefund: number;
     if (input.insuranceOptedIn) {
       const insuranceCents = Math.round(PRICING.INSURANCE_PREMIUM * 100);
@@ -88,7 +97,7 @@ export function calculateRefund(input: RefundCalculationInput): RefundCalculatio
     };
   }
 
-  const refundAmountCents = Math.floor((totalPaidCents - PLATFORM_FEE_CENTS) * 0.5);
+  const refundAmountCents = Math.floor((totalPaidCents - platformFeeCentsFor(totalPaidCents)) * 0.5);
   return {
     refundAmountCents,
     refundPercentage: Math.round((refundAmountCents / totalPaidCents) * 100),

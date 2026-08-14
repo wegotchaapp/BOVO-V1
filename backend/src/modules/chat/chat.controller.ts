@@ -14,7 +14,7 @@ import {
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { ChatService } from './chat.service';
-import { SendMessageDto, SubmitRatingDto, BlockUserDto } from './chat.dto';
+import { SendMessageDto, BlockUserDto } from './chat.dto';
 
 @ApiTags('chat')
 @Controller('chat')
@@ -211,33 +211,5 @@ export class ChatController {
   </Dial>
 </Response>`,
     };
-  }
-
-  @Post('ratings/:bookingId')
-  @ApiBearerAuth('JWT')
-  @ApiOperation({ summary: 'Submit a rating after trip completion' })
-  async submitRating(
-    @Request() req: any,
-    @Param('bookingId') bookingId: string,
-    @Body() dto: SubmitRatingDto,
-  ) {
-    return this.chatService.submitRating(req.user.id, bookingId, dto);
-  }
-
-  @Get('ratings/:bookingId/status')
-  @ApiBearerAuth('JWT')
-  @ApiOperation({ summary: 'Get rating status for a booking' })
-  async getRatingStatus(
-    @Request() req: any,
-    @Param('bookingId') bookingId: string,
-  ) {
-    return this.chatService.getRatingStatus(bookingId, req.user.id);
-  }
-
-  @Get('ratings/my-profile')
-  @ApiBearerAuth('JWT')
-  @ApiOperation({ summary: 'Get my aggregate rating (only after 5+ ratings)' })
-  async getMyProfileRating(@Request() req: any) {
-    return this.chatService.getMyProfileRating(req.user.id);
   }
 }

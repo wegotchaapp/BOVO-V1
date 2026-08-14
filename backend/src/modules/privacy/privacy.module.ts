@@ -5,7 +5,7 @@ import { PrivacyService } from './privacy.service';
 import { User } from '../../database/entities/user.entity';
 import { Profile, Vehicle } from '../../database/entities/profile.entities';
 import { Trip, TripPreference, TripZone } from '../../database/entities/trip.entities';
-import { Booking, BookingLuggage, BookingStatusLog, Rating } from '../../database/entities/booking.entities';
+import { Booking, BookingLuggage, BookingStatusLog } from '../../database/entities/booking.entities';
 import { Payment, Payout, Refund, InsurancePolicy } from '../../database/entities/payment.entities';
 import { ChatConversation, ChatMessage, ChatBlock, CallRecord } from '../../database/entities/chat.entities';
 import { TripPing, SosEvent, Report, ModerationAction, Suspension, Incident, DeviationEvent, Appeal } from '../../database/entities/safety.entities';
@@ -21,7 +21,7 @@ import { ComplianceLog } from '../../database/entities/compliance-log.entity';
   imports: [
     TypeOrmModule.forFeature([
       User, Profile, Vehicle, Trip, TripPreference, TripZone,
-      Booking, BookingLuggage, BookingStatusLog, Rating,
+      Booking, BookingLuggage, BookingStatusLog,
       Payment, Payout, Refund, InsurancePolicy,
       ChatConversation, ChatMessage, ChatBlock, CallRecord,
       TripPing, SosEvent, Report, ModerationAction, Suspension, Incident, DeviationEvent, Appeal,

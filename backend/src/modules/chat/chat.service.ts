@@ -2,10 +2,10 @@ import { Injectable, BadRequestException, ForbiddenException, NotFoundException 
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, LessThan, MoreThan } from 'typeorm';
 import { ConfigService } from '@nestjs/config';
-import { ChatConversation, ChatMessage, ChatBlock, Rating, CallRecord } from '../../database/entities/chat.entities';
+import { ChatConversation, ChatMessage, ChatBlock, CallRecord } from '../../database/entities/chat.entities';
 import { Booking } from '../../database/entities/booking.entities';
 import { User } from '../../database/entities/user.entity';
-import { SendMessageDto, SubmitRatingDto } from './chat.dto';
+import { SendMessageDto } from './chat.dto';
 import { ChatMessageFlagCategory, BookingStatus } from '../../common/enums';
 import { PinoLogger } from 'nestjs-pino';
 import { NotificationsService } from '../notifications/notifications.service';
@@ -31,8 +31,6 @@ export class ChatService {
     private readonly messageRepo: Repository<ChatMessage>,
     @InjectRepository(ChatBlock)
     private readonly chatBlockRepo: Repository<ChatBlock>,
-    @InjectRepository(Rating)
-    private readonly ratingRepo: Repository<Rating>,
     @InjectRepository(CallRecord)
     private readonly callRecordRepo: Repository<CallRecord>,
     @InjectRepository(Booking)
@@ -476,146 +474,6 @@ export class ChatService {
     );
   }
 
-  async submitRating(
-    raterId: string,
-    bookingId: string,
-    dto: SubmitRatingDto,
-  ): Promise<{ rating: Rating; released: boolean; counterpart_rating?: Rating }> {
-    const booking = await this.bookingRepo.findOne({
-      where: { id: bookingId },
-      relations: ['trip'],
-    });
-    if (!booking) throw new NotFoundException('Booking not found');
-
-    if (booking.status !== 'completed') {
-      throw new BadRequestException('Can only rate after trip completion');
-    }
-
-    const driverId = booking.trip?.driver_id;
-    const riderId = booking.rider_id;
-
-    if (raterId !== driverId && raterId !== riderId) {
-      throw new ForbiddenException('Only trip participants can rate');
-    }
-
-    const ratedUserId = raterId === driverId ? riderId : driverId;
-
-    const existing = await this.ratingRepo.findOne({
-      where: { booking_id: bookingId, rater_id: raterId },
-    });
-    if (existing) {
-      throw new BadRequestException('You have already submitted a rating for this booking');
-    }
-
-    const rating = this.ratingRepo.create({
-      booking_id: bookingId,
-      rater_id: raterId,
-      rated_user_id: ratedUserId,
-      score: dto.score,
-      comment: dto.comment || null,
-      tags: dto.tags || [],
-      is_released: false,
-    });
-
-    const saved = await this.ratingRepo.save(rating);
-
-    const counterpartRating = await this.ratingRepo.findOne({
-      where: { booking_id: bookingId, rater_id: ratedUserId },
-    });
-
-    let released = false;
-    let counterpartRatingData: Rating | undefined;
-
-    if (counterpartRating) {
-      await this.ratingRepo.update(saved.id, { is_released: true });
-      await this.ratingRepo.update(counterpartRating.id, { is_released: true });
-      released = true;
-      counterpartRatingData = counterpartRating;
-    } else {
-      await this.scheduleRatingRelease(bookingId, raterId, ratedUserId);
-    }
-
-    await this.updateUserAverageRating(ratedUserId);
-
-    await this.audit.log({
-      actor_id: raterId,
-      entity_type: 'rating',
-      entity_id: saved.id,
-      event_type: 'payment_event',
-      payload: {
-        booking_id: bookingId,
-        score: dto.score,
-        rated_user_id: ratedUserId,
-        released,
-      },
-    });
-
-    return {
-      rating: saved,
-      released,
-      counterpart_rating: counterpartRatingData,
-    };
-  }
-
-  async getMyProfileRating(userId: string): Promise<{ average_rating: number | null; total_ratings: number; released: boolean }> {
-    const ratings = await this.ratingRepo.find({
-      where: { rated_user_id: userId, is_released: true },
-    });
-
-    if (ratings.length < 5) {
-      return { average_rating: null, total_ratings: ratings.length, released: false };
-    }
-
-    const avg = ratings.reduce((sum, r) => sum + r.score, 0) / ratings.length;
-
-    return {
-      average_rating: Math.round(avg * 10) / 10,
-      total_ratings: ratings.length,
-      released: true,
-    };
-  }
-
-  async getRatingStatus(bookingId: string, userId: string): Promise<{
-    has_rated: boolean;
-    counterpart_rated: boolean;
-    both_rated: boolean;
-    can_rate: boolean;
-    hours_until_expiry: number | null;
-  }> {
-    const booking = await this.bookingRepo.findOne({
-      where: { id: bookingId },
-      relations: ['trip'],
-    });
-    if (!booking) throw new NotFoundException('Booking not found');
-
-    const driverId = booking.trip?.driver_id;
-    const riderId = booking.rider_id;
-    const counterpartId = userId === driverId ? riderId : driverId;
-
-    const myRating = await this.ratingRepo.findOne({
-      where: { booking_id: bookingId, rater_id: userId },
-    });
-
-    const counterpartRating = await this.ratingRepo.findOne({
-      where: { booking_id: bookingId, rater_id: counterpartId },
-    });
-
-    let hoursUntilExpiry: number | null = null;
-    if (booking.updated_at) {
-      const completedAt = new Date(booking.updated_at);
-      const expiryDate = new Date(completedAt.getTime() + 72 * 3600000);
-      hoursUntilExpiry = Math.max(0, (expiryDate.getTime() - Date.now()) / 3600000);
-    }
-
-    return {
-      has_rated: !!myRating,
-      counterpart_rated: !!counterpartRating,
-      both_rated: !!myRating && !!counterpartRating,
-      can_rate: !myRating && booking.status === 'completed',
-      hours_until_expiry: hoursUntilExpiry,
-    };
-  }
-
   async initiateMaskedCall(
     callerId: string,
     bookingId: string,
@@ -1009,42 +867,4 @@ export class ChatService {
     return { flags, requiresReview, warning };
   }
 
-  private async scheduleRatingRelease(
-    bookingId: string,
-    raterId: string,
-    ratedUserId: string,
-  ): Promise<void> {
-    setTimeout(async () => {
-      const existing = await this.ratingRepo.findOne({
-        where: { booking_id: bookingId, rater_id: raterId },
-      });
-
-      if (existing && !existing.is_released) {
-        const counterpart = await this.ratingRepo.findOne({
-          where: { booking_id: bookingId, rater_id: ratedUserId },
-        });
-
-        if (counterpart && !counterpart.is_released) {
-          await this.ratingRepo.update(existing.id, { is_released: true });
-          await this.ratingRepo.update(counterpart.id, { is_released: true });
-
-          await this.updateUserAverageRating(ratedUserId);
-          await this.updateUserAverageRating(raterId);
-        }
-      }
-    }, 72 * 3600000);
-  }
-
-  private async updateUserAverageRating(userId: string): Promise<void> {
-    const ratings = await this.ratingRepo.find({
-      where: { rated_user_id: userId, is_released: true },
-    });
-
-    if (ratings.length >= 5) {
-      const avg = ratings.reduce((sum, r) => sum + r.score, 0) / ratings.length;
-      const roundedAvg = Math.round(avg * 10) / 10;
-
-      await this.userRepo.update(userId, { avg_rating: roundedAvg });
-    }
-  }
 }

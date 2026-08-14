@@ -1,4 +1,4 @@
-import { IsString, IsNotEmpty, IsOptional, IsInt, IsEnum, IsUrl, MaxLength, Min, Max, ArrayMaxSize } from 'class-validator';
+import { IsString, IsNotEmpty, IsOptional, IsEnum, IsUrl, MaxLength } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class SendMessageDto {
@@ -7,26 +7,6 @@ export class SendMessageDto {
   @IsNotEmpty()
   @MaxLength(2000)
   content!: string;
-}
-
-export class SubmitRatingDto {
-  @ApiProperty({ minimum: 1, maximum: 5 })
-  @IsInt()
-  @Min(1)
-  @Max(5)
-  score!: number;
-
-  @ApiPropertyOptional({ maxLength: 500 })
-  @IsString()
-  @IsOptional()
-  @MaxLength(500)
-  comment?: string;
-
-  @ApiPropertyOptional({ type: [String] })
-  @IsString({ each: true })
-  @IsOptional()
-  @ArrayMaxSize(10)
-  tags?: string[];
 }
 
 export class BlockUserDto {

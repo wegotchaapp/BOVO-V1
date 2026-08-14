@@ -2,10 +2,10 @@ import { Injectable, BadRequestException, NotFoundException, ForbiddenException 
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { ConfigService } from '@nestjs/config';
-import { Booking, BookingLuggage, BookingStatusLog, Rating } from '../../database/entities/booking.entities';
+import { Booking, BookingLuggage, BookingStatusLog } from '../../database/entities/booking.entities';
 import { Trip } from '../../database/entities/trip.entities';
 import { User } from '../../database/entities/user.entity';
-import { CreateBookingDto, CancelBookingDto, SubmitRatingDto } from './dto/booking.dto';
+import { CreateBookingDto, CancelBookingDto } from './dto/booking.dto';
 import { BookingStatus, TripStatus, VehicleCategory } from '../../common/enums';
 import { PaymentsService } from '../payments/payments.service';
 import { ChatService } from '../chat/chat.service';
@@ -14,7 +14,7 @@ import { AnalyticsService } from '../../common/services/analytics.service';
 import { PinoLogger } from 'nestjs-pino';
 import { PricingService } from '../pricing/pricing.service';
 import { NotificationsService } from '../notifications/notifications.service';
-import { PRICING } from '../pricing/pricing.config';
+import { PRICING, platformFeeForSubtotal } from '../pricing/pricing.config';
 
 const luggageContributionCents = (type: string): number =>
   Math.round((PRICING.LUGGAGE_SURCHARGE[type] || 0) * 100);
@@ -27,7 +27,10 @@ const luggageInsurancePremiumCents = (luggage: { type: string; qty: number }[]):
 
 const INSURANCE_PREMIUM_CENTS = Math.round(PRICING.INSURANCE_PREMIUM * 100);
 
-const PLATFORM_FEE_CENTS = Math.round(PRICING.PLATFORM_FEE * 100);
+/** Fee scales with the booking subtotal — see PRICING.PLATFORM_FEE_*. */
+function platformFeeCents(subtotalCents: number): number {
+  return Math.round(platformFeeForSubtotal(subtotalCents / 100) * 100);
+}
 
 const VEHICLE_LUGGAGE_CAPACITY: Record<string, number> = {
   compact: 3,
@@ -47,8 +50,6 @@ export class BookingsService {
     private readonly luggageRepo: Repository<BookingLuggage>,
     @InjectRepository(BookingStatusLog)
     private readonly statusLogRepo: Repository<BookingStatusLog>,
-    @InjectRepository(Rating)
-    private readonly ratingRepo: Repository<Rating>,
     @InjectRepository(Trip)
     private readonly tripRepo: Repository<Trip>,
     @InjectRepository(User)
@@ -85,8 +86,12 @@ export class BookingsService {
       Number(trip.distance_miles) || 165,
     ) * 100);
     const rideCostCents = perSeatCents * dto.seats;
-    const platformFeeCents = PLATFORM_FEE_CENTS;
-    const totalCents = rideCostCents + luggageTotalCents + insuranceCostCents + luggageInsuranceCents + platformFeeCents;
+    // The fee scales with everything else in the booking, because Stripe's
+    // percentage applies to the whole captured amount.
+    const subtotalCents =
+      rideCostCents + luggageTotalCents + insuranceCostCents + luggageInsuranceCents;
+    const feeCents = platformFeeCents(subtotalCents);
+    const totalCents = subtotalCents + feeCents;
 
     const { client_secret, payment_intent_id } = await this.paymentsService.createPaymentIntent(totalCents, {
       booking_type: 'carpool',
@@ -404,107 +409,6 @@ export class BookingsService {
     return { message: 'Trip completed, payout scheduled' };
   }
 
-  async submitRating(raterId: string, bookingId: string, dto: SubmitRatingDto): Promise<{ message: string; released: boolean }> {
-    const booking = await this.bookingRepo.findOne({
-      where: { id: bookingId },
-      relations: ['trip'],
-    });
-    if (!booking) throw new NotFoundException('Booking not found');
-    if (booking.status !== BookingStatus.COMPLETED) {
-      throw new BadRequestException('Can only rate completed trips');
-    }
-
-    if (dto.rating < 1 || dto.rating > 5) {
-      throw new BadRequestException('Rating must be between 1 and 5');
-    }
-
-    const trip = booking.trip;
-    if (!trip) throw new NotFoundException('Trip not found');
-
-    const isRider = booking.rider_id === raterId;
-    const ratedUserId = isRider ? trip.driver_id : booking.rider_id;
-
-    const existingRating = await this.ratingRepo.findOne({
-      where: { booking_id: bookingId, rater_id: raterId },
-    });
-    if (existingRating) {
-      throw new BadRequestException('You have already rated this trip');
-    }
-
-    const rating = this.ratingRepo.create({
-      booking_id: bookingId,
-      rater_id: raterId,
-      rated_user_id: ratedUserId,
-      score: dto.rating,
-      category_tags: dto.category_tags,
-      text_review: dto.text_review || null,
-      is_visible: false,
-    });
-    await this.ratingRepo.save(rating);
-
-    const counterpartRating = await this.ratingRepo.findOne({
-      where: { booking_id: bookingId, rater_id: ratedUserId },
-    });
-
-    let released = false;
-    if (counterpartRating) {
-      rating.is_visible = true;
-      counterpartRating.is_visible = true;
-      await this.ratingRepo.save([rating, counterpartRating]);
-
-      await this.updateUserRating(ratedUserId);
-      await this.updateUserRating(raterId);
-
-      released = true;
-      this.logger.info({ bookingId }, 'Bidirectional rating released');
-    } else {
-      this.logger.info({ bookingId }, 'Rating submitted, waiting for counterpart');
-    }
-
-    return { message: 'Rating submitted', released };
-  }
-
-  async getBookingRatingStatus(bookingId: string, userId: string): Promise<{
-    canRate: boolean;
-    hasRated: boolean;
-    counterpartHasRated: boolean;
-    bothRated: boolean;
-    hoursUntilExpiry: number;
-  }> {
-    const booking = await this.bookingRepo.findOne({
-      where: { id: bookingId },
-      relations: ['trip'],
-    });
-    if (!booking) throw new NotFoundException('Booking not found');
-    if (booking.status !== BookingStatus.COMPLETED) {
-      return { canRate: false, hasRated: false, counterpartHasRated: false, bothRated: false, hoursUntilExpiry: 0 };
-    }
-
-    const trip = booking.trip;
-    if (!trip) throw new NotFoundException('Trip not found');
-
-    const counterpartId = booking.rider_id === userId ? trip.driver_id : booking.rider_id;
-
-    const userRating = await this.ratingRepo.findOne({
-      where: { booking_id: bookingId, rater_id: userId },
-    });
-
-    const counterpartRating = await this.ratingRepo.findOne({
-      where: { booking_id: bookingId, rater_id: counterpartId },
-    });
-
-    const completedAt = booking.updated_at ? new Date(booking.updated_at).getTime() : Date.now();
-    const hoursUntilExpiry = Math.max(0, (72 * 60 * 60 * 1000 - (Date.now() - completedAt)) / (60 * 60 * 1000));
-
-    return {
-      canRate: !userRating && hoursUntilExpiry > 0,
-      hasRated: !!userRating,
-      counterpartHasRated: !!counterpartRating,
-      bothRated: !!userRating && !!counterpartRating,
-      hoursUntilExpiry: Math.round(hoursUntilExpiry * 10) / 10,
-    };
-  }
-
   async getMyBookings(userId: string): Promise<Booking[]> {
     return this.bookingRepo.find({
       where: { rider_id: userId },
@@ -592,24 +496,6 @@ export class BookingsService {
       reason,
     });
     await this.statusLogRepo.save(log);
-  }
-
-  private async updateUserRating(userId: string): Promise<void> {
-    const result = await this.ratingRepo
-      .createQueryBuilder('rating')
-      .select('AVG(rating.score)', 'avg')
-      .addSelect('COUNT(rating.id)', 'count')
-      .where('rating.rated_user_id = :userId', { userId })
-      .andWhere('rating.is_visible = true')
-      .getRawOne();
-
-    const avgRating = result?.avg ? parseFloat(result.avg) : 0;
-    const totalRatings = result?.count ? parseInt(result.count, 10) : 0;
-
-    await this.userRepo.update(userId, {
-      avg_rating: avgRating,
-      total_ratings: totalRatings,
-    });
   }
 
   private async getUserCancellationCount(userId: string): Promise<number> {

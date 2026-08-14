@@ -4,7 +4,7 @@ import { Repository, In } from 'typeorm';
 import { User } from '../../database/entities/user.entity';
 import { Profile, Vehicle } from '../../database/entities/profile.entities';
 import { Trip, TripPreference, TripZone } from '../../database/entities/trip.entities';
-import { Booking, BookingLuggage, BookingStatusLog, Rating } from '../../database/entities/booking.entities';
+import { Booking, BookingLuggage, BookingStatusLog } from '../../database/entities/booking.entities';
 import { Payment, Payout, Refund, InsurancePolicy } from '../../database/entities/payment.entities';
 import { ChatConversation, ChatMessage, ChatBlock, CallRecord } from '../../database/entities/chat.entities';
 import { TripPing, SosEvent, Report, ModerationAction, Suspension, Incident, DeviationEvent, Appeal } from '../../database/entities/safety.entities';
@@ -30,7 +30,6 @@ export class PrivacyService {
     @InjectRepository(Booking) private readonly bookingRepo: Repository<Booking>,
     @InjectRepository(BookingLuggage) private readonly bookingLuggageRepo: Repository<BookingLuggage>,
     @InjectRepository(BookingStatusLog) private readonly bookingLogRepo: Repository<BookingStatusLog>,
-    @InjectRepository(Rating) private readonly ratingRepo: Repository<Rating>,
     @InjectRepository(Payment) private readonly paymentRepo: Repository<Payment>,
     @InjectRepository(Payout) private readonly payoutRepo: Repository<Payout>,
     @InjectRepository(Refund) private readonly refundRepo: Repository<Refund>,
@@ -94,9 +93,6 @@ export class PrivacyService {
     const emergencyContacts = await this.emergencyRepo.find({ where: { user_id: userId } });
     const devices = await this.deviceRepo.find({ where: { user_id: userId } });
     const notifPrefs = await this.notifPrefRepo.findOne({ where: { user_id: userId } });
-    const ratings = await this.ratingRepo.find({
-      where: [{ rater_id: userId }, { rated_user_id: userId }],
-    });
     const driverTrips = await this.driverTripRepo.find({ where: { driver_id: userId } });
     const tripReplies = await this.tripReplyRepo.find({ where: { user_id: userId } });
     const userSessions = await this.userSessionRepo.find({ where: { user_id: userId } });
@@ -119,7 +115,6 @@ export class PrivacyService {
       emergency_contacts: emergencyContacts,
       devices,
       notification_preferences: notifPrefs,
-      ratings,
       driver_trips: driverTrips,
       trip_replies: tripReplies,
       user_sessions: userSessions,
@@ -196,8 +191,6 @@ export class PrivacyService {
 
     await this.bookingRepo.softDelete({ rider_id: userId });
 
-    await this.ratingRepo.delete({ rater_id: userId });
-    await this.ratingRepo.delete({ rated_user_id: userId });
     await this.payoutRepo.delete({ driver_id: userId });
 
     await this.verificationRepo.delete({ user_id: userId });

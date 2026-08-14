@@ -58,21 +58,3 @@ export class CancelBookingDto {
   @IsBoolean()
   cancelled_by_driver?: boolean;
 }
-
-export class SubmitRatingDto {
-  @ApiProperty({ minimum: 1, maximum: 5 })
-  @Type(() => Number)
-  @IsNumber()
-  @Min(1)
-  rating!: number;
-
-  @ApiProperty({ type: [String] })
-  @IsArray()
-  @IsString({ each: true })
-  category_tags!: string[];
-
-  @ApiPropertyOptional()
-  @IsOptional()
-  @IsString()
-  text_review?: string;
-}

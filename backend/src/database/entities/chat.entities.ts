@@ -118,53 +118,6 @@ export class ChatBlock {
   created_at!: string;
 }
 
-@Entity('ratings')
-@Index(['booking_id'], { unique: true })
-@Index(['rated_user_id'])
-export class Rating {
-  @PrimaryGeneratedColumn('uuid')
-  id!: string;
-
-  @Column({ type: 'uuid' })
-  booking_id!: string;
-
-  @ManyToOne(() => Booking)
-  @JoinColumn({ name: 'booking_id' })
-  booking!: Booking;
-
-  @Column({ type: 'uuid' })
-  rater_id!: string;
-
-  @ManyToOne(() => User)
-  @JoinColumn({ name: 'rater_id' })
-  rater!: User;
-
-  @Column({ type: 'uuid' })
-  rated_user_id!: string;
-
-  @ManyToOne(() => User)
-  @JoinColumn({ name: 'rated_user_id' })
-  ratedUser!: User;
-
-  @Column({ type: 'int' })
-  score!: number;
-
-  @Column({ type: 'varchar', length: 500, nullable: true })
-  comment!: string | null;
-
-  @Column('text', { array: true, default: [] })
-  tags!: string[];
-
-  @Column({ type: 'boolean', default: false })
-  is_released!: boolean;
-
-  @CreateDateColumn({ type: 'timestamptz' })
-  created_at!: string;
-
-  @UpdateDateColumn({ type: 'timestamptz' })
-  updated_at!: string;
-}
-
 @Entity('call_records')
 export class CallRecord {
   @PrimaryGeneratedColumn('uuid')

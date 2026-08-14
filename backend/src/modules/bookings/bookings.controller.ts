@@ -2,7 +2,7 @@ import { Controller, Get, Post, Body, Param, UseGuards, Request, HttpCode, HttpS
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { AuthGuard } from '@nestjs/passport';
 import { BookingsService } from './bookings.service';
-import { CreateBookingDto, CancelBookingDto, SubmitRatingDto } from './dto/booking.dto';
+import { CreateBookingDto, CancelBookingDto } from './dto/booking.dto';
 
 @ApiTags('bookings')
 @UseGuards(AuthGuard('jwt'))
@@ -57,20 +57,6 @@ export class BookingsController {
   @ApiOperation({ summary: 'Mark booking as completed, schedule payout' })
   async completeBooking(@Request() req: any, @Param('id') id: string) {
     return this.bookingsService.completeBooking(id, req.user.id);
-  }
-
-  @Post(':id/rating')
-  @ApiBearerAuth('JWT')
-  @ApiOperation({ summary: 'Submit rating for a completed trip' })
-  async submitRating(@Request() req: any, @Param('id') id: string, @Body() dto: SubmitRatingDto) {
-    return this.bookingsService.submitRating(req.user.id, id, dto);
-  }
-
-  @Get(':id/rating-status')
-  @ApiBearerAuth('JWT')
-  @ApiOperation({ summary: 'Check if booking can be rated and rating status' })
-  async getRatingStatus(@Request() req: any, @Param('id') id: string) {
-    return this.bookingsService.getBookingRatingStatus(id, req.user.id);
   }
 
   @Get('my')

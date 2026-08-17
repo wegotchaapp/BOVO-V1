@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { getAuditTrail } from '../lib/api';
+import { ErrorNotice, EmptyState } from '../components/QueryState';
 
 export default function AuditLogPage() {
   const [events, setEvents] = useState<any[]>([]);
@@ -7,12 +8,14 @@ export default function AuditLogPage() {
   const [page, setPage] = useState(1);
   const [filter, setFilter] = useState('');
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   const fetch = () => {
     setLoading(true);
+    setError(null);
     getAuditTrail({ event_type: filter || undefined, page })
       .then((r) => { setEvents(r.events); setTotal(r.total); })
-      .catch(console.error)
+      .catch((e: any) => setError(e?.response?.data?.message || e?.message || 'Could not load this data.'))
       .finally(() => setLoading(false));
   };
 
@@ -22,22 +25,26 @@ export default function AuditLogPage() {
 
   return (
     <div>
-      <h2 className="text-2xl font-bold text-white mb-6">Audit Log ({total})</h2>
+      <h2 className="text-2xl font-bold text-ink mb-6">Audit Log ({total})</h2>
 
       <div className="mb-4">
         <input
           type="text" placeholder="Filter by event type (e.g. user.suspended)..."
           value={filter} onChange={(e) => { setFilter(e.target.value); setPage(1); }}
-          className="bg-gray-800 border border-gray-700 rounded-lg px-4 py-2 text-white text-sm w-full max-w-md focus:outline-none focus:border-indigo-500"
+          className="bg-card border border-border rounded-lg px-4 py-2 text-ink text-sm w-full max-w-md focus:outline-none focus:border-gold"
         />
       </div>
 
-      {loading ? <div className="text-gray-400">Loading...</div> : (
+      {loading ? <div className="text-ink-soft">Loading...</div> : error ? (
+        <ErrorNotice message={error} onRetry={fetch} />
+      ) : events.length === 0 ? (
+        <EmptyState title="Nothing logged for this filter." body="Try a different action type, or clear the filter." />
+      ) : (
         <>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="text-gray-400 border-b border-gray-700">
+                <tr className="text-ink-soft border-b border-border">
                   <th className="text-left py-3 px-2">Action</th>
                   <th className="text-left py-3 px-2">Actor</th>
                   <th className="text-left py-3 px-2">Entity Type</th>
@@ -47,14 +54,14 @@ export default function AuditLogPage() {
               </thead>
               <tbody>
                 {events.map((e: any) => (
-                  <tr key={e.id} className="border-b border-gray-800 text-white hover:bg-gray-800">
+                  <tr key={e.id} className="border-b border-border text-ink hover:bg-card">
                     <td className="py-3 px-2">
-                      <span className="px-2 py-0.5 rounded text-xs bg-gray-700 text-gray-200">{e.action || e.event_type}</span>
+                      <span className="px-2 py-0.5 rounded text-xs bg-inset text-ink">{e.action || e.event_type}</span>
                     </td>
                     <td className="py-3 px-2 text-xs">{e.actor_id?.slice(0, 8) || 'system'}…</td>
-                    <td className="py-3 px-2 text-xs text-gray-400">{e.entity_type}</td>
-                    <td className="py-3 px-2 text-xs text-gray-400">{e.entity_id?.slice(0, 8) || '—'}…</td>
-                    <td className="py-3 px-2 text-xs text-gray-400">{new Date(e.ts || e.created_at).toLocaleString()}</td>
+                    <td className="py-3 px-2 text-xs text-ink-soft">{e.entity_type}</td>
+                    <td className="py-3 px-2 text-xs text-ink-soft">{e.entity_id?.slice(0, 8) || '—'}…</td>
+                    <td className="py-3 px-2 text-xs text-ink-soft">{new Date(e.ts || e.created_at).toLocaleString()}</td>
                   </tr>
                 ))}
               </tbody>
@@ -63,7 +70,7 @@ export default function AuditLogPage() {
           {pages > 1 && (
             <div className="flex justify-center gap-2 mt-4">
               {Array.from({ length: Math.min(pages, 10) }, (_, i) => i + 1).map((p) => (
-                <button key={p} onClick={() => setPage(p)} className={`px-3 py-1 rounded text-sm ${p === page ? 'bg-indigo-600 text-white' : 'bg-gray-800 text-gray-400 hover:bg-gray-700'}`}>{p}</button>
+                <button key={p} onClick={() => setPage(p)} className={`px-3 py-1 rounded text-sm ${p === page ? 'bg-gold text-ground' : 'bg-card text-ink-soft hover:bg-inset'}`}>{p}</button>
               ))}
             </div>
           )}

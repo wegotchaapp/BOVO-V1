@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { getBookings } from '../lib/api';
+import { ErrorNotice, EmptyState } from '../components/QueryState';
 
 interface Booking {
   id: string;
@@ -18,12 +19,14 @@ export default function BookingsPage() {
   const [page, setPage] = useState(1);
   const [status, setStatus] = useState('');
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   const fetch = () => {
     setLoading(true);
+    setError(null);
     getBookings({ status: status || undefined, page })
       .then((res) => { setBookings(res.bookings); setTotal(res.total); })
-      .catch(console.error)
+      .catch((e: any) => setError(e?.response?.data?.message || e?.message || 'Could not load this data.'))
       .finally(() => setLoading(false));
   };
 
@@ -33,10 +36,10 @@ export default function BookingsPage() {
 
   return (
     <div>
-      <h2 className="text-2xl font-bold text-white mb-6">Bookings ({total})</h2>
+      <h2 className="text-2xl font-bold text-ink mb-6">Bookings ({total})</h2>
 
       <div className="mb-4">
-        <select value={status} onChange={(e) => { setStatus(e.target.value); setPage(1); }} className="bg-gray-800 border border-gray-700 rounded-lg px-4 py-2 text-white text-sm">
+        <select value={status} onChange={(e) => { setStatus(e.target.value); setPage(1); }} className="bg-card border border-border rounded-lg px-4 py-2 text-ink text-sm">
           <option value="">All statuses</option>
           <option value="pending">Pending</option>
           <option value="confirmed">Confirmed</option>
@@ -47,13 +50,17 @@ export default function BookingsPage() {
       </div>
 
       {loading ? (
-        <div className="text-gray-400">Loading...</div>
+        <div className="text-ink-soft">Loading...</div>
+      ) : error ? (
+        <ErrorNotice message={error} onRetry={fetch} />
+      ) : bookings.length === 0 ? (
+        <EmptyState title="No bookings match these filters." body="Widen the status filter to see more." />
       ) : (
         <>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="text-gray-400 border-b border-gray-700">
+                <tr className="text-ink-soft border-b border-border">
                   <th className="text-left py-3 px-2">Rider</th>
                   <th className="text-left py-3 px-2">From</th>
                   <th className="text-left py-3 px-2">To</th>
@@ -65,7 +72,7 @@ export default function BookingsPage() {
               </thead>
               <tbody>
                 {bookings.map((b) => (
-                  <tr key={b.id} className="border-b border-gray-800 text-white hover:bg-gray-800">
+                  <tr key={b.id} className="border-b border-border text-ink hover:bg-card">
                     <td className="py-3 px-2">{b.rider?.name || '—'}</td>
                     <td className="py-3 px-2 max-w-[120px] truncate">{b.pickup_location || b.trip?.origin_location || '—'}</td>
                     <td className="py-3 px-2 max-w-[120px] truncate">{b.trip?.destination_location || '—'}</td>
@@ -73,14 +80,14 @@ export default function BookingsPage() {
                     <td className="py-3 px-2">${b.total_price?.toFixed(2)}</td>
                     <td className="py-3 px-2">
                       <span className={`px-2 py-0.5 rounded text-xs ${
-                        b.status === 'confirmed' ? 'bg-green-900 text-green-200' :
-                        b.status === 'en_route' ? 'bg-blue-900 text-blue-200' :
-                        b.status === 'completed' ? 'bg-emerald-900 text-emerald-200' :
-                        b.status === 'cancelled' ? 'bg-red-900 text-red-200' :
-                        'bg-yellow-900 text-yellow-200'
+                        b.status === 'confirmed' ? 'bg-good/15 text-good' :
+                        b.status === 'en_route' ? 'bg-info/15 text-info' :
+                        b.status === 'completed' ? 'bg-good/15 text-good' :
+                        b.status === 'cancelled' ? 'bg-critical/15 text-critical' :
+                        'bg-warning/15 text-warning'
                       }`}>{b.status}</span>
                     </td>
-                    <td className="py-3 px-2 text-gray-400">{new Date(b.created_at).toLocaleDateString()}</td>
+                    <td className="py-3 px-2 text-ink-soft">{new Date(b.created_at).toLocaleDateString()}</td>
                   </tr>
                 ))}
               </tbody>
@@ -89,7 +96,7 @@ export default function BookingsPage() {
           {pages > 1 && (
             <div className="flex justify-center gap-2 mt-4">
               {Array.from({ length: Math.min(pages, 10) }, (_, i) => i + 1).map((p) => (
-                <button key={p} onClick={() => setPage(p)} className={`px-3 py-1 rounded text-sm ${p === page ? 'bg-indigo-600 text-white' : 'bg-gray-800 text-gray-400 hover:bg-gray-700'}`}>
+                <button key={p} onClick={() => setPage(p)} className={`px-3 py-1 rounded text-sm ${p === page ? 'bg-gold text-ground' : 'bg-card text-ink-soft hover:bg-inset'}`}>
                   {p}
                 </button>
               ))}

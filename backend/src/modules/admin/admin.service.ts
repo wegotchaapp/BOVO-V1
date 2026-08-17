@@ -140,6 +140,40 @@ export class AdminService {
       })
       .catch(() => 0);
 
+    // Queue depth and period-over-period comparisons for the dashboard's hero
+    // row. Deltas exist only where a previous period is genuinely comparable:
+    // activeTrips is a point-in-time count with no history to compare against,
+    // so it deliberately has no delta rather than a fabricated one.
+    const yesterday = new Date(today);
+    yesterday.setDate(yesterday.getDate() - 1);
+    const lastMonthStart = new Date(month);
+    lastMonthStart.setMonth(lastMonthStart.getMonth() - 1);
+    const lastMonthToDate = new Date(lastMonthStart);
+    lastMonthToDate.setDate(lastMonthToDate.getDate() + (new Date().getDate() - 1));
+
+    const [bookingsToday, bookingsYesterday, vehiclesAwaitingReview, incidentsOpenedToday] =
+      await Promise.all([
+        this.bookings
+          .count({ where: { created_at: MoreThanOrEqual(today.toISOString()) } })
+          .catch(() => 0),
+        this.bookings
+          .count({
+            where: {
+              created_at: Between(yesterday.toISOString(), today.toISOString()),
+            },
+          })
+          .catch(() => 0),
+        this.vehicles.count({ where: { is_verified: false } }).catch(() => 0),
+        this.incidents
+          .count({ where: { created_at: MoreThanOrEqual(today.toISOString()) } })
+          .catch(() => 0),
+      ]);
+
+    const revenueLastMonthToDate = await this.sumPayments(
+      lastMonthStart,
+      lastMonthToDate,
+    );
+
     return {
       totalUsers,
       totalDrivers,
@@ -148,11 +182,21 @@ export class AdminService {
       activeUsers,
       activeTrips,
       activeBookings,
+      bookingsToday,
       tripsToday,
       tripsThisMonth,
       revenueThisMonth,
       pendingPayouts,
       openIncidents,
+      vehiclesAwaitingReview,
+      deltas: {
+        bookingsToday: AdminService.pctChange(bookingsToday, bookingsYesterday),
+        revenueThisMonth: AdminService.pctChange(
+          revenueThisMonth,
+          revenueLastMonthToDate,
+        ),
+        incidentsOpenedToday,
+      },
       supportTickets: {
         open: openTickets,
         pending: pendingTickets,
@@ -165,18 +209,32 @@ export class AdminService {
     };
   }
 
-  private async sumPayments(since: Date): Promise<number> {
+  private async sumPayments(since: Date, until?: Date): Promise<number> {
     try {
-      const { sum } = await this.payments
+      const qb = this.payments
         .createQueryBuilder('p')
         .select('COALESCE(SUM(p.amount), 0)', 'sum')
-        .where('p.created_at >= :since', { since: since.toISOString() })
+        .where('p.created_at >= :since', { since: since.toISOString() });
+      if (until) {
+        qb.andWhere('p.created_at < :until', { until: until.toISOString() });
+      }
+      const { sum } = await qb
         .andWhere("p.status IN ('succeeded','paid','captured','requires_capture')")
         .getRawOne();
       return Number(sum) || 0;
     } catch {
       return 0;
     }
+  }
+
+  /**
+   * Percentage change from a previous period. Returns null when the previous
+   * period is zero — a delta against nothing is not a percentage, and the UI
+   * renders "—" rather than a misleading +100%.
+   */
+  private static pctChange(current: number, previous: number): number | null {
+    if (!previous) return null;
+    return Math.round(((current - previous) / previous) * 1000) / 10;
   }
 
   private async tripsTrend() {

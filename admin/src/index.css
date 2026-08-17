@@ -1,7 +1,54 @@
 @import "tailwindcss";
 
+/*
+ * Bovogo Admin — dark theme. Full rationale and the contrast measurements behind
+ * every value live in admin/DESIGN.md.
+ *
+ * Two rules that are easy to break by accident:
+ *  1. Every neutral here is GREEN-biased. Never reach for Tailwind's gray/slate/zinc.
+ *  2. Gold marks the current position and the primary action, nothing else.
+ */
+@theme {
+  /* surfaces — deep forest, not neutral grey */
+  --color-ground: #12211b;
+  --color-card: #1e2c26;
+  --color-inset: #27342e;
+
+  /* lines */
+  --color-border: #2e3b35;
+  --color-grid: #263029;
+
+  /* ink                     ground / card contrast */
+  --color-ink: #f8f7f3; /* 15.56 / 13.57 */
+  --color-ink-soft: #8a9a8d; /*  5.63 /  4.91 */
+  --color-ink-faint: #5f6d62; /*  3.06 /  2.67 — decorative only, never text */
+
+  /* brand */
+  --color-gold: #c4954a; /*  6.15 /  5.37 */
+  --color-sage: #8a9a8d;
+
+  /* status — always paired with an icon and a text label, never colour alone */
+  --color-good: #589d79; /*  5.17 /  4.51 */
+  --color-warning: #d97706; /*  5.24 /  4.57 */
+  --color-critical: #d2766b; /*  5.20 /  4.53 */
+  --color-info: #0ea5e9; /*  6.02 /  5.25 */
+
+  /* chart series — fixed order, validated all-pairs; never cycle past these */
+  --color-series-1: #2c9c74;
+  --color-series-2: #c67f20;
+  --color-series-3: #5d93e4;
+}
+
 body {
   margin: 0;
   padding: 0;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  background: var(--color-ground);
+  color: var(--color-ink);
+}
+
+/* Numbers that must line up vertically — table cells, axis ticks. Deliberately
+   NOT applied to stat-tile figures, where equal-width digits read loose. */
+.tabular {
+  font-variant-numeric: tabular-nums;
 }

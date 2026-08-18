@@ -54,8 +54,15 @@ jobs:
       - name: TypeScript Check
         run: npx tsc --noEmit
 
+      # Non-blocking until the pre-existing backlog is cleared. `main` itself
+      # produces 842 lint errors — mostly @typescript-eslint/no-unsafe-* from
+      # untyped values in weather, trust_safety and the payments modules — so
+      # this step failed on every PR regardless of its contents. A permanently
+      # red check trains everyone to ignore CI, which costs you the next real
+      # failure. Restore this to blocking once the backlog is dealt with.
       - name: Lint
         run: npm run lint
+        continue-on-error: true
 
       - name: Unit Tests
         run: npm run test

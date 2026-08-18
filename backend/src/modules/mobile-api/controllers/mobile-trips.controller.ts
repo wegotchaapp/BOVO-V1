@@ -32,8 +32,15 @@ export class MobileTripsController {
   constructor(private readonly trips: MobileTripsService) {}
 
   @Get()
-  list(@Query('from') from?: string, @Query('to') to?: string) {
-    return this.trips.list(from, to);
+  list(
+    @Query('from') from?: string,
+    @Query('to') to?: string,
+    // ISO date (YYYY-MM-DD). The Sailor picks a day on the search card and the
+    // results header states it, so the query has to honour it — previously the
+    // date was passed as a display label only and never reached the server.
+    @Query('date') date?: string,
+  ) {
+    return this.trips.list(from, to, date);
   }
 
   @Get('mine')

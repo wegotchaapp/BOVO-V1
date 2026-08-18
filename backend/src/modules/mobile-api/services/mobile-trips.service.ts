@@ -6,7 +6,7 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { ConfigService } from '@nestjs/config';
-import { FindOptionsWhere, ILike, In, Repository } from 'typeorm';
+import { Between, FindOptionsWhere, ILike, In, Repository } from 'typeorm';
 import * as AWS from 'aws-sdk';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -81,10 +81,22 @@ export class MobileTripsService {
     });
   }
 
-  async list(from?: string, to?: string) {
+  async list(from?: string, to?: string, date?: string) {
     const where: FindOptionsWhere<MobileTrip> = { status: 'active' };
     if (from) where.from_city = ILike(from);
     if (to) where.to_city = ILike(to);
+
+    // Narrow to the requested calendar day, local to the server. An unparseable
+    // date is ignored rather than returning nothing — a bad param should not
+    // look identical to "no adventures on this route".
+    if (date) {
+      const start = new Date(`${date}T00:00:00`);
+      if (!Number.isNaN(start.getTime())) {
+        const end = new Date(start);
+        end.setDate(end.getDate() + 1);
+        where.departure_at = Between(start, end);
+      }
+    }
 
     const rows = await this.trips.find({
       where,

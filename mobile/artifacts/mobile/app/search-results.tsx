@@ -30,10 +30,12 @@ export default function SearchResults() {
     fromArea: string;
     toArea: string;
     date: string;
+    /** YYYY-MM-DD. `date` above is the display label; this is what we filter on. */
+    dateISO: string;
     passengers: string;
     luggage: string;
   }>();
-  const { from, to, date } = params;
+  const { from, to, date, dateISO } = params;
   const fromArea = params.fromArea ?? "";
   const toArea = params.toArea ?? "";
   // Seats/bags requested on the search card become hard capacity filters.
@@ -56,7 +58,7 @@ export default function SearchResults() {
       setError(null);
     }
     try {
-      const rows = await listTrips({ from, to });
+      const rows = await listTrips({ from, to, date: dateISO });
       setAllTrips(rows);
       setError(null);
     } catch (err: any) {
@@ -70,7 +72,7 @@ export default function SearchResults() {
     let cancelled = false;
     setLoading(true);
     setError(null);
-    listTrips({ from, to })
+    listTrips({ from, to, date: dateISO })
       .then((rows) => {
         if (!cancelled) setAllTrips(rows);
       })
@@ -83,7 +85,7 @@ export default function SearchResults() {
     return () => {
       cancelled = true;
     };
-  }, [from, to]);
+  }, [from, to, dateISO]);
 
   async function onRefresh() {
     setRefreshing(true);

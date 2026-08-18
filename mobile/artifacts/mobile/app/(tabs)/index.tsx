@@ -541,6 +541,17 @@ function formatSearchDate(d: Date): string {
   return d.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" });
 }
 
+/**
+ * The calendar day as YYYY-MM-DD, built from local components rather than
+ * toISOString(), which is UTC and would roll a late-evening search onto the
+ * following day. formatSearchDate above is a label; this is the value the
+ * search actually filters on.
+ */
+function toISODay(d: Date): string {
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+}
+
 // ─── Main component ───────────────────────────────────────────────────────────
 
 export default function HomeTab() {
@@ -680,6 +691,7 @@ export default function HomeTab() {
         fromArea,
         toArea,
         date: formatSearchDate(date),
+        dateISO: toISODay(date),
         passengers: String(passengers),
         luggage: String(luggage),
       },

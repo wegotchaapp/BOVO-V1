@@ -16,10 +16,16 @@ const colors = {
     secondaryForeground: "#1B3D2F",
 
     muted: "#F2EFE8",
-    mutedForeground: "#8A9A8D",
+    // Secondary text: captions, timestamps, stat labels. Darkened from the
+    // brand sage #8A9A8D, which measured 2.76:1 on the background and 2.96:1
+    // on cards — under the 4.5:1 floor, in 315 places. This step holds the
+    // same sage hue (135°) at 4.62:1 / 4.96:1.
+    mutedForeground: "#67736A",
 
     accent: "#C4954A",
-    accentForeground: "#FFFFFF",
+    // Ink for text sitting ON the gold accent. White measured 2.71:1 here —
+    // unreadable. Dark ink is 6.93:1. Gold is a fill, never a text colour.
+    accentForeground: "#111210",
 
     destructive: "#C0392B",
     destructiveForeground: "#FFFFFF",

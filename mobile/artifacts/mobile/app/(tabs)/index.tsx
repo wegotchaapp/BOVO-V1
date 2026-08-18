@@ -38,7 +38,7 @@ import {
 } from "@/data/trips";
 import { filterNeighborhoods, getNeighborhoods } from "@/data/locations";
 import { cityShort } from "@/lib/city-coords";
-import { listTrips } from "@/lib/trips";
+import { listTrips, deleteTrip } from "@/lib/trips";
 import { CARD_SHADOW } from "@/constants/colors";
 
 
@@ -328,7 +328,7 @@ function SailorView({
 
 // ─── Voyager view ─────────────────────────────────────────────────────────────
 
-function VoyagerView({ router, colors, user, posts, loading, tripUnreads, markTripRead }: any) {
+function VoyagerView({ router, colors, user, posts, loading, error, tripUnreads, markTripRead, onRefresh }: any) {
   const myPosts: Trip[] = useMemo(
     () => posts.filter((t: Trip) => user && t.driver.id === user.id),
     [posts, user],
@@ -421,6 +421,14 @@ function VoyagerView({ router, colors, user, posts, loading, tripUnreads, markTr
         <View style={[styles.feedState, { backgroundColor: colors.muted }]}>
           <ActivityIndicator color={colors.primary} />
         </View>
+      ) : error ? (
+        // Without this branch a failed fetch rendered the empty state, telling a
+        // Voyager their posts did not exist when the request had simply failed —
+        // which invites them to post a duplicate adventure.
+        <View style={[styles.feedState, { backgroundColor: colors.muted }]}>
+          <Feather name="alert-triangle" size={22} color={colors.destructive} />
+          <Text style={[styles.feedStateText, { color: colors.mutedForeground }]}>{error}</Text>
+        </View>
       ) : myPosts.length === 0 ? (
         <View style={[styles.feedState, { backgroundColor: colors.muted }]}>
           <Feather name="inbox" size={22} color={colors.mutedForeground} />
@@ -471,10 +479,32 @@ function VoyagerView({ router, colors, user, posts, loading, tripUnreads, markTr
               </TouchableOpacity>
               <TouchableOpacity
                 style={[styles.driverPostBtn, { backgroundColor: "#FEF0F0" }]}
-                onPress={() => Alert.alert("Remove Post", "Are you sure you want to remove this adventure post?", [
-                  { text: "Cancel", style: "cancel" },
-                  { text: "Remove", style: "destructive" },
-                ])}
+                onPress={() =>
+                  Alert.alert(
+                    "Remove Post",
+                    `Remove your ${post.fromCity} → ${post.toCity} adventure? Sailors who replied will no longer see it.`,
+                    [
+                      { text: "Cancel", style: "cancel" },
+                      {
+                        text: "Remove",
+                        style: "destructive",
+                        // Previously this button had no handler at all: the sheet
+                        // dismissed and the post stayed. deleteTrip already existed.
+                        onPress: async () => {
+                          try {
+                            await deleteTrip(post.id);
+                            await onRefresh?.();
+                          } catch (err) {
+                            Alert.alert(
+                              "Couldn't remove that",
+                              err instanceof Error ? err.message : "Please try again.",
+                            );
+                          }
+                        },
+                      },
+                    ],
+                  )
+                }
               >
                 <Feather name="trash-2" size={13} color="#DC2626" />
                 <Text style={[styles.driverPostBtnText, { color: "#DC2626" }]}>Remove</Text>
@@ -735,8 +765,9 @@ export default function HomeTab() {
         ) : (
           <VoyagerView
             router={router} colors={colors} user={user}
-            posts={posts} loading={postsLoading}
+            posts={posts} loading={postsLoading} error={postsError}
             tripUnreads={tripUnreads} markTripRead={markTripRead}
+            onRefresh={loadPosts}
           />
         )}
       </ScrollView>

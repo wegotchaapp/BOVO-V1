@@ -1,7 +1,28 @@
 import { calculateRefund, RefundCalculationInput } from './refund-calculator';
+import { PRICING } from '../../modules/pricing/pricing.config';
 
-const PLATFORM_FEE_CENTS = 250;
-const INSURANCE_CENTS = 900;
+/**
+ * Expectations are derived from PRICING rather than pinned to cent values.
+ * They were previously hardcoded at a $2.50 flat platform fee and a $9.00
+ * insurance premium; both have since moved — the fee now scales with booking
+ * size and the premium is $15 — and seven tests failed on numbers rather than
+ * on behaviour. Deriving them means a price change no longer breaks this suite,
+ * while a change to the refund *rules* still does.
+ *
+ * The fee formula is restated here rather than imported from the implementation
+ * on purpose: a test that calls the same helper it is checking would pass no
+ * matter what that helper did. This mirrors the documented contract — the fee
+ * is FIXED + RATE x subtotal, and the subtotal is recovered from the amount
+ * actually paid — using only published config values as inputs.
+ */
+const INSURANCE_CENTS = Math.round(PRICING.INSURANCE_PREMIUM * 100);
+
+function feeFor(totalPaidCents: number): number {
+  const total = totalPaidCents / 100;
+  const subtotal = (total - PRICING.PLATFORM_FEE_FIXED) / (1 + PRICING.PLATFORM_FEE_RATE);
+  const fee = PRICING.PLATFORM_FEE_FIXED + PRICING.PLATFORM_FEE_RATE * Math.max(0, subtotal);
+  return Math.round(fee * 100);
+}
 
 describe('calculateRefund', () => {
   const baseInput: RefundCalculationInput = {
@@ -100,7 +121,7 @@ describe('calculateRefund', () => {
         ...baseInput,
         hoursUntilDeparture: 20,
       });
-      const rideCost = 5500 - PLATFORM_FEE_CENTS - INSURANCE_CENTS;
+      const rideCost = 5500 - feeFor(5500) - INSURANCE_CENTS;
       const expectedRefund = Math.floor(rideCost * 0.5) + INSURANCE_CENTS;
       expect(result.refundAmountCents).toBe(expectedRefund);
       expect(result.refundPercentage).toBe(Math.round((expectedRefund / 5500) * 100));
@@ -117,7 +138,7 @@ describe('calculateRefund', () => {
         driverCancellationCount: 0,
         insuranceOptedIn: false,
       });
-      const rideAndInsurance = 5000 - PLATFORM_FEE_CENTS;
+      const rideAndInsurance = 5000 - feeFor(5000);
       const expectedRefund = Math.floor(rideAndInsurance * 0.5);
       expect(result.refundAmountCents).toBe(expectedRefund);
     });
@@ -141,7 +162,7 @@ describe('calculateRefund', () => {
         hoursUntilDeparture: 6,
         isCaptured: false,
       });
-      const expectedRefund = Math.floor((5500 - PLATFORM_FEE_CENTS) * 0.5);
+      const expectedRefund = Math.floor((5500 - feeFor(5500)) * 0.5);
       expect(result.refundAmountCents).toBe(expectedRefund);
       expect(result.requiresRefund).toBe(true);
     });
@@ -152,7 +173,7 @@ describe('calculateRefund', () => {
         hoursUntilDeparture: 1,
         isCaptured: false,
       });
-      const expectedRefund = Math.floor((5500 - PLATFORM_FEE_CENTS) * 0.5);
+      const expectedRefund = Math.floor((5500 - feeFor(5500)) * 0.5);
       expect(result.refundAmountCents).toBe(expectedRefund);
     });
   });
@@ -163,7 +184,7 @@ describe('calculateRefund', () => {
         ...baseInput,
         hoursUntilDeparture: 24,
       });
-      const rideCost = 5500 - PLATFORM_FEE_CENTS - INSURANCE_CENTS;
+      const rideCost = 5500 - feeFor(5500) - INSURANCE_CENTS;
       const expectedRefund = Math.floor(rideCost * 0.5) + INSURANCE_CENTS;
       expect(result.refundAmountCents).toBe(expectedRefund);
     });
@@ -174,7 +195,7 @@ describe('calculateRefund', () => {
         hoursUntilDeparture: 6,
         isCaptured: false,
       });
-      const expectedRefund = Math.floor((5500 - PLATFORM_FEE_CENTS) * 0.5);
+      const expectedRefund = Math.floor((5500 - feeFor(5500)) * 0.5);
       expect(result.refundAmountCents).toBe(expectedRefund);
     });
   });
@@ -185,7 +206,7 @@ describe('calculateRefund', () => {
         ...baseInput,
         hoursUntilDeparture: 18,
       });
-      const rideCost = 5500 - PLATFORM_FEE_CENTS - INSURANCE_CENTS;
+      const rideCost = 5500 - feeFor(5500) - INSURANCE_CENTS;
       const expectedRefund = Math.floor(rideCost * 0.5) + INSURANCE_CENTS;
       expect(result.refundPercentage).toBe(Math.round((expectedRefund / 5500) * 100));
     });

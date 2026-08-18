@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { getTrips } from '../lib/api';
+import { ErrorNotice, EmptyState } from '../components/QueryState';
 
 interface Trip {
   id: string;
@@ -37,10 +38,10 @@ export default function TripsPage() {
 
   return (
     <div>
-      <h2 className="text-2xl font-bold text-white mb-6">Trips ({total})</h2>
+      <h2 className="text-2xl font-bold text-ink mb-6">Trips ({total})</h2>
 
       <div className="mb-4">
-        <select value={status} onChange={(e) => { setStatus(e.target.value); setPage(1); }} className="bg-gray-800 border border-gray-700 rounded-lg px-4 py-2 text-white text-sm">
+        <select value={status} onChange={(e) => { setStatus(e.target.value); setPage(1); }} className="bg-card border border-border rounded-lg px-4 py-2 text-ink text-sm">
           <option value="">All statuses</option>
           <option value="posted">Posted</option>
           <option value="in_progress">In Progress</option>
@@ -49,15 +50,18 @@ export default function TripsPage() {
         </select>
       </div>
 
-      {error && <div className="bg-red-900/50 text-red-200 px-4 py-3 rounded-lg mb-4">{error}</div>}
       {loading ? (
-        <div className="text-gray-400">Loading...</div>
+        <div className="text-ink-soft">Loading...</div>
+      ) : error ? (
+        <ErrorNotice message={error} onRetry={fetch} />
+      ) : trips.length === 0 ? (
+        <EmptyState title="No trips match these filters." body="Widen the status filter to see more." />
       ) : (
         <>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="text-gray-400 border-b border-gray-700">
+                <tr className="text-ink-soft border-b border-border">
                   <th className="text-left py-3 px-2">Driver</th>
                   <th className="text-left py-3 px-2">From</th>
                   <th className="text-left py-3 px-2">To</th>
@@ -70,19 +74,19 @@ export default function TripsPage() {
               </thead>
               <tbody>
                 {trips.map((t) => (
-                  <tr key={t.id} className="border-b border-gray-800 text-white hover:bg-gray-800">
+                  <tr key={t.id} className="border-b border-border text-ink hover:bg-card">
                     <td className="py-3 px-2">{t.driver?.name || '—'}</td>
                     <td className="py-3 px-2 max-w-[120px] truncate">{t.origin_metro || '—'}</td>
                     <td className="py-3 px-2 max-w-[120px] truncate">{t.dest_metro || '—'}</td>
                     <td className="py-3 px-2">{t.departure_date ? `${t.departure_date} ${t.departure_time || ''}` : '—'}</td>
                     <td className="py-3 px-2">
-                      <span className={`px-2 py-0.5 rounded text-xs ${t.status === 'posted' || t.status === 'booked' ? 'bg-green-900 text-green-200' : t.status === 'in_progress' || t.status === 'en_route' ? 'bg-indigo-900 text-indigo-200' : t.status === 'completed' ? 'bg-blue-900 text-blue-200' : t.status === 'cancelled' ? 'bg-red-900 text-red-200' : 'bg-gray-700 text-gray-200'}`}>
+                      <span className={`px-2 py-0.5 rounded text-xs ${t.status === 'posted' || t.status === 'booked' ? 'bg-good/15 text-good' : t.status === 'in_progress' || t.status === 'en_route' ? 'bg-gold/15 text-gold' : t.status === 'completed' ? 'bg-info/15 text-info' : t.status === 'cancelled' ? 'bg-critical/15 text-critical' : 'bg-inset text-ink'}`}>
                         {t.status}
                       </span>
                     </td>
                     <td className="py-3 px-2">{t.seats_available}</td>
                     <td className="py-3 px-2">${Number(t.per_seat_price).toFixed(2)}</td>
-                    <td className="py-3 px-2 text-gray-400">{new Date(t.created_at).toLocaleDateString()}</td>
+                    <td className="py-3 px-2 text-ink-soft">{new Date(t.created_at).toLocaleDateString()}</td>
                   </tr>
                 ))}
               </tbody>
@@ -91,7 +95,7 @@ export default function TripsPage() {
           {pages > 1 && (
             <div className="flex justify-center gap-2 mt-4">
               {Array.from({ length: Math.min(pages, 10) }, (_, i) => i + 1).map((p) => (
-                <button key={p} onClick={() => setPage(p)} className={`px-3 py-1 rounded text-sm ${p === page ? 'bg-indigo-600 text-white' : 'bg-gray-800 text-gray-400 hover:bg-gray-700'}`}>
+                <button key={p} onClick={() => setPage(p)} className={`px-3 py-1 rounded text-sm ${p === page ? 'bg-gold text-ground' : 'bg-card text-ink-soft hover:bg-inset'}`}>
                   {p}
                 </button>
               ))}

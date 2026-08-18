@@ -13,7 +13,11 @@ import { AuditEvent } from '../../database/entities/audit.entity';
 import { SupportTicket } from '../../database/entities/support-ticket.entity';
 import { SupportTicketMessage } from '../../database/entities/support-ticket-message.entity';
 import { SupportAgent } from '../../database/entities/support-agent.entity';
-import { TripStatus, BookingStatus, SubscriptionTier } from '../../common/enums';
+import {
+  TripStatus,
+  BookingStatus,
+  SubscriptionTier,
+} from '../../common/enums';
 
 interface PageParams {
   page?: number | string;
@@ -78,7 +82,8 @@ export class AdminService {
     @InjectRepository(Payment) private readonly payments: Repository<Payment>,
     @InjectRepository(Payout) private readonly payouts: Repository<Payout>,
     @InjectRepository(SosEvent) private readonly sos: Repository<SosEvent>,
-    @InjectRepository(Incident) private readonly incidents: Repository<Incident>,
+    @InjectRepository(Incident)
+    private readonly incidents: Repository<Incident>,
     @InjectRepository(Vehicle) private readonly vehicles: Repository<Vehicle>,
     @InjectRepository(AuditEvent)
     private readonly audit: Repository<AuditEvent>,
@@ -111,14 +116,26 @@ export class AdminService {
     ] = await Promise.all([
       this.users.count(),
       this.users.count({ where: { selected_role: In(['driver', 'both']) } }),
-      this.users.count({ where: { created_at: MoreThanOrEqual(today.toISOString()) } }),
-      this.users.count({ where: { created_at: MoreThanOrEqual(month.toISOString()) } }),
-      this.users.count({ where: { updated_at: MoreThanOrEqual(sevenDaysAgo.toISOString()) } }),
+      this.users.count({
+        where: { created_at: MoreThanOrEqual(today.toISOString()) },
+      }),
+      this.users.count({
+        where: { created_at: MoreThanOrEqual(month.toISOString()) },
+      }),
+      this.users.count({
+        where: { updated_at: MoreThanOrEqual(sevenDaysAgo.toISOString()) },
+      }),
       this.trips.count({ where: { status: In(ACTIVE_TRIP_STATUSES) } }),
       this.bookings.count({ where: { status: In(ACTIVE_BOOKING_STATUSES) } }),
-      this.trips.count({ where: { created_at: MoreThanOrEqual(today.toISOString()) } }),
-      this.trips.count({ where: { created_at: MoreThanOrEqual(month.toISOString()) } }),
-      this.payouts.count({ where: { status: In(['pending', 'in_transit']) } }).catch(() => 0),
+      this.trips.count({
+        where: { created_at: MoreThanOrEqual(today.toISOString()) },
+      }),
+      this.trips.count({
+        where: { created_at: MoreThanOrEqual(month.toISOString()) },
+      }),
+      this.payouts
+        .count({ where: { status: In(['pending', 'in_transit']) } })
+        .catch(() => 0),
       this.incidents.count({ where: { status: 'open' } }).catch(() => 0),
     ]);
 
@@ -149,25 +166,31 @@ export class AdminService {
     const lastMonthStart = new Date(month);
     lastMonthStart.setMonth(lastMonthStart.getMonth() - 1);
     const lastMonthToDate = new Date(lastMonthStart);
-    lastMonthToDate.setDate(lastMonthToDate.getDate() + (new Date().getDate() - 1));
+    lastMonthToDate.setDate(
+      lastMonthToDate.getDate() + (new Date().getDate() - 1),
+    );
 
-    const [bookingsToday, bookingsYesterday, vehiclesAwaitingReview, incidentsOpenedToday] =
-      await Promise.all([
-        this.bookings
-          .count({ where: { created_at: MoreThanOrEqual(today.toISOString()) } })
-          .catch(() => 0),
-        this.bookings
-          .count({
-            where: {
-              created_at: Between(yesterday.toISOString(), today.toISOString()),
-            },
-          })
-          .catch(() => 0),
-        this.vehicles.count({ where: { is_verified: false } }).catch(() => 0),
-        this.incidents
-          .count({ where: { created_at: MoreThanOrEqual(today.toISOString()) } })
-          .catch(() => 0),
-      ]);
+    const [
+      bookingsToday,
+      bookingsYesterday,
+      vehiclesAwaitingReview,
+      incidentsOpenedToday,
+    ] = await Promise.all([
+      this.bookings
+        .count({ where: { created_at: MoreThanOrEqual(today.toISOString()) } })
+        .catch(() => 0),
+      this.bookings
+        .count({
+          where: {
+            created_at: Between(yesterday.toISOString(), today.toISOString()),
+          },
+        })
+        .catch(() => 0),
+      this.vehicles.count({ where: { is_verified: false } }).catch(() => 0),
+      this.incidents
+        .count({ where: { created_at: MoreThanOrEqual(today.toISOString()) } })
+        .catch(() => 0),
+    ]);
 
     const revenueLastMonthToDate = await this.sumPayments(
       lastMonthStart,
@@ -219,7 +242,9 @@ export class AdminService {
         qb.andWhere('p.created_at < :until', { until: until.toISOString() });
       }
       const { sum } = await qb
-        .andWhere("p.status IN ('succeeded','paid','captured','requires_capture')")
+        .andWhere(
+          "p.status IN ('succeeded','paid','captured','requires_capture')",
+        )
         .getRawOne();
       return Number(sum) || 0;
     } catch {
@@ -270,7 +295,9 @@ export class AdminService {
             start: start.toISOString(),
             end: end.toISOString(),
           })
-          .andWhere("p.status IN ('succeeded','paid','captured','requires_capture')")
+          .andWhere(
+            "p.status IN ('succeeded','paid','captured','requires_capture')",
+          )
           .getRawOne();
         amount = Number(sum) || 0;
       } catch {
@@ -290,10 +317,9 @@ export class AdminService {
       .skip(skip)
       .take(take);
     if (p.search) {
-      qb.andWhere(
-        '(u.name ILIKE :s OR u.email ILIKE :s OR u.phone ILIKE :s)',
-        { s: `%${p.search}%` },
-      );
+      qb.andWhere('(u.name ILIKE :s OR u.email ILIKE :s OR u.phone ILIKE :s)', {
+        s: `%${p.search}%`,
+      });
     }
     if (p.role) qb.andWhere('u.role = :role', { role: p.role });
     const [users, total] = await qb.getManyAndCount();

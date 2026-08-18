@@ -963,13 +963,22 @@ const styles = StyleSheet.create({
   topBarLeft:  { flex: 1, paddingRight: 10 },
   topBarRight: { alignItems: "flex-end" },
   greeting:    {},
+  // Header type sits on live weather, so the sky behind it ranges from
+  // near-black night to a bright sun highlight. The scrim in WeatherBackground
+  // does most of the work; these two carry the rest.
+  //
+  // "Hello," was 13px at 85% white — body size, so it needed 4.5:1, and against
+  // the palest tone under the 0.45 scrim it only reached ~3.1:1. Now 19px
+  // semibold: at >=18.66px bold it clears WCAG's large-text bar, where 3:1
+  // applies, and it is full white with a stronger shadow rather than 85%.
   greetLabel:  {
-    fontSize: 13,
-    fontFamily: "Inter_400Regular",
-    color: "rgba(255,255,255,0.85)",
-    textShadowColor: "rgba(0,0,0,0.35)",
+    fontSize: 19,
+    fontFamily: "Inter_600SemiBold",
+    letterSpacing: -0.2,
+    color: "#FFFFFF",
+    textShadowColor: "rgba(0,0,0,0.55)",
     textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 6,
+    textShadowRadius: 10,
   },
   greetName:   {
     fontSize: 26,
@@ -977,9 +986,9 @@ const styles = StyleSheet.create({
     letterSpacing: -0.5,
     marginTop: 2,
     color: "#FFFFFF",
-    textShadowColor: "rgba(0,0,0,0.4)",
+    textShadowColor: "rgba(0,0,0,0.55)",
     textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 8,
+    textShadowRadius: 10,
   },
 
   modeToggle: { flexDirection: "row", borderRadius: 14, borderWidth: 1, padding: 3, gap: 3 },

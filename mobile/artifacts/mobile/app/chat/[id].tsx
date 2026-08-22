@@ -97,7 +97,57 @@ export default function ChatScreen() {
     }
   }
 
-  function renderMessage({ item }: { item: ChatMessage }) {
+  /**
+   * The API's message `time` is always time-of-day — `formatMsgTime` has no
+   * date branch — so a thread spanning weeks read as a column of "6:35 PM"
+   * with nothing to place it. `createdAt` is on the payload and was unused.
+   */
+  function dayLabel(iso: string): string {
+    const d = new Date(iso);
+    const today = new Date();
+    const sameDayAs = (other: Date) =>
+      d.getFullYear() === other.getFullYear() &&
+      d.getMonth() === other.getMonth() &&
+      d.getDate() === other.getDate();
+    if (sameDayAs(today)) return "Today";
+    const yesterday = new Date(today);
+    yesterday.setDate(today.getDate() - 1);
+    if (sameDayAs(yesterday)) return "Yesterday";
+    // "en-US" not the device locale: every other date in the app is formatted
+    // that way, and the default gave "Sun 16 Aug" against "Wed, Aug 19".
+    return d.toLocaleDateString("en-US", {
+      weekday: "short",
+      month: "short",
+      day: "numeric",
+      ...(d.getFullYear() === today.getFullYear() ? {} : { year: "numeric" }),
+    });
+  }
+
+  function renderMessage({ item, index }: { item: ChatMessage; index: number }) {
+    const prev = index > 0 ? messages[index - 1] : null;
+    const startsNewDay =
+      !!item.createdAt &&
+      (!prev?.createdAt ||
+        new Date(prev.createdAt).toDateString() !==
+          new Date(item.createdAt).toDateString());
+
+    return (
+      <>
+        {startsNewDay && (
+          <View style={styles.dayRow}>
+            <View style={[styles.dayRule, { backgroundColor: colors.border }]} />
+            <Text style={[styles.dayLabel, { color: colors.mutedForeground }]}>
+              {dayLabel(item.createdAt!)}
+            </Text>
+            <View style={[styles.dayRule, { backgroundColor: colors.border }]} />
+          </View>
+        )}
+        {renderBubble(item)}
+      </>
+    );
+  }
+
+  function renderBubble(item: ChatMessage) {
     return (
       <View style={[styles.msgRow, item.isMe && styles.msgRowMe]}>
         {!item.isMe && (
@@ -312,6 +362,9 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontFamily: "Inter_400Regular",
   },
+  dayRow: { flexDirection: "row", alignItems: "center", gap: 12, marginVertical: 14 },
+  dayRule: { flex: 1, height: 1 },
+  dayLabel: { fontSize: 12, fontFamily: "Inter_500Medium" },
   sendBtn: {
     width: 44,
     height: 44,

@@ -202,7 +202,7 @@ export default function ProfileTab() {
     : null;
 
   const badges = [
-    { icon: "check-circle", label: "Verified", color: "#059669", bg: "#ECFDF5", show: user?.isVerified },
+    { icon: "check-circle", label: "Verified", color: colors.success, bg: "#ECFDF5", show: user?.isVerified },
     { icon: "award", label: "Top Sailor", color: "#111210", bg: "#C4954A", show: (user?.trips ?? 0) >= 5 },
     { icon: "map-pin", label: "Texan", color: colors.primary, bg: colors.secondary, show: true },
   ].filter((b) => b.show);
@@ -269,7 +269,7 @@ export default function ProfileTab() {
             <Feather name="camera" size={12} color="#fff" />
           </View>
         </TouchableOpacity>
-        <Text style={[styles.name, { color: colors.foreground }]}>{user?.name ?? "User"}</Text>
+        <Text style={[styles.name, { color: colors.primary }]}>{user?.name ?? "User"}</Text>
 
         <View style={styles.badgesRow}>
           {user?.isFoundingMember && (
@@ -279,9 +279,11 @@ export default function ProfileTab() {
             </View>
           )}
           {isDriver && (
-            <View style={[styles.driverBadge, { backgroundColor: "#C4954A" }]}>
-              <Feather name="navigation" size={11} color="#111210" />
-              <Text style={[styles.driverBadgeText, { color: "#111210" }]}>Verified Voyager</Text>
+            <View style={[styles.driverBadge, { backgroundColor: colors.secondary }]}>
+              <Feather name="check-circle" size={11} color={colors.primary} />
+              <Text style={[styles.driverBadgeText, { color: colors.primary }]}>
+                Verified Voyager
+              </Text>
             </View>
           )}
           {badges.map((b) => (
@@ -296,20 +298,20 @@ export default function ProfileTab() {
 
         <View style={styles.statsRow}>
           <View style={styles.stat}>
+            <Text style={[styles.statNum, { color: colors.primary }]}>{user?.trips ?? 0}</Text>
+            <Text style={[styles.statLabel, { color: colors.mutedForeground }]}>Adventures</Text>
+          </View>
+          <View style={[styles.statSep, { backgroundColor: colors.border }]} />
+          <View style={styles.stat}>
             <View style={styles.statValueRow}>
-              <Text style={[styles.statNum, { color: colors.foreground }]}>{user?.rating ?? "5.0"}</Text>
+              <Text style={[styles.statNum, { color: colors.primary }]}>{user?.rating ?? "5.0"}</Text>
               <Feather name="star" size={14} color="#C4954A" />
             </View>
             <Text style={[styles.statLabel, { color: colors.mutedForeground }]}>Rating</Text>
           </View>
           <View style={[styles.statSep, { backgroundColor: colors.border }]} />
           <View style={styles.stat}>
-            <Text style={[styles.statNum, { color: colors.foreground }]}>{user?.trips ?? 0}</Text>
-            <Text style={[styles.statLabel, { color: colors.mutedForeground }]}>Adventures</Text>
-          </View>
-          <View style={[styles.statSep, { backgroundColor: colors.border }]} />
-          <View style={styles.stat}>
-            <Text style={[styles.statNum, { color: colors.foreground }]}>TX</Text>
+            <Text style={[styles.statNum, { color: colors.primary }]}>TX</Text>
             <Text style={[styles.statLabel, { color: colors.mutedForeground }]}>Region</Text>
           </View>
         </View>

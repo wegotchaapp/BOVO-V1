@@ -13,9 +13,10 @@ import {
   View,
 } from "react-native";
 
-import { CARD_SHADOW } from "@/constants/colors";
+import { CARD_SHADOW, INK_ON_MUTED } from "@/constants/colors";
 import { useColors } from "@/hooks/useColors";
 import { apiClient } from "@/lib/api";
+import { formatUsd } from "@/lib/pricing";
 
 type Period = "month" | "all";
 
@@ -167,7 +168,7 @@ export default function Earnings() {
                 Net Savings ({period === "month" ? CURRENT_MONTH_LABEL : "All Time"})
               </Text>
               <Text style={[styles.summaryAmount, { color: colors.foreground }]}>
-                ${data.netTotal.toFixed(2)}
+                {formatUsd(data.netTotal)}
               </Text>
               <View style={[styles.divider, { backgroundColor: colors.border }]} />
               <View style={styles.summaryRow}>
@@ -183,7 +184,7 @@ export default function Earnings() {
                 <View style={[styles.statSep, { backgroundColor: colors.border }]} />
                 <View style={styles.summaryStat}>
                   <Text style={[styles.statNum, { color: colors.foreground }]}>
-                    ${data.grossTotal.toFixed(0)}
+                    {formatUsd(data.grossTotal)}
                   </Text>
                   <Text style={[styles.statLabel, { color: colors.mutedForeground }]}>Gross</Text>
                 </View>
@@ -194,20 +195,10 @@ export default function Earnings() {
               <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Cost Breakdown</Text>
               <View style={styles.breakdownRow}>
                 <Text style={[styles.breakdownLabel, { color: colors.mutedForeground }]}>
-                  Sailor payments collected
+                  Seat cost-share collected
                 </Text>
                 <Text style={[styles.breakdownValue, { color: colors.foreground }]}>
-                  ${data.grossTotal.toFixed(2)}
-                </Text>
-              </View>
-              {/* The Bovogo fee is charged to the Sailor on top of the seat
-                  cost-share — it never comes out of the Voyager's recovery. */}
-              <View style={styles.breakdownRow}>
-                <Text style={[styles.breakdownLabel, { color: colors.mutedForeground }]}>
-                  Bovogo fee (paid by Sailors)
-                </Text>
-                <Text style={[styles.breakdownValue, { color: colors.mutedForeground }]}>
-                  ${data.platformFeeTotal.toFixed(2)}
+                  {formatUsd(data.grossTotal)}
                 </Text>
               </View>
               <View style={[styles.divider, { backgroundColor: colors.border }]} />
@@ -216,12 +207,26 @@ export default function Earnings() {
                   You keep
                 </Text>
                 <Text style={[styles.breakdownBold, { color: colors.primary }]}>
-                  ${data.netTotal.toFixed(2)}
+                  {formatUsd(data.netTotal)}
                 </Text>
               </View>
+              {/* The Bovogo fee is charged to the Sailor on top of the seat
+                  cost-share and never comes out of the Voyager's recovery —
+                  the backend writes net_amount = gross_amount for exactly that
+                  reason. It is a note, not a line in the sum: as a row above
+                  the rule it made the card read 540.00 − 63.90 = 540.00. */}
+              {data.platformFeeTotal > 0 && (
+                <View style={[styles.irsNote, { backgroundColor: colors.muted }]}>
+                  <Feather name="info" size={12} color={INK_ON_MUTED} />
+                  <Text style={[styles.irsNoteText, { color: INK_ON_MUTED }]}>
+                    Sailors also paid {formatUsd(data.platformFeeTotal)} in Bovogo fees, charged
+                    on top of your cost-share. It never comes out of what you keep.
+                  </Text>
+                </View>
+              )}
               <View style={[styles.irsNote, { backgroundColor: colors.muted }]}>
-                <Feather name="file-text" size={12} color={colors.mutedForeground} />
-                <Text style={[styles.irsNoteText, { color: colors.mutedForeground }]}>
+                <Feather name="file-text" size={12} color={INK_ON_MUTED} />
+                <Text style={[styles.irsNoteText, { color: INK_ON_MUTED }]}>
                   IRS 1099-K required if annual savings exceed $600. Keep records of every adventure.
                 </Text>
               </View>
@@ -265,19 +270,12 @@ export default function Earnings() {
                       </View>
                       <View style={styles.tripRight}>
                         <Text style={[styles.tripTotal, { color: colors.primary }]}>
-                          ${trip.netAmount.toFixed(2)}
+                          {formatUsd(trip.netAmount)}
                         </Text>
                         <Text style={[styles.tripSeats, { color: colors.mutedForeground }]}>
                           {trip.seatsBooked} seat{trip.seatsBooked > 1 ? "s" : ""}
                         </Text>
                       </View>
-                    </View>
-                    <View style={[styles.tripIrs, { backgroundColor: colors.muted }]}>
-                      <Feather name="navigation" size={11} color={colors.mutedForeground} />
-                      <Text style={[styles.tripIrsText, { color: colors.mutedForeground }]}>
-                        {trip.miles} miles travelled · {trip.seatsBooked} seat
-                        {trip.seatsBooked === 1 ? "" : "s"} shared
-                      </Text>
                     </View>
                   </View>
                 );

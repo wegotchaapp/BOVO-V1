@@ -54,6 +54,19 @@ const colors = {
  */
 export const GOLD_ON_DARK = "#D9AF6A";
 
+/**
+ * Ink for text sitting on the muted fill `#F2EFE8` — segmented-control tracks,
+ * "Completed" pills, count chips.
+ *
+ * `mutedForeground` is 4.62:1 on the background and 4.96:1 on cards, but only
+ * **4.32:1** on `muted`, under the 4.5 floor. This holds the same sage hue one
+ * step darker, at 6.78:1.
+ *
+ * Sibling of `GOLD_ON_DARK`: the palette's secondary ink, corrected for the one
+ * surface it does not clear.
+ */
+export const INK_ON_MUTED = "#4A554D";
+
 export const CARD_SHADOW = {
   shadowColor: "#1B3D2F",
   shadowOffset: { width: 0, height: 2 },

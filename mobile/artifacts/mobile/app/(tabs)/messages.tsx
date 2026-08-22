@@ -15,14 +15,14 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useColors } from "@/hooks/useColors";
-import { CARD_SHADOW } from "@/constants/colors";
+import { CARD_SHADOW, INK_ON_MUTED } from "@/constants/colors";
 import {
   listMyConversations,
   type Conversation,
 } from "@/lib/conversations";
 import { listMyGroups, type TripGroupSummary } from "@/lib/groups";
 
-function Avatar({ name, size = 50 }: { name: string; size?: number }) {
+function Avatar({ name, size = 48 }: { name: string; size?: number }) {
   const colors = useColors();
   const initials = name
     .split(" ")
@@ -58,63 +58,64 @@ function cityShort(c: string): string {
   return c.replace(/, TX$/, "").replace(/, AR$/, "");
 }
 
-function GroupCard({
+function formatDay(iso: string): string {
+  return new Date(iso).toLocaleDateString("en-US", {
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+  });
+}
+
+function GroupRow({
   group,
+  last,
   onPress,
 }: {
   group: TripGroupSummary;
+  last: boolean;
   onPress: () => void;
 }) {
   const colors = useColors();
-  const avatarColors = [colors.primary, colors.accent, "#1A7A4A"];
   return (
     <TouchableOpacity
-      style={[styles.groupCard, CARD_SHADOW]}
+      style={[styles.row, !last && { borderBottomWidth: 1, borderBottomColor: colors.border }]}
       onPress={onPress}
-      activeOpacity={0.88}
+      activeOpacity={0.75}
     >
-      <View style={styles.groupTop}>
-        <View style={styles.routePill}>
-          <Feather name="map-pin" size={11} color={colors.primary} />
-          <Text style={[styles.routeText, { color: colors.primary }]} numberOfLines={1}>
+      <View style={[styles.tile, { backgroundColor: colors.secondary }]}>
+        <Feather name="truck" size={20} color={colors.primary} />
+      </View>
+      <View style={styles.rowBody}>
+        <View style={styles.rowTop}>
+          <Text style={[styles.rowTitle, { color: colors.foreground }]} numberOfLines={1}>
             {cityShort(group.fromCity)} → {cityShort(group.toCity)}
           </Text>
+          {/* The departure is its own element rather than the tail of the
+              route string, so a long route can never truncate the date away. */}
+          <Text style={[styles.rowWhen, { color: colors.mutedForeground }]}>
+            {formatDay(group.departureAt)}
+          </Text>
         </View>
-        {group.pickupLocked && (
-          <View style={[styles.lockedPill, { backgroundColor: "#EBF2ED" }]}>
-            <Feather name="check-circle" size={10} color={colors.primary} />
-            <Text style={[styles.lockedPillText, { color: colors.primary }]}>Hub set</Text>
+        <View style={styles.rowBottom}>
+          <Text
+            style={[styles.rowSub, { color: colors.mutedForeground }]}
+            numberOfLines={1}
+          >
+            {group.latestMessage || "No messages yet"}
+          </Text>
+          {group.pickupLocked && (
+            <View style={[styles.tag, { backgroundColor: colors.secondary }]}>
+              <Feather name="check-circle" size={10} color={colors.primary} />
+              <Text style={[styles.tagText, { color: colors.primary }]}>Hub set</Text>
+            </View>
+          )}
+          <View style={[styles.tag, { backgroundColor: colors.muted }]}>
+            <Feather name="users" size={10} color={INK_ON_MUTED} />
+            <Text style={[styles.tagText, { color: INK_ON_MUTED }]}>
+              {group.memberCount}
+            </Text>
           </View>
-        )}
-      </View>
-      <Text style={[styles.groupLatest, { color: colors.foreground }]} numberOfLines={2}>
-        {group.latestMessage || "Pickup planning discussion..."}
-      </Text>
-      <View style={styles.groupBottom}>
-        <View style={styles.avatarStack}>
-          {avatarColors.slice(0, Math.min(3, group.memberCount)).map((c, i) => (
-            <View
-              key={i}
-              style={[
-                styles.stackAvatar,
-                {
-                  backgroundColor: c,
-                  marginLeft: i === 0 ? 0 : -10,
-                  zIndex: 3 - i,
-                },
-              ]}
-            />
-          ))}
         </View>
-        <Text style={[styles.memberCount, { color: colors.mutedForeground }]}>
-          {group.memberCount} member{group.memberCount === 1 ? "" : "s"}
-        </Text>
-        <Feather
-          name="chevron-right"
-          size={16}
-          color={colors.mutedForeground}
-          style={{ marginLeft: "auto" }}
-        />
       </View>
     </TouchableOpacity>
   );
@@ -196,34 +197,30 @@ export default function MessagesTab() {
     });
   }, [conversations, q]);
 
-  function renderConversation(item: Conversation) {
+  function renderConversation(item: Conversation, last: boolean) {
     return (
       <TouchableOpacity
         key={item.id}
-        style={[styles.item, { borderBottomColor: colors.border }]}
+        style={[styles.row, !last && { borderBottomWidth: 1, borderBottomColor: colors.border }]}
         onPress={() =>
           router.push({ pathname: "/chat/[id]", params: { id: item.id } })
         }
         activeOpacity={0.75}
       >
-        <View style={styles.avatarWrap}>
-          <Avatar name={item.userName} />
-          {item.unread && (
-            <View style={[styles.unreadDot, { backgroundColor: colors.primary }]} />
-          )}
-        </View>
-        <View style={styles.content}>
-          <View style={styles.topRow}>
+        <Avatar name={item.userName} />
+        <View style={styles.rowBody}>
+          <View style={styles.rowTop}>
             <Text
               style={[
-                styles.name,
+                styles.rowTitle,
                 { color: colors.foreground },
                 item.unread && { fontFamily: "Inter_700Bold" },
               ]}
+              numberOfLines={1}
             >
               {item.userName}
             </Text>
-            <Text style={[styles.time, { color: colors.mutedForeground }]}>
+            <Text style={[styles.rowWhen, { color: colors.mutedForeground }]}>
               {item.time}
             </Text>
           </View>
@@ -235,18 +232,23 @@ export default function MessagesTab() {
               </Text>
             </View>
           ) : null}
-          <Text
-            style={[
-              styles.lastMsg,
-              {
-                color: item.unread ? colors.foreground : colors.mutedForeground,
-              },
-              item.unread && { fontFamily: "Inter_500Medium" },
-            ]}
-            numberOfLines={1}
-          >
-            {item.lastMessage || "No messages yet"}
-          </Text>
+          <View style={styles.rowBottom}>
+            <Text
+              style={[
+                styles.rowSub,
+                { color: item.unread ? colors.foreground : colors.mutedForeground },
+                item.unread && { fontFamily: "Inter_500Medium" },
+              ]}
+              numberOfLines={1}
+            >
+              {item.lastMessage || "No messages yet"}
+            </Text>
+            {/* The design puts a gold dot here; gold is 2.71:1 on white, which
+                is under the 3:1 an indicator needs, so it stays forest. */}
+            {item.unread && (
+              <View style={[styles.unreadDot, { backgroundColor: colors.primary }]} />
+            )}
+          </View>
         </View>
       </TouchableOpacity>
     );
@@ -324,11 +326,12 @@ export default function MessagesTab() {
             </View>
           </View>
         ) : (
-          <View style={styles.groupsList}>
-            {filteredGroups.map((g) => (
-              <GroupCard
+          <View style={[styles.listCard, CARD_SHADOW]}>
+            {filteredGroups.map((g, i) => (
+              <GroupRow
                 key={g.id}
                 group={g}
+                last={i === filteredGroups.length - 1}
                 onPress={() =>
                   router.push({ pathname: "/group/[id]", params: { id: g.id } })
                 }
@@ -362,7 +365,11 @@ export default function MessagesTab() {
             </Text>
           </View>
         ) : (
-          filteredConversations.map(renderConversation)
+          <View style={[styles.listCard, CARD_SHADOW]}>
+            {filteredConversations.map((c, i) =>
+              renderConversation(c, i === filteredConversations.length - 1),
+            )}
+          </View>
         )}
       </ScrollView>
     </View>
@@ -377,9 +384,9 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 10,
-    paddingHorizontal: 14,
+    paddingHorizontal: 16,
     paddingVertical: Platform.OS === "ios" ? 10 : 4,
-    borderRadius: 14,
+    borderRadius: 999,
     borderWidth: 1.5,
   },
   searchInput: { flex: 1, fontSize: 14, fontFamily: "Inter_400Regular", paddingVertical: 6 },
@@ -408,82 +415,51 @@ const styles = StyleSheet.create({
     marginTop: 2,
     lineHeight: 17,
   },
-  groupsList: { paddingHorizontal: 22, gap: 10 },
-  groupCard: {
+
+  // Both lists are one card of divided rows, as the design has them.
+  listCard: {
+    marginHorizontal: 22,
     backgroundColor: "#fff",
     borderRadius: 16,
-    padding: 14,
-    gap: 10,
+    overflow: "hidden",
   },
-  groupTop: {
+  row: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
-    gap: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    gap: 14,
+    minHeight: 76,
   },
-  routePill: {
-    flexDirection: "row",
+  tile: {
+    width: 48,
+    height: 48,
+    borderRadius: 12,
     alignItems: "center",
-    gap: 5,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 20,
-    backgroundColor: "#EBF2ED",
-    flex: 1,
+    justifyContent: "center",
   },
-  routeText: { fontSize: 12, fontFamily: "Inter_600SemiBold" },
-  lockedPill: {
+  avatar: { alignItems: "center", justifyContent: "center" },
+  avatarText: { fontFamily: "Inter_700Bold" },
+  rowBody: { flex: 1, gap: 4 },
+  rowTop: { flexDirection: "row", alignItems: "baseline", gap: 10 },
+  rowTitle: { flex: 1, fontSize: 15, fontFamily: "Inter_600SemiBold" },
+  rowWhen: { fontSize: 12, fontFamily: "Inter_400Regular", flexShrink: 0 },
+  rowBottom: { flexDirection: "row", alignItems: "center", gap: 8 },
+  rowSub: { flex: 1, fontSize: 13, fontFamily: "Inter_400Regular" },
+  tag: {
     flexDirection: "row",
     alignItems: "center",
     gap: 4,
     paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 20,
+    paddingVertical: 3,
+    borderRadius: 999,
+    flexShrink: 0,
   },
-  lockedPillText: { fontSize: 10, fontFamily: "Inter_600SemiBold" },
-  groupLatest: { fontSize: 13, fontFamily: "Inter_500Medium", lineHeight: 18 },
-  groupBottom: { flexDirection: "row", alignItems: "center", gap: 10 },
-  avatarStack: { flexDirection: "row" },
-  stackAvatar: {
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-    borderWidth: 2,
-    borderColor: "#fff",
-  },
-  memberCount: { fontSize: 11, fontFamily: "Inter_500Medium" },
-  item: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 22,
-    paddingVertical: 14,
-    gap: 14,
-    borderBottomWidth: 1,
-  },
-  avatarWrap: { position: "relative" },
-  avatar: { alignItems: "center", justifyContent: "center" },
-  avatarText: { fontFamily: "Inter_700Bold" },
-  unreadDot: {
-    position: "absolute",
-    top: 1,
-    right: 1,
-    width: 11,
-    height: 11,
-    borderRadius: 6,
-    borderWidth: 2,
-    borderColor: "#fff",
-  },
-  content: { flex: 1, gap: 4 },
-  topRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-  },
-  name: { fontSize: 15, fontFamily: "Inter_500Medium" },
-  time: { fontSize: 12, fontFamily: "Inter_400Regular" },
+  tagText: { fontSize: 11, fontFamily: "Inter_600SemiBold" },
+  unreadDot: { width: 10, height: 10, borderRadius: 5, flexShrink: 0 },
   routeRow: { flexDirection: "row", alignItems: "center", gap: 4 },
   routeTextSmall: { fontSize: 11, fontFamily: "Inter_500Medium" },
-  lastMsg: { fontSize: 13, fontFamily: "Inter_400Regular" },
+
   empty: {
     alignItems: "center",
     paddingTop: 40,

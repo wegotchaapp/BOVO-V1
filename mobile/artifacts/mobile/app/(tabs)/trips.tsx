@@ -21,7 +21,7 @@ import {
   EMPTY_VOYAGER_NO_POSTS,
   pickLine,
 } from "@/constants/voice";
-import { CARD_SHADOW, STRONG_SHADOW } from "@/constants/colors";
+import { CARD_SHADOW, INK_ON_MUTED, STRONG_SHADOW } from "@/constants/colors";
 import { formatUsd } from "@/lib/pricing";
 import { useAuth } from "@/context/AuthContext";
 import { listMyBookings, type Booking } from "@/lib/bookings";
@@ -123,13 +123,6 @@ function tripToItem(t: Trip): TripItem {
     started: inProgress || Boolean(t.startedAt),
   };
 }
-
-/**
- * Secondary ink for text on the muted fill `#F2EFE8`. `mutedForeground` measures
- * 4.32:1 there — under the floor — so this holds the same sage hue one step
- * darker, at 6.78:1.
- */
-const MUTED_ON_MUTED = "#4A554D";
 
 type ActionVariant = "outline" | "gold" | "danger" | "done";
 
@@ -344,7 +337,7 @@ export default function TripsTab() {
       },
       completed: {
         bg: colors.muted,
-        text: MUTED_ON_MUTED,
+        text: INK_ON_MUTED,
         label: "Completed",
         icon: "clock" as const,
       },
@@ -422,7 +415,7 @@ export default function TripsTab() {
           <Text
             style={[
               styles.when,
-              { color: isUpcoming ? colors.foreground : MUTED_ON_MUTED },
+              { color: isUpcoming ? colors.foreground : INK_ON_MUTED },
             ]}
           >
             {item.date} · {item.time}

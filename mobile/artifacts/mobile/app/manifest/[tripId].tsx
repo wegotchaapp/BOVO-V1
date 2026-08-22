@@ -23,6 +23,25 @@ import {
   type Manifest,
   type ManifestEntry,
 } from "@/lib/odometer";
+import { getTrip } from "@/lib/trips";
+import type { Trip } from "@/data/trips";
+
+/**
+ * Label colour for the odometer button while it is gated behind the 360 video.
+ * The control still responds — it explains the gate — so it is not a disabled
+ * control and has to stay legible. The muted sage was 4.32:1 on the button fill.
+ */
+const GATED_INK = "#5F6A62";
+
+function cityShort(c: string): string {
+  return c.replace(/, TX$/, "").replace(/, AR$/, "");
+}
+
+/** Date and time as one unit — the two never appear apart. */
+function formatDeparture(iso: string): string {
+  const d = new Date(iso);
+  return `${d.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" })} · ${d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}`;
+}
 
 /**
  * The Voyager's working view during an adventure: everyone on board, and the
@@ -37,12 +56,22 @@ export default function AdventureManifest() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // The manifest payload carries no route or departure, so the adventure is
+  // identified from the trip itself. A Voyager running several at once cannot
+  // otherwise tell one manifest from another.
+  const [trip, setTrip] = useState<Trip | null>(null);
 
   const load = useCallback(async () => {
     if (!tripId) return;
     setError(null);
     try {
-      setManifest(await getManifest(tripId));
+      const [m, t] = await Promise.all([
+        getManifest(tripId),
+        // The route is a nicety; a failure here must not blank the manifest.
+        getTrip(tripId).then((r) => r.trip).catch(() => null),
+      ]);
+      setManifest(m);
+      setTrip(t);
     } catch (e: any) {
       setError(e?.message ?? "Couldn't load your manifest.");
     }
@@ -78,8 +107,18 @@ export default function AdventureManifest() {
   }
 
   const entries = manifest?.entries ?? [];
-  const remaining = entries.filter((e) => e.status !== "dropped_off").length;
+  const awaiting = entries.filter((e) => e.status === "awaiting_pickup").length;
+  const onBoard = entries.filter((e) => e.status === "on_board").length;
   const complete = manifest?.tripStatus === "completed";
+
+  /** You cannot drop off someone you have not picked up, so the two are counted apart. */
+  function statusTitle(): string {
+    if (complete) return "Adventure complete";
+    if (awaiting === 0 && onBoard === 0) return "Everyone dropped off";
+    if (onBoard === 0) return `${awaiting} Sailor${awaiting === 1 ? "" : "s"} to pick up`;
+    if (awaiting === 0) return `${onBoard} Sailor${onBoard === 1 ? "" : "s"} on board`;
+    return `${onBoard} on board · ${awaiting} still to pick up`;
+  }
 
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: colors.background }]}>
@@ -128,12 +167,26 @@ export default function AdventureManifest() {
                 color={complete ? "#059669" : colors.primary}
               />
               <View style={{ flex: 1 }}>
+                {trip ? (
+                  <View style={styles.routeLine}>
+                    <View style={[styles.routeDot, { backgroundColor: colors.primary }]} />
+                    <Text style={[styles.routeCity, { color: colors.foreground }]} numberOfLines={1}>
+                      {cityShort(trip.fromCity)}
+                    </Text>
+                    <View style={[styles.routeRule, { backgroundColor: colors.border }]} />
+                    <View style={[styles.routeDot, { backgroundColor: colors.accent }]} />
+                    <Text style={[styles.routeCity, { color: colors.foreground }]} numberOfLines={1}>
+                      {cityShort(trip.toCity)}
+                    </Text>
+                  </View>
+                ) : null}
+                {trip ? (
+                  <Text style={[styles.routeWhen, { color: colors.mutedForeground }]}>
+                    {formatDeparture(trip.departureAt)}
+                  </Text>
+                ) : null}
                 <Text style={[styles.statusTitle, { color: colors.foreground }]}>
-                  {complete
-                    ? "Adventure complete"
-                    : remaining === 0
-                      ? "Everyone dropped off"
-                      : `${remaining} Sailor${remaining === 1 ? "" : "s"} still to drop off`}
+                  {statusTitle()}
                 </Text>
                 <Text style={[styles.statusSub, { color: colors.mutedForeground }]}>
                   {manifest?.lastOdometerMiles != null
@@ -273,9 +326,9 @@ function SailorRow({
           onPress={onPress}
           activeOpacity={0.88}
         >
-          <Feather name="camera" size={16} color={disabled ? colors.mutedForeground : "#fff"} />
+          <Feather name="camera" size={16} color={disabled ? GATED_INK : "#fff"} />
           <Text
-            style={[styles.actionText, { color: disabled ? colors.mutedForeground : "#fff" }]}
+            style={[styles.actionText, { color: disabled ? GATED_INK : "#fff" }]}
           >
             Record {kind === "pickup" ? "pickup" : "dropoff"} odometer
           </Text>
@@ -305,6 +358,11 @@ const styles = StyleSheet.create({
   retryText: { color: "#fff", fontSize: 14, fontFamily: "Inter_600SemiBold" },
 
   statusCard: { flexDirection: "row", alignItems: "center", gap: 14, borderRadius: 18, padding: 18 },
+  routeLine: { flexDirection: "row", alignItems: "center", gap: 6 },
+  routeDot: { width: 7, height: 7, borderRadius: 3.5 },
+  routeCity: { fontSize: 15, fontFamily: "Inter_600SemiBold", flexShrink: 1 },
+  routeRule: { flex: 1, height: 1, marginHorizontal: 2, minWidth: 10 },
+  routeWhen: { fontSize: 12, fontFamily: "Inter_400Regular", marginTop: 2, marginBottom: 6 },
   statusTitle: { fontSize: 15, fontFamily: "Inter_600SemiBold" },
   statusSub: { fontSize: 12, fontFamily: "Inter_400Regular", marginTop: 3 },
 

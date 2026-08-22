@@ -27,10 +27,15 @@ const _png = () => Buffer.from(
   'base64');
 
 async function makeVehicleRoadReady(token, vin) {
-  await api('/vehicles', { method: 'POST', token, body: {
+  // VINs are unique per vehicle, so a re-run with a fixed VIN silently fails here and
+  // only surfaces two steps later as "Add your vehicle before posting an adventure".
+  const created = await api('/vehicles', { method: 'POST', token, body: {
     make: 'Toyota', model: 'Camry', year: 2022, color: 'Silver',
-    licensePlate: 'BVG-0031', state: 'TX', seatCount: 3, doorCount: 4, vin,
+    licensePlate: `BVG-${vin.slice(-4)}`, state: 'TX', seatCount: 3, doorCount: 4, vin,
   }});
+  if (created.status >= 300) {
+    throw new Error(`vehicle: ${JSON.stringify(created.data)}`);
+  }
   for (const slot of ['front', 'rear', 'left', 'right', 'interior']) {
     const f = new FormData();
     f.append('photo', new Blob([_png()], { type: 'image/png' }), 'p.png');
@@ -62,7 +67,8 @@ async function makeVehicleRoadReady(token, vin) {
   };
 
   const voyager = await mk('v', 'Marcus Ellery');
-  await makeVehicleRoadReady(voyager.token, '4T1BF1FK5CU000031');
+  // 17-char VIN, unique per run.
+  await makeVehicleRoadReady(voyager.token, `4T1BF1FK5CU${String(stamp).slice(-6)}`);
 
   // 08:30 departure tomorrow, so the ticket prints a realistic DATE / DEPARTS pair.
   const dep = new Date(Date.now() + 86400000);
@@ -88,7 +94,15 @@ async function makeVehicleRoadReady(token, vin) {
   const b = booked.data?.booking;
   if (!b) throw new Error(`booking: ${JSON.stringify(booked.data)}`);
 
+  // A second Sailor, so Voyager-side screens have a manifest worth looking at.
+  const sailor2 = await mk('s2', 'Dana Whitlock');
+  const booked2 = await api('/bookings', {
+    method: 'POST', token: sailor2.token,
+    body: { tripId, seats: 2, paymentMethod: 'card', insuranceOptedIn: false },
+  });
+
   console.log(JSON.stringify({
+    tripId,
     bookingId: b.id,
     status: b.status,
     seats: b.seats,
@@ -98,7 +112,13 @@ async function makeVehicleRoadReady(token, vin) {
     totalAmount: b.totalAmount,
     groupId: b.groupId ?? null,
     departureAt: dep.toISOString(),
+    secondBooking: booked2.data?.booking?.id ?? booked2.data,
+    voyagerToken: voyager.token,
     sailorToken: sailor.token,
-    url: `http://localhost:8081/booking-confirmed?id=${b.id}`,
+    urls: {
+      bookingConfirmed: `http://localhost:8081/booking-confirmed?id=${b.id}`,
+      manifest: `http://localhost:8081/manifest/${tripId}`,
+      odometer: `http://localhost:8081/odometer/${tripId}`,
+    },
   }, null, 2));
 })().catch((e) => { console.error('FAILED:', e.message); process.exit(1); });

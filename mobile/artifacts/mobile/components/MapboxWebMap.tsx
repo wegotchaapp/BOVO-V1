@@ -30,6 +30,12 @@ interface MapboxWebMapProps {
   primaryColor?: string;
   accentColor?: string;
   onRouteInfo?: (info: RouteInfo) => void;
+  /**
+   * Draw the placeholder's own from/percent/to row. Hosts that render their own
+   * progress indicator over the map should turn this off — otherwise the two sit
+   * on top of each other and state the same thing twice.
+   */
+  showProgressRow?: boolean;
   style?: object;
 }
 
@@ -41,6 +47,7 @@ export default function MapboxWebMap({
   primaryColor = "#1B3D2F",
   accentColor = "#C4954A",
   onRouteInfo: _onRouteInfo,
+  showProgressRow = true,
   style,
 }: MapboxWebMapProps) {
   const carPos = useRef(new Animated.Value(progress)).current;
@@ -146,6 +153,7 @@ export default function MapboxWebMap({
       </View>
 
       {/* Progress + label row */}
+      {showProgressRow ? (
       <View style={styles.infoRow}>
         <View style={styles.infoItem}>
           <View style={[styles.infoDot, { backgroundColor: primaryColor }]} />
@@ -159,6 +167,7 @@ export default function MapboxWebMap({
           <Text style={[styles.infoCity, { color: accentColor }]}>{toLabel}</Text>
         </View>
       </View>
+      ) : null}
 
       {/* GPS / notice */}
       {riderCoord ? (
@@ -207,8 +216,14 @@ const styles = StyleSheet.create({
     elevation: 4,
     maxWidth: 180,
   },
-  calloutLeft: { top: 16, left: 14 },
-  calloutRight: { bottom: 60, right: 14 },
+  /*
+   * The screens that host this map put their own furniture over it: tracking.tsx
+   * anchors an ETA card top-left and a progress pill along the bottom. These
+   * callouts and the zoom stack have to sit clear of both, so the corners are
+   * divided up rather than everything defaulting to the same two.
+   */
+  calloutLeft: { top: 16, right: 14 },
+  calloutRight: { bottom: 92, left: 14 },
   calloutDot: { width: 10, height: 10, borderRadius: 5, flexShrink: 0 },
   calloutText: { fontSize: 12, fontFamily: "Inter_600SemiBold", color: "#111", flex: 1 },
 
@@ -302,7 +317,8 @@ const styles = StyleSheet.create({
 
   gpsChip: {
     position: "absolute",
-    bottom: 8,
+    // Clears the host screen's progress pill, which owns the bottom 12-46px.
+    bottom: 52,
     alignSelf: "center",
     flexDirection: "row",
     alignItems: "center",

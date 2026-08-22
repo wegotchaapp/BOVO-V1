@@ -28,6 +28,7 @@ export default function Layout() {
           <NavLink to="/config" className={linkClass}><span>⚙️</span> System Config</NavLink>
           <NavLink to="/trust-safety" className={linkClass}><span>⚠️</span> Trust & Safety</NavLink>
           <NavLink to="/driver-docs" className={linkClass}><span>📄</span> Driver Docs</NavLink>
+          <NavLink to="/vehicle-review" className={linkClass}><span>🚗</span> Vehicle Review</NavLink>
           <NavLink to="/notifications" className={linkClass}><span>🔔</span> Notifications</NavLink>
           <NavLink to="/subscriptions" className={linkClass}><span>💳</span> Subscriptions</NavLink>
           <NavLink to="/support-tickets" className={linkClass}><span>🎫</span> Support Tickets</NavLink>

@@ -129,8 +129,8 @@ export default function VehicleScreen() {
       hydrate(saved);
       if (saved.isComplete) {
         await showSuccess(
-          "Vehicle saved",
-          "Everything's on file. You can post adventures now.",
+          "Vehicle submitted",
+          "We check every vehicle before it carries Sailors. You can post once it's approved.",
         );
       }
     } catch (e: any) {
@@ -307,7 +307,7 @@ export default function VehicleScreen() {
                         : status === "rejected"
                           ? "Needs attention"
                           : ready
-                            ? "Ready to post"
+                            ? "Submitted for review"
                             : `${missing.length} item${missing.length === 1 ? "" : "s"} still needed`}
                   </Text>
                   <Text style={[styles.statusSub, { color: colors.mutedForeground }]}>
@@ -316,7 +316,7 @@ export default function VehicleScreen() {
                       : status === "rejected" && vehicle.verificationNote
                         ? vehicle.verificationNote
                         : ready
-                          ? "Everything's on file. You can post adventures now."
+                          ? "We check every vehicle before it carries Sailors. You can post once it's approved."
                           : "You can't post an adventure until everything below is complete."}
                   </Text>
                 </View>

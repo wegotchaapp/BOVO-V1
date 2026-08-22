@@ -51,6 +51,8 @@ export async function overrideTrial(userId: string, days: number) { const r = aw
 export async function broadcastNotification(title: string, body: string, role?: string) { const r = await api.post('/admin/notifications/broadcast', { title, body, role }); return r.data; }
 export async function getDriverDocs() { const r = await api.get('/admin/driver-docs'); return r.data; }
 export async function verifyVehicle(id: string, approved: boolean) { const r = await api.patch(`/admin/driver-docs/vehicles/${id}/verify`, { approved }); return r.data; }
+export async function getVehicleReviewQueue(status = 'pending_review') { const r = await api.get('/admin/vehicle-review', { params: { status } }); return r.data; }
+export async function reviewMobileVehicle(id: string, approved: boolean, note?: string) { const r = await api.patch(`/admin/vehicle-review/${id}`, { approved, note }); return r.data; }
 export async function getAuditTrail(p?: any) { const r = await api.get('/admin/audit', { params: p }); return r.data; }
 export async function getModerationQueue(p?: any) { const r = await api.get('/trust-safety/admin/moderation/queue', { params: p }); return r.data; }
 export async function getReportDetail(id: string) { const r = await api.get(`/trust-safety/admin/moderation/reports/${id}`); return r.data; }

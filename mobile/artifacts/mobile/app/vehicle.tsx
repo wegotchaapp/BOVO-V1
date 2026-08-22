@@ -20,7 +20,7 @@ import {
 
 import { Alert, showSuccess } from "@/lib/alert";
 
-import { CARD_SHADOW } from "@/constants/colors";
+import { CARD_SHADOW, INK_ON_MUTED } from "@/constants/colors";
 import { useColors } from "@/hooks/useColors";
 import {
   getBackgroundCheck,
@@ -202,6 +202,9 @@ export default function VehicleScreen() {
       setBusySlot(null);
     }
   }
+
+  /** The provider is not switched on, so there is nothing to start. */
+  const checkUnavailable = !!check && !check.configured;
 
   async function handleBackgroundCheck() {
     setBusySlot("checkr");
@@ -492,21 +495,30 @@ export default function VehicleScreen() {
                   <Feather
                     name={check?.status === "clear" ? "shield" : "shield-off"}
                     size={18}
-                    color={check?.status === "clear" ? "#059669" : colors.mutedForeground}
+                    color={check?.status === "clear" ? colors.success : INK_ON_MUTED}
                   />
                   <View style={{ flex: 1 }}>
                     <Text style={[styles.checkTitle, { color: colors.foreground }]}>
                       {backgroundLabel(check)}
                     </Text>
                     {check?.ssnLast4 ? (
-                      <Text style={[styles.checkSub, { color: colors.mutedForeground }]}>
+                      <Text style={[styles.checkSub, { color: INK_ON_MUTED }]}>
                         SSN held by Checkr: •••• {check.ssnLast4}
+                      </Text>
+                    ) : null}
+                    {checkUnavailable ? (
+                      <Text style={[styles.checkSub, { color: INK_ON_MUTED }]}>
+                        There is nothing to do here yet. You'll be able to start it once
+                        checks are switched on.
                       </Text>
                     ) : null}
                   </View>
                 </View>
 
-                {check?.status !== "clear" ? (
+                {/* `configured: false` means the provider is not switched on. The
+                    button used to render anyway, so the screen said "Not available
+                    yet" and then offered to start it — and starting it failed. */}
+                {!checkUnavailable && check?.status !== "clear" ? (
                   <TouchableOpacity
                     style={[styles.checkBtn, { backgroundColor: colors.primary }]}
                     onPress={handleBackgroundCheck}

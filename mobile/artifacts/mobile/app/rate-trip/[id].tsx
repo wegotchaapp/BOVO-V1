@@ -29,7 +29,7 @@ const TAGS = [
   { id: "safe", label: "Safe Voyager", icon: "shield" },
   { id: "music", label: "Great Music", icon: "music" },
   { id: "quiet", label: "Respectful", icon: "volume-x" },
-  { id: "smooth", label: "Smooth Ride", icon: "navigation" },
+  { id: "smooth", label: "Smooth Journey", icon: "navigation" },
   { id: "comfy", label: "Comfortable", icon: "thumbs-up" },
 ];
 
@@ -162,7 +162,7 @@ export default function RateTrip() {
         </View>
 
         <View style={[styles.card, CARD_SHADOW]}>
-          <Text style={[styles.cardTitle, { color: colors.foreground }]}>How was your ride?</Text>
+          <Text style={[styles.cardTitle, { color: colors.foreground }]}>How was your adventure?</Text>
           <View style={styles.starsRow}>
             {[1, 2, 3, 4, 5].map((star) => (
               <TouchableOpacity

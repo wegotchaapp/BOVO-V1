@@ -48,7 +48,7 @@ const QUESTIONS: Question[] = [
     id: "talk",
     icon: "message-square",
     question: "How talkative are you?",
-    subtext: "During the ride",
+    subtext: "During the adventure",
     options: [
       { label: "Quiet, please", emoji: "🤫" },
       { label: "Just the basics", emoji: "💬" },

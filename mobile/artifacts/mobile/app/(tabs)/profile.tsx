@@ -110,7 +110,7 @@ export default function ProfileTab() {
           sublabel:
             user?.preferencesCount && user.preferencesCount > 0
               ? `${user.preferencesCount} of 10 set`
-              : "Set your ride preferences",
+              : "Set your travel preferences",
           route: "/preferences",
         },
         { icon: "bell", label: "Notifications", sublabel: "Manage alerts", route: "/notifications" },

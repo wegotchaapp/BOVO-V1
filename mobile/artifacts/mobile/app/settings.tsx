@@ -83,7 +83,7 @@ export default function SettingsScreen() {
             <Text style={[styles.rowSub, { color: colors.mutedForeground }]}>
               {user?.preferencesCount
                 ? `${user.preferencesCount} of 10 set`
-                : "Set your ride preferences"}
+                : "Set your travel preferences"}
             </Text>
           </View>
           <Feather name="chevron-right" size={18} color={colors.mutedForeground} />

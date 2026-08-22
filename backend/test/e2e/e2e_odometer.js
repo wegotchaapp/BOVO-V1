@@ -65,6 +65,37 @@ async function makeVehicleRoadReady(token, vin) {
   }
 }
 
+/**
+ * Posting is gated on a human approving the vehicle, so a fixture has to walk the
+ * real ops path rather than flip a column — that way these suites keep exercising
+ * the gate instead of stepping around it.
+ */
+async function approveVehicle(ownerToken) {
+  const mine = await api('/vehicles/mine', { token: ownerToken });
+  const vehicleId = mine.data?.vehicles?.[0]?.id ?? mine.data?.vehicle?.id;
+  if (!vehicleId) throw new Error(`no vehicle to approve: ${JSON.stringify(mine.data)}`);
+
+  const login = await fetch('http://localhost:3000/auth/login', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ identifier: 'admin@test.com', password: 'testpass123' }),
+  }).then((r) => r.json());
+  if (!login.accessToken) throw new Error(`admin login failed: ${JSON.stringify(login)}`);
+
+  const res = await fetch(
+    `http://localhost:3000/admin/vehicle-review/${vehicleId}`,
+    {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${login.accessToken}`,
+      },
+      body: JSON.stringify({ approved: true }),
+    },
+  ).then((r) => r.json());
+  if (!res.ok) throw new Error(`approve failed: ${JSON.stringify(res)}`);
+}
+
 (async () => {
   const stamp = Date.now();
   const mk = async (label) => {
@@ -80,7 +111,8 @@ async function makeVehicleRoadReady(token, vin) {
   const sailorA = await mk('sailorA');
   const sailorB = await mk('sailorB');
   console.log('created 3 users\n');
-  await makeVehicleRoadReady(voyager.token, '1HGCM82633A004352');
+  await makeVehicleRoadReady(voyager.token, `1HGCM82633A${String(stamp).slice(-6)}`);
+  await approveVehicle(voyager.token);
 
   const trip = await api('/trips', {
     method: 'POST', token: voyager.token,

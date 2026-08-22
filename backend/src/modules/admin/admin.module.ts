@@ -14,6 +14,10 @@ import { SupportAgent } from '../../database/entities/support-agent.entity';
 import { AdminController } from './admin.controller';
 import { AdminService } from './admin.service';
 import { AdminGuard } from './admin.guard';
+import {
+  MobileUser,
+  MobileVehicle,
+} from '../mobile-api/entities/mobile.entities';
 
 /**
  * Minimal admin module backing the Bovogo admin dashboard's /admin/* endpoints.
@@ -32,6 +36,8 @@ import { AdminGuard } from './admin.guard';
       SosEvent,
       Incident,
       Vehicle,
+      MobileVehicle,
+      MobileUser,
       AuditEvent,
       SupportTicket,
       SupportTicketMessage,

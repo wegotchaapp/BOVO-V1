@@ -226,6 +226,21 @@ export class MobileVehiclesService {
         `Your vehicle isn't ready yet. Still needed: ${missing.join(', ')}.`,
       );
     }
+    // Documents being present is not the same as somebody having looked at them.
+    // Sailors are told vehicles are checked before they ride, so the check has to
+    // be the thing that opens the gate.
+    if (row.verification_status === 'rejected') {
+      throw new BadRequestException(
+        row.verification_note
+          ? `Your vehicle needs attention: ${row.verification_note}`
+          : 'Your vehicle was rejected. Update it and resubmit.',
+      );
+    }
+    if (row.verification_status !== 'approved') {
+      throw new BadRequestException(
+        "Your vehicle is being reviewed. You can post as soon as it's approved.",
+      );
+    }
     return row;
   }
 

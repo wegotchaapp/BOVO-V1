@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Between, In, MoreThanOrEqual, Repository } from 'typeorm';
 import { randomBytes } from 'crypto';
@@ -14,6 +18,10 @@ import { SupportTicket } from '../../database/entities/support-ticket.entity';
 import { SupportTicketMessage } from '../../database/entities/support-ticket-message.entity';
 import { SupportAgent } from '../../database/entities/support-agent.entity';
 import { TripStatus, BookingStatus, SubscriptionTier } from '../../common/enums';
+import {
+  MobileUser,
+  MobileVehicle,
+} from '../mobile-api/entities/mobile.entities';
 
 interface PageParams {
   page?: number | string;
@@ -80,6 +88,10 @@ export class AdminService {
     @InjectRepository(SosEvent) private readonly sos: Repository<SosEvent>,
     @InjectRepository(Incident) private readonly incidents: Repository<Incident>,
     @InjectRepository(Vehicle) private readonly vehicles: Repository<Vehicle>,
+    @InjectRepository(MobileVehicle)
+    private readonly mobileVehicles: Repository<MobileVehicle>,
+    @InjectRepository(MobileUser)
+    private readonly mobileUsers: Repository<MobileUser>,
     @InjectRepository(AuditEvent)
     private readonly audit: Repository<AuditEvent>,
     @InjectRepository(SupportTicket)
@@ -477,5 +489,103 @@ export class AdminService {
   async toggleAgent(id: string, active: boolean) {
     await this.agents.update({ id }, { is_active: active });
     return { ok: true, id, active };
+  }
+
+  /**
+   * Vehicles a Voyager has fully documented and which are waiting on a human.
+   *
+   * This is the mobile fleet (`mobile_vehicles`), which is a different table from
+   * the legacy `vehicles` that `driverDocs`/`verifyVehicle` operate on — approving
+   * there has never had any effect on a mobile Voyager.
+   */
+  async vehicleReviewQueue(status = 'pending_review') {
+    const vehicles = await this.mobileVehicles.find({
+      where: { verification_status: status as MobileVehicle['verification_status'] },
+      order: { updated_at: 'ASC' },
+      take: 100,
+    });
+    const owners = vehicles.length
+      ? await this.mobileUsers.find({
+          where: { id: In(vehicles.map((v) => v.user_id)) },
+        })
+      : [];
+    const byId = new Map(owners.map((o) => [o.id, o]));
+    return {
+      vehicles: vehicles.map((v) => {
+        const owner = byId.get(v.user_id);
+        return {
+          id: v.id,
+          userId: v.user_id,
+          ownerName: owner?.name ?? null,
+          ownerEmail: owner?.email ?? null,
+          make: v.make,
+          model: v.model,
+          year: v.year,
+          color: v.color,
+          licensePlate: v.license_plate,
+          state: v.state,
+          vin: v.vin,
+          seatCount: v.seat_count,
+          doorCount: v.door_count,
+          photos: {
+            front: v.photo_front_url,
+            rear: v.photo_rear_url,
+            left: v.photo_left_url,
+            right: v.photo_right_url,
+            interior: v.photo_interior_url,
+          },
+          insurance: {
+            url: v.insurance_doc_url,
+            expiresAt: v.insurance_expires_at,
+          },
+          registration: {
+            url: v.registration_doc_url,
+            expiresAt: v.registration_expires_at,
+          },
+          verificationStatus: v.verification_status,
+          verificationNote: v.verification_note,
+          submittedAt: v.updated_at,
+        };
+      }),
+    };
+  }
+
+  /** Approve or reject a mobile vehicle. A rejection must say why. */
+  async reviewMobileVehicle(
+    id: string,
+    approved: boolean,
+    note: string | undefined,
+    actorId?: string,
+  ) {
+    const vehicle = await this.mobileVehicles.findOne({ where: { id } });
+    if (!vehicle) throw new NotFoundException('Vehicle not found');
+
+    const trimmed = (note ?? '').trim();
+    if (!approved && !trimmed) {
+      throw new BadRequestException(
+        'A rejection needs a reason — the Voyager sees this note.',
+      );
+    }
+
+    vehicle.verification_status = approved ? 'approved' : 'rejected';
+    vehicle.verification_note = trimmed || null;
+    await this.mobileVehicles.save(vehicle);
+
+    await this.audit.save(
+      this.audit.create({
+        actor_id: actorId ?? null,
+        action: approved ? 'mobile_vehicle.approved' : 'mobile_vehicle.rejected',
+        entity_type: 'mobile_vehicle',
+        entity_id: id,
+        metadata: { note: trimmed || null, userId: vehicle.user_id },
+      } as Partial<AuditEvent>),
+    );
+
+    return {
+      ok: true,
+      id,
+      verificationStatus: vehicle.verification_status,
+      verificationNote: vehicle.verification_note,
+    };
   }
 }

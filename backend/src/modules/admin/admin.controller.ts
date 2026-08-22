@@ -133,6 +133,21 @@ export class AdminController {
     return this.admin.verifyVehicle(id, approved);
   }
 
+  // Mobile vehicle review — the fleet Sailors actually ride in.
+  @Get('vehicle-review')
+  vehicleReviewQueue(@Query('status') status?: string) {
+    return this.admin.vehicleReviewQueue(status || 'pending_review');
+  }
+
+  @Patch('vehicle-review/:id')
+  reviewMobileVehicle(
+    @Param('id') id: string,
+    @Body('approved') approved: boolean,
+    @Body('note') note?: string,
+  ) {
+    return this.admin.reviewMobileVehicle(id, approved, note);
+  }
+
   // Audit
   @Get('audit')
   audit(@Query() q: any) {

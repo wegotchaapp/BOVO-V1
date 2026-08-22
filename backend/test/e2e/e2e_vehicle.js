@@ -131,10 +131,53 @@ const OTHER_VIN = '5YJ3E1EA7HF000337';   // real-format Tesla VIN
   check('vehicle now complete', veh?.isComplete === true, JSON.stringify(veh?.missingRequirements));
   check('moved to pending_review', veh?.verificationStatus === 'pending_review', veh?.verificationStatus);
 
-  // ── Gate opens ──────────────────────────────────────────────────────────────
+  // ── Complete is not the same as approved ───────────────────────────────────
+  // Sailors are told vehicles are checked before they ride, so having uploaded
+  // the paperwork must not by itself open the gate.
+  r = await postAdventure(v.token);
+  check(
+    'STILL cannot post while only pending_review',
+    r.status >= 400,
+    r.data?.error ?? `unexpectedly posted (${r.status})`,
+  );
+
+  // ── An ops decision opens it ───────────────────────────────────────────────
+  const adminLogin = await fetch('http://localhost:3000/auth/login', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ identifier: 'admin@test.com', password: 'testpass123' }),
+  }).then((x) => x.json());
+  check('admin can sign in', !!adminLogin.accessToken, adminLogin.message ?? '');
+
+  const noReason = await fetch(
+    `http://localhost:3000/admin/vehicle-review/${veh.id}`,
+    {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${adminLogin.accessToken}`,
+      },
+      body: JSON.stringify({ approved: false }),
+    },
+  );
+  check('rejection without a reason is refused', noReason.status >= 400, String(noReason.status));
+
+  const approved = await fetch(
+    `http://localhost:3000/admin/vehicle-review/${veh.id}`,
+    {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${adminLogin.accessToken}`,
+      },
+      body: JSON.stringify({ approved: true }),
+    },
+  ).then((x) => x.json());
+  check('ops approved the vehicle', approved?.verificationStatus === 'approved', JSON.stringify(approved));
+
   r = await postAdventure(v.token);
   const tripId = r.data?.trip?.id;
-  check('CAN post once complete', !!tripId, tripId ?? JSON.stringify(r.data));
+  check('CAN post once approved', !!tripId, tripId ?? JSON.stringify(r.data));
 
   // ── SSN is never stored ─────────────────────────────────────────────────────
   const path = require('path');

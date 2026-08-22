@@ -1,5 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { getSosAlerts, getIncidents } from '../lib/api';
+import { ErrorNotice } from '../components/QueryState';
 
 interface SosEvent {
   id: string;
@@ -26,9 +27,12 @@ export default function SafetyPage() {
   const [incidentFilter, setIncidentFilter] = useState('');
   const [totalIncidents, setTotalIncidents] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
+  // Named so the error state has something to retry with.
+  const load = useCallback(() => {
     setLoading(true);
+    setError(null);
     Promise.all([
       getSosAlerts(),
       getIncidents({ status: incidentFilter || undefined, page: incidentPage }),
@@ -38,24 +42,29 @@ export default function SafetyPage() {
         setIncidents(inc.incidents);
         setTotalIncidents(inc.total);
       })
-      .catch(console.error)
+      .catch((e: any) =>
+        setError(e?.response?.data?.message || e?.message || 'Could not load safety data.'),
+      )
       .finally(() => setLoading(false));
   }, [incidentPage, incidentFilter]);
 
+  useEffect(load, [load]);
+
   const incPages = Math.ceil(totalIncidents / 20);
 
-  if (loading) return <div className="text-gray-400">Loading...</div>;
+  if (loading) return <div className="text-ink-soft">Loading...</div>;
+  if (error) return <ErrorNotice message={error} onRetry={load} />;
 
   return (
     <div>
-      <h2 className="text-2xl font-bold text-white mb-6">Safety &amp; Moderation</h2>
+      <h2 className="text-2xl font-bold text-ink mb-6">Safety &amp; Moderation</h2>
 
       <div className="mb-8">
-        <h3 className="text-lg font-semibold text-white mb-3">SOS Alerts ({sosAlerts.length})</h3>
+        <h3 className="text-lg font-semibold text-ink mb-3">SOS Alerts ({sosAlerts.length})</h3>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
-              <tr className="text-gray-400 border-b border-gray-700">
+              <tr className="text-ink-soft border-b border-border">
                 <th className="text-left py-3 px-2">ID</th>
                 <th className="text-left py-3 px-2">User ID</th>
                 <th className="text-left py-3 px-2">Status</th>
@@ -64,16 +73,16 @@ export default function SafetyPage() {
               </tr>
             </thead>
             <tbody>
-              {sosAlerts.length === 0 && <tr><td colSpan={5} className="text-gray-500 py-4 text-center">No SOS alerts</td></tr>}
+              {sosAlerts.length === 0 && <tr><td colSpan={5} className="text-ink-soft py-4 text-center">No SOS alerts</td></tr>}
               {sosAlerts.map((s) => (
-                <tr key={s.id} className="border-b border-gray-800 text-white hover:bg-gray-800">
-                  <td className="py-3 px-2 text-xs text-gray-400">{s.id.slice(0, 8)}…</td>
+                <tr key={s.id} className="border-b border-border text-ink hover:bg-card">
+                  <td className="py-3 px-2 text-xs text-ink-soft">{s.id.slice(0, 8)}…</td>
                   <td className="py-3 px-2 text-xs">{s.user_id?.slice(0, 8)}…</td>
                   <td className="py-3 px-2">
-                    <span className={`px-2 py-0.5 rounded text-xs ${s.status === 'active' ? 'bg-red-900 text-red-200' : 'bg-gray-700 text-gray-200'}`}>{s.status}</span>
+                    <span className={`px-2 py-0.5 rounded text-xs ${s.status === 'active' ? 'bg-critical/15 text-critical' : 'bg-inset text-ink'}`}>{s.status}</span>
                   </td>
                   <td className="py-3 px-2 text-xs">{s.latitude?.toFixed(4)}, {s.longitude?.toFixed(4)}</td>
-                  <td className="py-3 px-2 text-gray-400">{new Date(s.created_at).toLocaleString()}</td>
+                  <td className="py-3 px-2 text-ink-soft">{new Date(s.created_at).toLocaleString()}</td>
                 </tr>
               ))}
             </tbody>
@@ -83,8 +92,8 @@ export default function SafetyPage() {
 
       <div>
         <div className="flex items-center justify-between mb-3">
-          <h3 className="text-lg font-semibold text-white">Incidents ({totalIncidents})</h3>
-          <select value={incidentFilter} onChange={(e) => { setIncidentFilter(e.target.value); setIncidentPage(1); }} className="bg-gray-800 border border-gray-700 rounded-lg px-4 py-2 text-white text-sm">
+          <h3 className="text-lg font-semibold text-ink">Incidents ({totalIncidents})</h3>
+          <select value={incidentFilter} onChange={(e) => { setIncidentFilter(e.target.value); setIncidentPage(1); }} className="bg-card border border-border rounded-lg px-4 py-2 text-ink text-sm">
             <option value="">All statuses</option>
             <option value="open">Open</option>
             <option value="under_investigation">Under Investigation</option>
@@ -95,7 +104,7 @@ export default function SafetyPage() {
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
-              <tr className="text-gray-400 border-b border-gray-700">
+              <tr className="text-ink-soft border-b border-border">
                 <th className="text-left py-3 px-2">Title</th>
                 <th className="text-left py-3 px-2">Severity</th>
                 <th className="text-left py-3 px-2">Status</th>
@@ -103,17 +112,17 @@ export default function SafetyPage() {
               </tr>
             </thead>
             <tbody>
-              {incidents.length === 0 && <tr><td colSpan={4} className="text-gray-500 py-4 text-center">No incidents</td></tr>}
+              {incidents.length === 0 && <tr><td colSpan={4} className="text-ink-soft py-4 text-center">No incidents</td></tr>}
               {incidents.map((i) => (
-                <tr key={i.id} className="border-b border-gray-800 text-white hover:bg-gray-800">
+                <tr key={i.id} className="border-b border-border text-ink hover:bg-card">
                   <td className="py-3 px-2 max-w-[200px] truncate">{i.title || '—'}</td>
                   <td className="py-3 px-2">
-                    <span className={`px-2 py-0.5 rounded text-xs ${i.severity === 'critical' ? 'bg-red-900 text-red-200' : i.severity === 'high' ? 'bg-orange-900 text-orange-200' : i.severity === 'medium' ? 'bg-yellow-900 text-yellow-200' : 'bg-gray-700 text-gray-200'}`}>{i.severity}</span>
+                    <span className={`px-2 py-0.5 rounded text-xs ${i.severity === 'critical' ? 'bg-critical/15 text-critical' : i.severity === 'high' ? 'bg-warning/15 text-warning' : i.severity === 'medium' ? 'bg-warning/15 text-warning' : 'bg-inset text-ink'}`}>{i.severity}</span>
                   </td>
                   <td className="py-3 px-2">
-                    <span className={`px-2 py-0.5 rounded text-xs ${i.status === 'open' ? 'bg-red-900 text-red-200' : i.status === 'under_investigation' ? 'bg-yellow-900 text-yellow-200' : i.status === 'resolved' ? 'bg-green-900 text-green-200' : 'bg-gray-700 text-gray-200'}`}>{i.status}</span>
+                    <span className={`px-2 py-0.5 rounded text-xs ${i.status === 'open' ? 'bg-critical/15 text-critical' : i.status === 'under_investigation' ? 'bg-warning/15 text-warning' : i.status === 'resolved' ? 'bg-good/15 text-good' : 'bg-inset text-ink'}`}>{i.status}</span>
                   </td>
-                  <td className="py-3 px-2 text-gray-400">{new Date(i.created_at).toLocaleDateString()}</td>
+                  <td className="py-3 px-2 text-ink-soft">{new Date(i.created_at).toLocaleDateString()}</td>
                 </tr>
               ))}
             </tbody>
@@ -122,7 +131,7 @@ export default function SafetyPage() {
         {incPages > 1 && (
           <div className="flex justify-center gap-2 mt-4">
             {Array.from({ length: Math.min(incPages, 10) }, (_, i) => i + 1).map((p) => (
-              <button key={p} onClick={() => setIncidentPage(p)} className={`px-3 py-1 rounded text-sm ${p === incidentPage ? 'bg-indigo-600 text-white' : 'bg-gray-800 text-gray-400 hover:bg-gray-700'}`}>
+              <button key={p} onClick={() => setIncidentPage(p)} className={`px-3 py-1 rounded text-sm ${p === incidentPage ? 'bg-gold text-ground' : 'bg-card text-ink-soft hover:bg-inset'}`}>
                 {p}
               </button>
             ))}

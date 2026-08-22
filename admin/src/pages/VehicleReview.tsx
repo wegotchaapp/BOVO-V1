@@ -55,15 +55,15 @@ export default function VehicleReviewPage() {
     <div>
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h2 className="text-2xl font-bold text-white">Vehicle Review</h2>
-          <p className="text-sm text-gray-400 mt-1">
+          <h2 className="text-2xl font-bold text-ink">Vehicle Review</h2>
+          <p className="text-sm text-ink-soft mt-1">
             A Voyager cannot post an adventure until their vehicle is approved here.
           </p>
         </div>
         <select
           value={status}
           onChange={(e) => setStatus(e.target.value)}
-          className="bg-gray-800 border border-gray-700 text-gray-200 rounded-lg px-3 py-2 text-sm"
+          className="bg-inset border border-border text-ink rounded-lg px-3 py-2 text-sm"
         >
           <option value="pending_review">Pending review</option>
           <option value="approved">Approved</option>
@@ -73,33 +73,33 @@ export default function VehicleReviewPage() {
       </div>
 
       {msg && (
-        <div className="mb-4 px-4 py-2 bg-green-900/50 text-green-200 rounded-lg text-sm">{msg}</div>
+        <div className="mb-4 px-4 py-2 bg-good/15 text-good rounded-lg text-sm">{msg}</div>
       )}
 
       {loading ? (
-        <div className="text-gray-400">Loading…</div>
+        <div className="text-ink-soft">Loading…</div>
       ) : vehicles.length === 0 ? (
-        <div className="bg-gray-800 border border-gray-700 rounded-lg p-8 text-center text-gray-400">
+        <div className="bg-card border border-border rounded-lg p-8 text-center text-ink-soft">
           Nothing {status.replace('_', ' ')}.
         </div>
       ) : (
         <div className="space-y-4">
           {vehicles.map((v) => (
-            <div key={v.id} className="bg-gray-800 rounded-lg border border-gray-700 p-4">
+            <div key={v.id} className="bg-card rounded-lg border border-border p-4">
               <div className="flex flex-wrap items-start justify-between gap-3 mb-3">
                 <div>
-                  <div className="text-white font-semibold">
+                  <div className="text-ink font-semibold">
                     {v.color} {v.make} {v.model} · {v.year}
                   </div>
-                  <div className="text-sm text-gray-400">
+                  <div className="text-sm text-ink-soft">
                     {v.ownerName ?? 'Unknown Voyager'}
                     {v.ownerEmail ? ` · ${v.ownerEmail}` : ''}
                   </div>
-                  <div className="text-xs text-gray-500 mt-1">
+                  <div className="text-xs text-ink-soft mt-1">
                     {v.licensePlate} ({v.state}) · VIN {v.vin} · {v.seatCount} seats · {v.doorCount} doors
                   </div>
                 </div>
-                <span className="px-2 py-0.5 rounded text-xs bg-yellow-900 text-yellow-200">
+                <span className="px-2 py-0.5 rounded text-xs bg-warning/15 text-warning">
                   {v.verificationStatus}
                 </span>
               </div>
@@ -113,8 +113,8 @@ export default function VehicleReviewPage() {
                     rel="noreferrer"
                     className={`text-xs px-2 py-1 rounded border ${
                       v.photos?.[slot]
-                        ? 'border-gray-600 text-gray-200 hover:bg-gray-700'
-                        : 'border-gray-800 text-gray-600 pointer-events-none'
+                        ? 'border-border text-ink hover:bg-inset'
+                        : 'border-border/40 text-ink-faint pointer-events-none'
                     }`}
                   >
                     {slot}
@@ -128,8 +128,8 @@ export default function VehicleReviewPage() {
                     rel="noreferrer"
                     className={`text-xs px-2 py-1 rounded border ${
                       v[doc]?.url
-                        ? 'border-gray-600 text-gray-200 hover:bg-gray-700'
-                        : 'border-gray-800 text-gray-600 pointer-events-none'
+                        ? 'border-border text-ink hover:bg-inset'
+                        : 'border-border/40 text-ink-faint pointer-events-none'
                     }`}
                   >
                     {doc}
@@ -139,7 +139,7 @@ export default function VehicleReviewPage() {
               </div>
 
               {v.verificationNote && (
-                <div className="text-xs text-gray-400 mb-3">
+                <div className="text-xs text-ink-soft mb-3">
                   Previous note: {v.verificationNote}
                 </div>
               )}
@@ -149,19 +149,19 @@ export default function VehicleReviewPage() {
                   value={notes[v.id] ?? ''}
                   onChange={(e) => setNotes((n) => ({ ...n, [v.id]: e.target.value }))}
                   placeholder="Reason (required to reject — the Voyager sees this)"
-                  className="flex-1 min-w-[220px] bg-gray-900 border border-gray-700 text-gray-200 rounded-lg px-3 py-2 text-sm"
+                  className="flex-1 min-w-[220px] bg-inset border border-border text-ink rounded-lg px-3 py-2 text-sm"
                 />
                 <button
                   disabled={busy === v.id}
                   onClick={() => decide(v.id, true)}
-                  className="px-4 py-2 rounded-lg bg-green-700 hover:bg-green-600 text-white text-sm disabled:opacity-50"
+                  className="px-4 py-2 rounded-lg bg-good hover:bg-good/85 text-ground font-medium text-sm disabled:opacity-50"
                 >
                   Approve
                 </button>
                 <button
                   disabled={busy === v.id}
                   onClick={() => decide(v.id, false)}
-                  className="px-4 py-2 rounded-lg bg-red-800 hover:bg-red-700 text-white text-sm disabled:opacity-50"
+                  className="px-4 py-2 rounded-lg bg-critical hover:bg-critical/85 text-ground font-medium text-sm disabled:opacity-50"
                 >
                   Reject
                 </button>

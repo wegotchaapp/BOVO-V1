@@ -87,6 +87,10 @@ function RootLayoutNav() {
         <Stack.Screen name="rate-trip/[id]" options={{ headerShown: false }} />
         <Stack.Screen name="settings" options={{ headerShown: false }} />
         <Stack.Screen name="notifications" options={{ headerShown: false }} />
+        {/* Both draw their own header; without these they also got the router's
+            default one, showing the route name in lowercase above it. */}
+        <Stack.Screen name="matching" options={{ headerShown: false }} />
+        <Stack.Screen name="preferences" options={{ headerShown: false }} />
         <Stack.Screen
           name="subscribe"
           options={{ headerShown: false, presentation: "modal" }}

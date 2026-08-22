@@ -214,26 +214,55 @@ export default function Matching() {
         </Animated.View>
         ) : null}
 
+        {/* Unscored, this screen asks you to set your preferences and used to
+            offer no way to do it — the only buttons were pay and browse away.
+            Preferences stay optional, so payment is still one tap. */}
         <Animated.View style={[styles.actions, contentStyle]}>
-          <TouchableOpacity
-            style={[styles.primaryBtn, { backgroundColor: colors.primary }]}
-            onPress={() =>
-              router.push({ pathname: "/payment", params: tripId ? { tripId } : {} })
-            }
-            activeOpacity={0.88}
-          >
-            <Text style={styles.primaryBtnText}>Continue to Payment</Text>
-            <Feather name="arrow-right" size={16} color="#fff" />
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.secondaryBtn, { backgroundColor: colors.secondary }]}
-            onPress={() => router.replace("/(tabs)")}
-            activeOpacity={0.88}
-          >
-            <Text style={[styles.secondaryBtnText, { color: colors.primary }]}>
-              Browse other adventures
-            </Text>
-          </TouchableOpacity>
+          {scored ? (
+            <>
+              <TouchableOpacity
+                style={[styles.primaryBtn, { backgroundColor: colors.primary }]}
+                onPress={() =>
+                  router.push({ pathname: "/payment", params: tripId ? { tripId } : {} })
+                }
+                activeOpacity={0.88}
+              >
+                <Text style={styles.primaryBtnText}>Continue to Payment</Text>
+                <Feather name="arrow-right" size={16} color="#fff" />
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.secondaryBtn, { backgroundColor: colors.secondary }]}
+                onPress={() => router.replace("/(tabs)")}
+                activeOpacity={0.88}
+              >
+                <Text style={[styles.secondaryBtnText, { color: colors.primary }]}>
+                  Browse other adventures
+                </Text>
+              </TouchableOpacity>
+            </>
+          ) : (
+            <>
+              <TouchableOpacity
+                style={[styles.primaryBtn, { backgroundColor: colors.primary }]}
+                onPress={() => router.push("/preferences" as any)}
+                activeOpacity={0.88}
+              >
+                <Text style={styles.primaryBtnText}>Set your preferences</Text>
+                <Feather name="arrow-right" size={16} color="#fff" />
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.secondaryBtn, { backgroundColor: colors.secondary }]}
+                onPress={() =>
+                  router.push({ pathname: "/payment", params: tripId ? { tripId } : {} })
+                }
+                activeOpacity={0.88}
+              >
+                <Text style={[styles.secondaryBtnText, { color: colors.primary }]}>
+                  Continue to Payment
+                </Text>
+              </TouchableOpacity>
+            </>
+          )}
         </Animated.View>
       </View>
     </SafeAreaView>

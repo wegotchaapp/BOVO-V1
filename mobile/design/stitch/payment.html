@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Bovogo - Payment</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "surface-container-highest": "#e3e2df",
+                        "sage-secondary": "#67736a",
+                        "primary-container": "#1b3d2f",
+                        "on-error-container": "#93000a",
+                        "on-secondary-fixed-variant": "#3e4941",
+                        "inverse-primary": "#aacfbb",
+                        "on-secondary": "#ffffff",
+                        "forest-ink": "#1b3d2f",
+                        "surface-tint": "#436556",
+                        "outline-variant": "#c1c8c2",
+                        "primary-fixed-dim": "#aacfbb",
+                        "on-tertiary-fixed-variant": "#614000",
+                        "on-tertiary": "#ffffff",
+                        "on-surface": "#1b1c1a",
+                        "tertiary-fixed-dim": "#f1be6e",
+                        "primary": "#03271a",
+                        "background": "#faf9f5",
+                        "surface-container-high": "#e9e8e4",
+                        "on-secondary-fixed": "#131e17",
+                        "on-primary-fixed-variant": "#2c4d3f",
+                        "card-white": "#ffffff",
+                        "on-tertiary-ink": "#111210",
+                        "surface-bright": "#faf9f5",
+                        "on-primary-container": "#84a895",
+                        "on-error": "#ffffff",
+                        "primary-fixed": "#c5ebd7",
+                        "tertiary-container": "#4c3200",
+                        "outline": "#727974",
+                        "gold-fill": "#c4954a",
+                        "secondary-container": "#d9e6db",
+                        "inverse-on-surface": "#f2f1ed",
+                        "on-tertiary-container": "#c7984d",
+                        "on-background": "#1b1c1a",
+                        "on-surface-variant": "#414844",
+                        "inverse-surface": "#2f312e",
+                        "surface-container": "#efeeea",
+                        "surface-container-lowest": "#ffffff",
+                        "surface-container-low": "#f4f4f0",
+                        "secondary-fixed": "#d9e6db",
+                        "on-secondary-container": "#5b675e",
+                        "on-tertiary-fixed": "#281800",
+                        "error-red": "#c0392b",
+                        "secondary-fixed-dim": "#bdcabf",
+                        "error-container": "#ffdad6",
+                        "surface": "#faf9f5",
+                        "error": "#ba1a1a",
+                        "surface-dim": "#dbdad6",
+                        "on-primary-fixed": "#002115",
+                        "tertiary-fixed": "#ffddaf",
+                        "surface-variant": "#e3e2df",
+                        "secondary": "#556159",
+                        "tertiary": "#301e00",
+                        "on-primary": "#ffffff"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "screen-padding": "22px",
+                        "base": "4px",
+                        "gap-sm": "8px",
+                        "card-padding": "20px",
+                        "gap-md": "14px"
+                    },
+                    "fontFamily": {
+                        "headline-md": ["Inter"],
+                        "display-lg": ["Inter"],
+                        "label-md": ["Inter"],
+                        "body-md": ["Inter"],
+                        "headline-lg": ["Inter"]
+                    },
+                    "fontSize": {
+                        "headline-md": ["16px", { "lineHeight": "22px", "fontWeight": "600" }],
+                        "display-lg": ["26px", { "lineHeight": "32px", "letterSpacing": "-0.02em", "fontWeight": "700" }],
+                        "label-md": ["12px", { "lineHeight": "16px", "letterSpacing": "0.01em", "fontWeight": "500" }],
+                        "body-md": ["14px", { "lineHeight": "20px", "fontWeight": "400" }],
+                        "headline-lg": ["19px", { "lineHeight": "24px", "fontWeight": "600" }]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: theme('colors.background');
+        }
+        .soft-shadow {
+            box-shadow: 0 4px 24px -4px rgba(27, 61, 47, 0.08);
+        }
+        .bottom-shadow {
+            box-shadow: 0 -4px 24px -4px rgba(27, 61, 47, 0.12);
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background text-on-surface antialiased min-h-screen pb-[100px] flex flex-col md:max-w-md md:mx-auto md:border-x md:border-surface-variant md:min-h-0 md:h-[800px] md:mt-8 md:rounded-[40px] md:overflow-hidden md:relative">
+<!-- Header -->
+<header class="flex items-center justify-between px-screen-padding h-16 w-full sticky top-0 bg-background z-40">
+<button aria-label="Back" class="w-10 h-10 flex items-center justify-start text-forest-ink active:scale-95 transition-transform">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 0;">arrow_back</span>
+</button>
+<h1 class="font-headline-md text-headline-md text-forest-ink absolute left-1/2 transform -translate-x-1/2">Payment</h1>
+<div class="w-10"></div> <!-- Spacer for centering -->
+</header>
+<main class="flex-1 px-screen-padding pt-2 pb-8 flex flex-col gap-gap-md overflow-y-auto">
+<!-- Route Summary Card -->
+<section class="bg-card-white rounded-xl p-card-padding soft-shadow border border-surface-container-high/50">
+<div class="flex items-center gap-3">
+<div class="flex items-center gap-2 flex-1">
+<div class="w-2.5 h-2.5 rounded-full bg-forest-ink shrink-0"></div>
+<span class="font-headline-md text-headline-md text-forest-ink truncate">Dallas, TX</span>
+</div>
+<div class="h-[2px] w-6 bg-surface-variant shrink-0"></div>
+<div class="flex items-center gap-2 flex-1 justify-end">
+<span class="font-headline-md text-headline-md text-forest-ink truncate">Austin, TX</span>
+<div class="w-2.5 h-2.5 rounded-full bg-gold-fill shrink-0"></div>
+</div>
+</div>
+<div class="mt-3 font-body-md text-body-md text-sage-secondary">
+                Fri, Sep 5 · 8:30 AM · 1 seat
+            </div>
+</section>
+<!-- Price Breakdown Card -->
+<section class="bg-card-white rounded-xl p-card-padding soft-shadow border border-surface-container-high/50 flex flex-col gap-5">
+<!-- Row 1 -->
+<div class="flex justify-between items-center">
+<span class="font-body-md text-body-md text-sage-secondary">1 seat × $32.40</span>
+<span class="font-body-md text-body-md text-forest-ink">$32.40</span>
+</div>
+<!-- Row 2 (Insurance - Added) -->
+<div class="flex justify-between items-start gap-4">
+<div class="flex flex-col gap-1">
+<span class="font-headline-md text-headline-md text-forest-ink">Trip insurance — $15</span>
+<span class="font-label-md text-label-md text-sage-secondary font-normal">Covers accidental injury and luggage loss during your trip.</span>
+<button class="text-error-red font-label-md text-label-md text-left mt-1 hover:opacity-80 transition-opacity w-fit">Remove</button>
+</div>
+<span class="font-body-md text-body-md text-forest-ink whitespace-nowrap">$15.00</span>
+</div>
+<!-- Row 3 (Luggage - Optional) -->
+<div class="flex justify-between items-start gap-4">
+<div class="flex flex-col gap-1">
+<span class="font-body-md text-body-md text-sage-secondary">Luggage cover — $3</span>
+<span class="font-label-md text-label-md text-sage-secondary font-normal">Optional protection for your bags.</span>
+<button class="text-forest-ink font-label-md text-label-md font-semibold text-left mt-1 hover:opacity-80 transition-opacity w-fit">Add</button>
+</div>
+</div>
+<!-- Row 4 (Fee) -->
+<div class="flex justify-between items-center">
+<span class="font-body-md text-body-md text-sage-secondary">Bovogo fee</span>
+<span class="font-body-md text-body-md text-forest-ink">$3.78</span>
+</div>
+<hr class="border-t border-surface-container-high"/>
+<!-- Total -->
+<div class="flex justify-between items-end">
+<span class="font-headline-md text-headline-md text-forest-ink">Total</span>
+<span class="font-display-lg text-display-lg text-forest-ink leading-none">$51.18</span>
+</div>
+</section>
+<!-- Payment Method -->
+<section class="flex flex-col gap-3">
+<h2 class="font-headline-md text-headline-md text-forest-ink px-1">Payment method</h2>
+<div class="bg-card-white rounded-xl soft-shadow border border-surface-container-high/50 overflow-hidden flex flex-col">
+<!-- Option 1: Card (Selected) -->
+<label class="flex items-center p-card-padding gap-4 cursor-pointer hover:bg-surface-container-lowest transition-colors border-b border-surface-container-high/30">
+<div class="relative flex items-center justify-center">
+<input checked="" class="peer sr-only" name="payment_method" type="radio" value="card"/>
+<div class="w-5 h-5 rounded-full border-2 border-outline peer-checked:border-forest-ink flex items-center justify-center transition-colors">
+<div class="w-2.5 h-2.5 rounded-full bg-forest-ink opacity-0 peer-checked:opacity-100 transition-opacity"></div>
+</div>
+</div>
+<div class="w-10 h-10 rounded-lg bg-secondary-container/30 flex items-center justify-center text-sage-secondary shrink-0">
+<span class="material-symbols-outlined">credit_card</span>
+</div>
+<div class="flex flex-col flex-1">
+<span class="font-headline-md text-headline-md text-forest-ink">Credit / Debit Card</span>
+<span class="font-label-md text-label-md text-sage-secondary font-normal">Visa, Mastercard, Amex</span>
+</div>
+<div class="bg-gold-fill px-2 py-0.5 rounded-full">
+<span class="font-label-md text-label-md text-on-tertiary-ink text-[10px]">Stripe</span>
+</div>
+</label>
+<!-- Option 2: Apple Pay -->
+<label class="flex items-center p-card-padding gap-4 cursor-pointer hover:bg-surface-container-lowest transition-colors">
+<div class="relative flex items-center justify-center">
+<input class="peer sr-only" name="payment_method" type="radio" value="apple_pay"/>
+<div class="w-5 h-5 rounded-full border-2 border-outline peer-checked:border-forest-ink flex items-center justify-center transition-colors">
+<div class="w-2.5 h-2.5 rounded-full bg-forest-ink opacity-0 peer-checked:opacity-100 transition-opacity"></div>
+</div>
+</div>
+<div class="w-10 h-10 rounded-lg bg-secondary-container/30 flex items-center justify-center text-sage-secondary shrink-0">
+<span class="material-symbols-outlined">phone_iphone</span>
+</div>
+<div class="flex flex-col flex-1">
+<span class="font-headline-md text-headline-md text-forest-ink">Apple Pay</span>
+<span class="font-label-md text-label-md text-sage-secondary font-normal">Pay with Face ID</span>
+</div>
+<div class="bg-gold-fill px-2 py-0.5 rounded-full">
+<span class="font-label-md text-label-md text-on-tertiary-ink text-[10px]">Fast</span>
+</div>
+</label>
+</div>
+</section>
+<!-- Footer Info -->
+<div class="flex items-start gap-2 px-1 mt-2 mb-4">
+<span class="material-symbols-outlined text-sage-secondary text-[16px] mt-0.5" style="font-variation-settings: 'FILL' 1;">lock</span>
+<p class="font-label-md text-label-md text-sage-secondary font-normal">Your card is charged when the Voyager confirms.</p>
+</div>
+</main>
+<!-- Fixed Bottom Bar -->
+<div class="fixed bottom-0 left-0 w-full z-50 bg-card-white bottom-shadow px-screen-padding py-4 md:absolute">
+<button class="w-full bg-forest-ink text-on-primary font-headline-md text-headline-md py-4 rounded-xl active:scale-[0.98] transition-transform hover:bg-forest-ink/90 flex justify-center items-center">
+            Pay $51.18
+        </button>
+</div>
+</body></html>

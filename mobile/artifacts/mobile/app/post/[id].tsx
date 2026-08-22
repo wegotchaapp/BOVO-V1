@@ -33,6 +33,7 @@ import { useAuth } from "@/context/AuthContext";
 import { useUnread } from "@/context/UnreadContext";
 import { useColors } from "@/hooks/useColors";
 import { CARD_SHADOW } from "@/constants/colors";
+import { formatUsd } from "@/lib/pricing";
 
 function Avatar({ name, size = 44, isDriver = false }: { name: string; size?: number; isDriver?: boolean }) {
   const colors = useColors();
@@ -302,7 +303,7 @@ export default function PostDetail() {
               </View>
               <View style={[styles.metaSep, { backgroundColor: colors.border }]} />
               <View style={styles.metaItem}>
-                <Text style={[styles.priceText, { color: colors.primary }]}>${post.pricePerSeat}</Text>
+                <Text style={[styles.priceText, { color: colors.primary }]}>{formatUsd(post.pricePerSeat)}</Text>
                 <Text style={[styles.metaText, { color: colors.mutedForeground }]}>/seat</Text>
               </View>
             </View>
@@ -475,7 +476,7 @@ export default function PostDetail() {
           {user && user.id !== post.driver.id && !meta?.viewerGroupId && (
             <View style={[styles.bookBar, { backgroundColor: colors.card, borderTopColor: colors.border }]}>
               <View>
-                <Text style={[styles.bookPrice, { color: colors.primary }]}>${post.pricePerSeat}</Text>
+                <Text style={[styles.bookPrice, { color: colors.primary }]}>{formatUsd(post.pricePerSeat)}</Text>
                 <Text style={[styles.bookLabel, { color: colors.mutedForeground }]}>per seat</Text>
               </View>
               <TouchableOpacity

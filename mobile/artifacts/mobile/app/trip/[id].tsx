@@ -26,6 +26,7 @@ import { openConversation } from "@/lib/conversations";
 import { shareTripSummary } from "@/lib/share";
 import { useColors } from "@/hooks/useColors";
 import { CARD_SHADOW } from "@/constants/colors";
+import { formatUsd } from "@/lib/pricing";
 
 export default function TripDetails() {
   const colors = useColors();
@@ -279,7 +280,7 @@ export default function TripDetails() {
 
       <View style={[styles.footer, { backgroundColor: colors.background, borderTopColor: colors.border }]}>
         <View>
-          <Text style={[styles.footerPrice, { color: colors.primary }]}>${trip.pricePerSeat}</Text>
+          <Text style={[styles.footerPrice, { color: colors.primary }]}>{formatUsd(trip.pricePerSeat)}</Text>
           <Text style={[styles.footerLabel, { color: colors.mutedForeground }]}>per seat</Text>
         </View>
         <TouchableOpacity

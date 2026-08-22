@@ -40,6 +40,7 @@ import { filterNeighborhoods, getNeighborhoods } from "@/data/locations";
 import { cityShort } from "@/lib/city-coords";
 import { listTrips, deleteTrip } from "@/lib/trips";
 import { CARD_SHADOW } from "@/constants/colors";
+import { formatUsd } from "@/lib/pricing";
 
 
 const MAX_PASSENGERS = 6;
@@ -166,7 +167,7 @@ function PostCard({ post, onPress, hasNewReplies }: { post: Trip; onPress: () =>
           </Text>
         </View>
         <View style={[styles.postMetaChip, { backgroundColor: "#F0FAF4" }]}>
-          <Text style={[styles.postPrice, { color: colors.primary }]}>${post.pricePerSeat}/seat</Text>
+          <Text style={[styles.postPrice, { color: colors.primary }]}>{formatUsd(post.pricePerSeat)}/seat</Text>
         </View>
         <View style={styles.postRepliesRow}>
           <Feather name="message-circle" size={13} color={hasNewReplies ? colors.primary : colors.mutedForeground} />
@@ -462,7 +463,7 @@ function VoyagerView({ router, colors, user, posts, loading, error, tripUnreads,
               <View style={[styles.driverPostSeats, { backgroundColor: "#F0FAF4" }]}>
                 <Feather name="users" size={11} color={colors.primary} />
                 <Text style={[styles.driverPostSeatsText, { color: colors.primary }]}>
-                  {post.seatsAvailable} seats · ${post.pricePerSeat}/seat
+                  {post.seatsAvailable} seats · {formatUsd(post.pricePerSeat)}/seat
                 </Text>
               </View>
             </View>

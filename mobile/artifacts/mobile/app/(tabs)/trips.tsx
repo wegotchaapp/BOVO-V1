@@ -22,6 +22,7 @@ import {
   pickLine,
 } from "@/constants/voice";
 import { CARD_SHADOW } from "@/constants/colors";
+import { formatUsd } from "@/lib/pricing";
 import { useAuth } from "@/context/AuthContext";
 import { listMyBookings, type Booking } from "@/lib/bookings";
 import { deleteTrip, listMyTrips } from "@/lib/trips";
@@ -259,7 +260,7 @@ export default function TripsTab() {
             <View style={[styles.statusBadge, { backgroundColor: statusConfig.bg }]}>
               <Text style={[styles.statusText, { color: statusConfig.text }]}>{statusConfig.label}</Text>
             </View>
-            <Text style={[styles.price, { color: colors.primary }]}>${item.price.toFixed(0)}</Text>
+            <Text style={[styles.price, { color: colors.primary }]}>{formatUsd(item.price)}</Text>
           </View>
         </View>
 

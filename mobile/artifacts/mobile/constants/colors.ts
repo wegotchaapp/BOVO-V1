@@ -1,3 +1,12 @@
+/**
+ * Ink for text and glyphs sitting on a solid gold fill. White measures 2.71:1
+ * on `#C4954A`; this is 6.93:1.
+ *
+ * Exported at module level as well as via `accentForeground` so that
+ * `StyleSheet.create` blocks, which cannot call `useColors()`, can reach it.
+ */
+export const GOLD_INK = "#111210";
+
 const colors = {
   light: {
     text: "#111210",
@@ -25,7 +34,7 @@ const colors = {
     accent: "#C4954A",
     // Ink for text sitting ON the gold accent. White measured 2.71:1 here —
     // unreadable. Dark ink is 6.93:1. Gold is a fill, never a text colour.
-    accentForeground: "#111210",
+    accentForeground: GOLD_INK,
 
     destructive: "#C0392B",
     destructiveForeground: "#FFFFFF",

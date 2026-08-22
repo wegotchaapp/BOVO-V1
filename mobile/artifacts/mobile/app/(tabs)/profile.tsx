@@ -18,7 +18,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useAuth } from "@/context/AuthContext";
 import { useColors } from "@/hooks/useColors";
-import { CARD_SHADOW, GOLD_ON_DARK } from "@/constants/colors";
+import { CARD_SHADOW, GOLD_INK, GOLD_ON_DARK } from "@/constants/colors";
 import { openSupportConversation } from "@/lib/conversations";
 import { confirm, showAlert } from "@/lib/alert";
 
@@ -364,7 +364,7 @@ export default function ProfileTab() {
               </View>
               <View style={[styles.compareCell, { flex: 1 }]}>
                 {row.plus === true ? (
-                  <Feather name="check" size={15} color={colors.accent} />
+                  <Feather name="check" size={15} color={GOLD_ON_DARK} />
                 ) : (
                   <Text style={styles.comparePlusText}>{row.plus}</Text>
                 )}
@@ -385,7 +385,7 @@ export default function ProfileTab() {
                 ? "Start 1-year free trial"
                 : `Subscribe — ${formatUsd(PREMIUM_PRICE_PER_MONTH)}/month`}
           </Text>
-          <Feather name="arrow-right" size={16} color="#fff" />
+          <Feather name="arrow-right" size={16} color={GOLD_INK} />
         </TouchableOpacity>
         <Text style={styles.travelPlusFinePrint}>
           {user?.isFoundingMember
@@ -552,7 +552,7 @@ const styles = StyleSheet.create({
   menuLabelRow: { flexDirection: "row", alignItems: "center", gap: 8 },
   menuLabel: { fontSize: 15, fontFamily: "Inter_500Medium" },
   newBadge: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: 20 },
-  newBadgeText: { color: "#fff", fontSize: 9, fontFamily: "Inter_700Bold", letterSpacing: 0.3 },
+  newBadgeText: { color: GOLD_INK, fontSize: 9, fontFamily: "Inter_700Bold", letterSpacing: 0.3 },
   menuSub: { fontSize: 12, fontFamily: "Inter_400Regular" },
   logoutBtn: {
     flexDirection: "row",
@@ -603,7 +603,7 @@ const styles = StyleSheet.create({
     paddingVertical: 5,
     borderRadius: 20,
   },
-  travelPlusBadgeText: { color: "#fff", fontSize: 11, fontFamily: "Inter_700Bold", letterSpacing: 0.8 },
+  travelPlusBadgeText: { color: GOLD_INK, fontSize: 11, fontFamily: "Inter_700Bold", letterSpacing: 0.8 },
   travelPlusPrice: { color: "#fff", fontSize: 28, fontFamily: "Inter_700Bold", letterSpacing: -0.5 },
   travelPlusPriceUnit: { fontSize: 13, fontFamily: "Inter_500Medium", color: "rgba(255,255,255,0.7)" },
   travelPlusTitle: { color: "#fff", fontSize: 17, fontFamily: "Inter_600SemiBold", letterSpacing: -0.3 },
@@ -640,7 +640,7 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
     borderRadius: 8,
   },
-  comparePlusHeaderText: { color: "#fff", fontSize: 11, fontFamily: "Inter_700Bold", letterSpacing: 0.5 },
+  comparePlusHeaderText: { color: GOLD_INK, fontSize: 11, fontFamily: "Inter_700Bold", letterSpacing: 0.5 },
   compareRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -661,9 +661,10 @@ const styles = StyleSheet.create({
     borderRadius: 25,
     marginTop: 4,
   },
-  travelPlusCtaText: { color: "#fff", fontSize: 15, fontFamily: "Inter_600SemiBold" },
+  travelPlusCtaText: { color: GOLD_INK, fontSize: 15, fontFamily: "Inter_600SemiBold" },
   travelPlusFinePrint: {
-    color: "rgba(255,255,255,0.5)",
+    // 50% white measured 4.26:1 on the forest card; 60% clears at 5.41:1.
+    color: "rgba(255,255,255,0.6)",
     fontSize: 11,
     fontFamily: "Inter_400Regular",
     textAlign: "center",

@@ -82,7 +82,17 @@ export default function Safety() {
     // Auto-texts the emergency contact with live location, then opens the 911
     // text composer and dialer (the OS requires one tap from the user).
     try {
-      await triggerSos();
+      const result = await triggerSos();
+      // Say so when the contact was not reached. Believing someone has been
+      // alerted when they have not is worse than knowing you are on your own.
+      if (!result.contactNotified) {
+        Alert.alert(
+          "Your emergency contact wasn't alerted",
+          result.reason === "no_emergency_contact"
+            ? "You haven't saved one yet. Reach someone directly, then add a contact in the Safety Center."
+            : "We couldn't get the message out. Call them directly if you can.",
+        );
+      }
     } catch {
       Alert.alert(
         "SOS",
@@ -212,7 +222,7 @@ export default function Safety() {
           </View>
 
           <Text style={[styles.sosNote, { color: colors.mutedForeground }]}>
-            Alerts your emergency contacts + Bovogo safety team
+            Texts and calls 911 with your location, and alerts your emergency contact
           </Text>
         </View>
 

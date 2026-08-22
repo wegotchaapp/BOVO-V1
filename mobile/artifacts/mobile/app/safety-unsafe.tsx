@@ -1,5 +1,6 @@
 import { Feather } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
+import { Linking } from "react-native";
 import React, { useState } from "react";
 import {
   Keyboard,
@@ -18,13 +19,15 @@ import { Alert } from "@/lib/alert";
 import { CARD_SHADOW } from "@/constants/colors";
 import { useColors } from "@/hooks/useColors";
 import { triggerSos } from "@/lib/safety";
+import { shareLiveLocation } from "@/lib/share";
+import { useAuth } from "@/context/AuthContext";
 
 const OPTIONS = [
   {
     id: "record",
     icon: "mic",
     title: "Record Silently",
-    subtitle: "Start a silent audio recording in the background",
+    subtitle: "Not available yet — use your phone's recorder",
     color: "#2563EB",
     bg: "#EFF6FF",
   },
@@ -57,6 +60,9 @@ const OPTIONS = [
 export default function SafetyUnsafe() {
   const colors = useColors();
   const router = useRouter();
+  const { user } = useAuth();
+  const emergencyName = user?.emergencyName?.trim() ?? "";
+  const emergencyPhone = user?.emergencyPhone?.trim() ?? "";
   const [safeWord, setSafeWord] = useState("");
   const [wordSaved, setWordSaved] = useState(false);
 
@@ -67,11 +73,40 @@ export default function SafetyUnsafe() {
         Alert.alert("SOS", "Couldn't open the dialer automatically. Please call 911 directly.");
       });
     } else if (id === "record") {
-      Alert.alert("Recording Started", "Silent recording is running. It will stop when you end the trip.", [{ text: "OK" }]);
+      // Not built. It previously reported "Silent recording is running", which is
+      // the most dangerous thing this screen could say — someone in trouble could
+      // rely on evidence that was never captured.
+      Alert.alert(
+        "Recording isn't available yet",
+        "Bovogo can't record audio for you. Use your phone's own recorder, or send your location and call for help below.",
+      );
     } else if (id === "share") {
-      Alert.alert("Location Shared", "Your live location has been sent to your emergency contact.", [{ text: "OK" }]);
+      shareLiveLocation({ contactName: emergencyName })
+        .then((shared) => {
+          if (!shared) {
+            Alert.alert(
+              "Location unavailable",
+              "We couldn't get a GPS fix. Check that location access is enabled for Bovogo.",
+            );
+          }
+        })
+        .catch(() => {
+          Alert.alert("Couldn't share", "Please try again.");
+        });
     } else if (id === "contact") {
-      Alert.alert("Calling Contact", "Connecting to your emergency contact now.", [{ text: "OK" }]);
+      if (!emergencyPhone) {
+        Alert.alert(
+          "No emergency contact saved",
+          "Add one in the Safety Center so you can reach them in one tap.",
+        );
+        return;
+      }
+      Linking.openURL(`tel:${emergencyPhone}`).catch(() => {
+        Alert.alert(
+          "Couldn't open the dialer",
+          `Call ${emergencyName || "your emergency contact"} on ${emergencyPhone}.`,
+        );
+      });
     }
   }
 
@@ -79,7 +114,14 @@ export default function SafetyUnsafe() {
     Keyboard.dismiss();
     if (!safeWord.trim()) return;
     setWordSaved(true);
-    Alert.alert("Safe Word Set", `"${safeWord.trim()}" is your safe word. If you text this to anyone, Bovogo will automatically alert your emergency contacts.`, [{ text: "Got it" }]);
+    // The old copy promised Bovogo would watch for this word in your texts and
+    // alert your contacts. That is not built, and on iOS an app cannot read your
+    // outgoing messages at all — so it could never be true as written.
+    Alert.alert(
+      "Noted on this device",
+      `"${safeWord.trim()}" is saved here only. Bovogo can't watch your messages — share the word with someone you trust so they know to call for help.`,
+      [{ text: "Got it" }],
+    );
   }
 
   return (
@@ -95,7 +137,7 @@ export default function SafetyUnsafe() {
       <View style={[styles.banner, { backgroundColor: "#FEF2F2" }]}>
         <Feather name="alert-triangle" size={18} color="#DC2626" />
         <Text style={[styles.bannerText, { color: "#991B1B" }]}>
-          Your location and trip details are being monitored. Choose an action below.
+          Nothing is sent automatically. Choose an action below.
         </Text>
       </View>
 
@@ -136,7 +178,7 @@ export default function SafetyUnsafe() {
             )}
           </View>
           <Text style={[styles.safeWordSub, { color: colors.mutedForeground }]}>
-            Set a word that, if texted, auto-alerts your emergency contacts.
+            Not active yet. Bovogo can't watch your messages, so agree a word with someone you trust and text them directly.
           </Text>
           <View style={styles.safeWordRow}>
             <TextInput

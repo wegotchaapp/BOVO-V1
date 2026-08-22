@@ -330,9 +330,15 @@ export default function TripsTab() {
     const isPost = item.role === "driver";
     // Voyagers must record the mandatory car video before tracking unlocks.
     const needsStartVideo = isPost && !item.started;
+    // `tracking/[id]` resolves its id with getBooking, so it only accepts a
+    // booking id. A posted adventure's `item.id` is the trip id, so sending a
+    // Voyager there returned "Adventure not found" — their in-trip screen is
+    // the manifest, and a Voyager has no booking to track.
     const goLive = () =>
       needsStartVideo
         ? router.push({ pathname: "/pre-trip-video" as any, params: { tripId: item.id } })
+        : isPost
+        ? router.push({ pathname: "/manifest/[tripId]", params: { tripId: item.id } })
         : router.push({ pathname: "/tracking/[id]", params: { id: item.id } });
 
     const statusConfig = {
@@ -366,30 +372,18 @@ export default function TripsTab() {
     }[item.status];
 
     const actions: React.ReactNode[] = [];
+    // One primary action per card, and it matches where goLive actually goes:
+    // the video gate first, then the manifest for your own adventure or live
+    // tracking for a seat you booked. Odometer logging sits behind the manifest.
     if (isUpcoming) {
       actions.push(
         <ActionBtn
           key="go"
-          label={needsStartVideo ? "Start Adventure" : "Track"}
-          icon={needsStartVideo ? "video" : "map-pin"}
+          label={needsStartVideo ? "Start Adventure" : isPost ? "Manifest" : "Track"}
+          icon={needsStartVideo ? "video" : isPost ? "clipboard" : "map-pin"}
           variant={needsStartVideo ? "gold" : "outline"}
           wide={needsStartVideo}
           onPress={goLive}
-        />,
-      );
-    }
-    // Odometer logging lives behind the manifest, and only makes sense once
-    // the Voyager has actually started the adventure.
-    if (isUpcoming && isPost && item.started) {
-      actions.push(
-        <ActionBtn
-          key="manifest"
-          label="Manifest"
-          icon="clipboard"
-          variant="outline"
-          onPress={() =>
-            router.push({ pathname: "/manifest/[tripId]", params: { tripId: item.id } })
-          }
         />,
       );
     }

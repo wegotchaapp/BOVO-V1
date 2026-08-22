@@ -47,6 +47,8 @@ interface TripItem {
    */
   who: string;
   whoSub: string;
+  /** Only a booked seat has a confirmation state; an adventure you posted has none. */
+  bookingStatus?: "pending" | "confirmed";
   /** Drivers must record the pre-trip car video before the ride starts. */
   started?: boolean;
   rated?: boolean;
@@ -90,6 +92,7 @@ function bookingToItem(b: Booking): TripItem {
     price: b.totalAmount,
     status,
     role: "rider",
+    bookingStatus: b.status === "pending" ? "pending" : "confirmed",
     who: b.trip.driverName || "Your Voyager",
     whoSub: b.trip.car,
   };
@@ -184,7 +187,7 @@ export default function TripsTab() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { user } = useAuth();
-  const [tab, setTab] = useState<"upcoming" | "past">("upcoming");
+  const [tab, setTab] = useState<"upcoming" | "past" | "cancelled">("upcoming");
   const [items, setItems] = useState<TripItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -305,7 +308,11 @@ export default function TripsTab() {
   }
 
   const filtered = items.filter((t) =>
-    tab === "upcoming" ? t.status === "upcoming" : t.status !== "upcoming",
+    tab === "upcoming"
+      ? t.status === "upcoming"
+      : tab === "past"
+      ? t.status === "completed"
+      : t.status === "cancelled",
   );
 
   // Voice differs by role: a Voyager is nudged to post, a Sailor to book.
@@ -329,12 +336,21 @@ export default function TripsTab() {
         : router.push({ pathname: "/tracking/[id]", params: { id: item.id } });
 
     const statusConfig = {
-      upcoming: {
-        bg: "#EBF2ED",
-        text: colors.primary,
-        label: "Upcoming",
-        icon: "check-circle" as const,
-      },
+      upcoming:
+        item.bookingStatus === "pending"
+          ? {
+              // #D97706 is 2.90:1 on this fill; this holds the amber at 5.78:1.
+              bg: "#FEF3E2",
+              text: "#7A5A1E",
+              label: "Pending",
+              icon: "clock" as const,
+            }
+          : {
+              bg: "#EBF2ED",
+              text: colors.primary,
+              label: item.bookingStatus === "confirmed" ? "Confirmed" : "Upcoming",
+              icon: "check-circle" as const,
+            },
       completed: {
         bg: colors.muted,
         text: INK_ON_MUTED,
@@ -493,11 +509,11 @@ export default function TripsTab() {
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       <View style={[styles.header, { paddingTop: insets.top + (Platform.OS === "web" ? 67 : 16) }]}>
-        <Text style={[styles.heading, { color: colors.foreground }]}>My Adventures</Text>
+        <Text style={[styles.heading, { color: colors.primary }]}>My Adventures</Text>
         {/* A white track with a hairline edge, not a muted fill: the inactive
             label measured 4.32:1 on `muted` and clears 4.96:1 on white. */}
         <View style={[styles.tabRow, { borderColor: colors.border }]}>
-          {(["upcoming", "past"] as const).map((t) => (
+          {(["upcoming", "past", "cancelled"] as const).map((t) => (
             <TouchableOpacity
               key={t}
               style={[styles.tabBtn, tab === t && { backgroundColor: colors.primary }]}
@@ -510,7 +526,7 @@ export default function TripsTab() {
                   tab === t && { fontFamily: "Inter_600SemiBold" },
                 ]}
               >
-                {t === "upcoming" ? "Upcoming" : "Past"}
+                {t === "upcoming" ? "Upcoming" : t === "past" ? "Past" : "Cancelled"}
               </Text>
             </TouchableOpacity>
           ))}
@@ -585,6 +601,7 @@ const styles = StyleSheet.create({
   loadingWrap: { flex: 1, alignItems: "center", justifyContent: "center" },
   header: { paddingHorizontal: 22, paddingBottom: 16, gap: 14 },
   heading: { fontSize: 28, fontFamily: "Inter_700Bold", letterSpacing: -0.5 },
+
   tabRow: {
     flexDirection: "row",
     backgroundColor: "#fff",
@@ -593,14 +610,14 @@ const styles = StyleSheet.create({
     padding: 4,
   },
   tabBtn: { flex: 1, paddingVertical: 10, borderRadius: 999, alignItems: "center" },
-  tabText: { fontSize: 14, fontFamily: "Inter_500Medium" },
+  tabText: { fontSize: 13, fontFamily: "Inter_500Medium" },
 
   list: { paddingHorizontal: 22, paddingTop: 4 },
   card: {
     backgroundColor: "#fff",
     borderRadius: 16,
     padding: 20,
-    marginBottom: 14,
+    marginBottom: 18,
     gap: 14,
   },
 
@@ -623,7 +640,7 @@ const styles = StyleSheet.create({
 
   routeRow: { flexDirection: "row", gap: 12 },
   rail: { width: 12, alignItems: "center", paddingVertical: 6 },
-  dot: { width: 10, height: 10, borderRadius: 5 },
+  dot: { width: 12, height: 12, borderRadius: 6 },
   railLine: { flex: 1, borderLeftWidth: 2, borderStyle: "dashed", marginVertical: 4 },
   cities: { flex: 1, gap: 16 },
   city: { fontSize: 17, fontFamily: "Inter_600SemiBold", letterSpacing: -0.2 },
@@ -654,7 +671,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   actionWide: { flexBasis: "100%" },
-  actionText: { fontSize: 14, fontFamily: "Inter_600SemiBold" },
+  actionText: { fontSize: 16, fontFamily: "Inter_600SemiBold" },
 
   postWrap: { position: "absolute", left: 22, right: 22 },
   postBtn: {

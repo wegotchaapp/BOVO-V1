@@ -259,10 +259,12 @@ function PaymentBody() {
         </View>
 
         <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+          {/* The label belongs on the cream above the card, not flush inside its
+              top edge — its own horizontal padding was always written for that. */}
+          <Text style={[styles.sectionLabel, { color: colors.mutedForeground }]}>
+            ADVENTURE SUMMARY
+          </Text>
           <View style={[styles.summaryCard, CARD_SHADOW]}>
-            <Text style={[styles.sectionLabel, { color: colors.mutedForeground }]}>
-              ADVENTURE SUMMARY
-            </Text>
             <View style={styles.summaryRows}>
               {[
                 { label: "Route", value: route },
@@ -450,22 +452,23 @@ function PaymentBody() {
             PAYMENT METHOD
           </Text>
           <View style={styles.methodList}>
-            {PAYMENT_METHODS.map((method) => (
+            {PAYMENT_METHODS.map((method, i) => (
+              <React.Fragment key={method.id}>
+                {i > 0 ? <View style={styles.methodDivider} /> : null}
               <TouchableOpacity
-                key={method.id}
                 style={[
                   styles.methodCard,
                   {
+                    // One card, divided rows: the radio carries the selection, so
+                    // the row only tints rather than growing its own border.
                     backgroundColor:
-                      selected === method.id ? colors.secondary : colors.card,
-                    borderColor:
-                      selected === method.id ? colors.primary : colors.border,
-                    borderWidth: selected === method.id ? 2 : 1,
+                      selected === method.id ? colors.secondary : "transparent",
                   },
-                  CARD_SHADOW,
                 ]}
                 onPress={() => setSelected(method.id)}
                 activeOpacity={0.8}
+                accessibilityRole="radio"
+                accessibilityState={{ selected: selected === method.id }}
               >
                 <View
                   style={[
@@ -503,6 +506,7 @@ function PaymentBody() {
                   </View>
                 )}
               </TouchableOpacity>
+              </React.Fragment>
             ))}
           </View>
 
@@ -567,7 +571,13 @@ const styles = StyleSheet.create({
   headerBtn: { width: 40, height: 40, borderRadius: 20, alignItems: "center", justifyContent: "center" },
   headerTitle: { fontSize: 17, fontFamily: "Inter_600SemiBold" },
   content: { paddingHorizontal: 20, gap: 14, paddingBottom: 24 },
-  summaryCard: { backgroundColor: "#fff", borderRadius: 20, overflow: "hidden" },
+  summaryCard: {
+    backgroundColor: "#fff",
+    borderRadius: 16,
+    overflow: "hidden",
+    borderWidth: 1,
+    borderColor: "#EEEAE3",
+  },
   sectionLabel: {
     fontSize: 11,
     fontFamily: "Inter_600SemiBold",
@@ -575,14 +585,14 @@ const styles = StyleSheet.create({
     marginBottom: 6,
     paddingHorizontal: 4,
   },
-  summaryRows: { padding: 18 },
+  summaryRows: { padding: 20, gap: 8 },
   summaryRow: { flexDirection: "row", justifyContent: "space-between", paddingVertical: 10 },
   rowDiv: { height: 1 },
   rowLabel: { fontSize: 14, fontFamily: "Inter_400Regular" },
   rowValue: { fontSize: 14, fontFamily: "Inter_500Medium" },
-  totalBlock: { borderTopWidth: 1, padding: 18, gap: 12 },
+  totalBlock: { borderTopWidth: 1, padding: 20, gap: 14 },
   insuranceLabelBlock: { flex: 1, paddingRight: 12, gap: 3 },
-  insuranceDetail: { fontSize: 11, fontFamily: "Inter_400Regular", lineHeight: 16 },
+  insuranceDetail: { fontSize: 12, fontFamily: "Inter_400Regular", lineHeight: 17 },
   removeLink: { fontSize: 12, fontFamily: "Inter_600SemiBold" },
   luggageList: { gap: 10, marginBottom: 10 },
   luggageOption: {
@@ -603,17 +613,23 @@ const styles = StyleSheet.create({
   totalLabel: { fontSize: 14, fontFamily: "Inter_400Regular" },
   totalValue: { fontSize: 14, fontFamily: "Inter_500Medium" },
   grandTotalRow: { marginTop: 4 },
-  grandLabel: { fontSize: 16, fontFamily: "Inter_700Bold" },
-  grandValue: { fontSize: 20, fontFamily: "Inter_700Bold" },
-  methodList: { gap: 10 },
-  methodCard: {
+  grandLabel: { fontSize: 16, fontFamily: "Inter_600SemiBold" },
+  grandValue: { fontSize: 26, fontFamily: "Inter_700Bold", letterSpacing: -0.5 },
+  methodList: {
+    backgroundColor: "#fff",
     borderRadius: 16,
-    padding: 16,
+    borderWidth: 1,
+    borderColor: "#EEEAE3",
+    overflow: "hidden",
+  },
+  methodCard: {
+    padding: 20,
     flexDirection: "row",
     alignItems: "center",
-    gap: 14,
+    gap: 16,
   },
-  methodIcon: { width: 44, height: 44, borderRadius: 14, alignItems: "center", justifyContent: "center" },
+  methodDivider: { height: 1, backgroundColor: "#EEEAE3" },
+  methodIcon: { width: 40, height: 40, borderRadius: 12, alignItems: "center", justifyContent: "center" },
   methodInfo: { flex: 1, gap: 3 },
   methodLabel: { fontSize: 15, fontFamily: "Inter_500Medium" },
   methodSub: { fontSize: 12, fontFamily: "Inter_400Regular" },
@@ -624,10 +640,10 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "flex-start",
     gap: 8,
-    padding: 12,
-    borderRadius: 12,
+    paddingHorizontal: 4,
+    paddingTop: 4,
   },
-  stripeNoteText: { flex: 1, fontSize: 12, fontFamily: "Inter_400Regular", lineHeight: 18 },
+  stripeNoteText: { flex: 1, fontSize: 12, fontFamily: "Inter_400Regular", lineHeight: 17 },
   footer: {
     paddingHorizontal: 20,
     paddingVertical: 16,

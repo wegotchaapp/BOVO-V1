@@ -1,13 +1,15 @@
 import { Feather } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
+import * as Haptics from "expo-haptics";
 import React, { useEffect, useState } from "react";
 import {
-  ActivityIndicator,
   Platform,
   SafeAreaView,
+  ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
+  useWindowDimensions,
   View,
 } from "react-native";
 import Animated, {
@@ -22,6 +24,12 @@ import { useColors } from "@/hooks/useColors";
 import { CARD_SHADOW } from "@/constants/colors";
 import { useAuth } from "@/context/AuthContext";
 import { getBooking, type Booking } from "@/lib/bookings";
+import { Ticket, ticketBox } from "@/components/Ticket";
+import {
+  PRINT_DURATION_MS,
+  TicketPrinter,
+  type PrinterStage,
+} from "@/components/TicketPrinter";
 
 function cityShort(c: string): string {
   return c.replace(/, TX$/, "").replace(/, AR$/, "");
@@ -39,25 +47,67 @@ function formatDate(iso: string): string {
   })}`;
 }
 
+/** Day and month, printed-ticket style: "05.09". */
+function ticketDate(iso: string): string {
+  const d = new Date(iso);
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${pad(d.getDate())}.${pad(d.getMonth() + 1)}`;
+}
+
+/** 24-hour departure, so it reads as a timetable rather than prose. */
+function ticketTime(iso: string): string {
+  const d = new Date(iso);
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+/** A short human-quotable reference, derived from the departure date and booking id. */
+function ticketReference(bookingId: string, departureAt: string): string {
+  const d = new Date(departureAt);
+  const pad = (n: number) => String(n).padStart(2, "0");
+  const stamp = `${String(d.getFullYear()).slice(2)}${pad(d.getMonth() + 1)}${pad(d.getDate())}`;
+  const tail = bookingId.replace(/[^a-zA-Z0-9]/g, "").slice(-4).toUpperCase();
+  return `BV-${stamp}-${tail || "0000"}`;
+}
+
 export default function BookingConfirmed() {
   const colors = useColors();
   const router = useRouter();
   const { user } = useAuth();
+  const { width } = useWindowDimensions();
   const { id } = useLocalSearchParams<{ id?: string }>();
 
   const [booking, setBooking] = useState<Booking | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const scale = useSharedValue(0);
+  const [stage, setStage] = useState<PrinterStage>("processing");
+
   const opacity = useSharedValue(0);
   const translateY = useSharedValue(20);
 
   useEffect(() => {
-    scale.value = withSpring(1, { damping: 13, stiffness: 90 });
     opacity.value = withDelay(250, withTiming(1, { duration: 500 }));
     translateY.value = withDelay(250, withSpring(0, { damping: 14 }));
   }, []);
+
+  // The printer only starts feeding once there is a real booking to print.
+  useEffect(() => {
+    if (loading || error || !booking) return;
+    setStage("printing");
+    if (Platform.OS !== "web") {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+    }
+    const timer = setTimeout(() => {
+      setStage("complete");
+      if (Platform.OS !== "web") {
+        Haptics.notificationAsync(
+          Haptics.NotificationFeedbackType.Success,
+        ).catch(() => {});
+      }
+    }, PRINT_DURATION_MS);
+    return () => clearTimeout(timer);
+  }, [loading, error, booking]);
 
   useEffect(() => {
     let cancelled = false;
@@ -84,70 +134,56 @@ export default function BookingConfirmed() {
     };
   }, [id]);
 
-  const iconStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: scale.value }],
-  }));
-
   const contentStyle = useAnimatedStyle(() => ({
     opacity: opacity.value,
     transform: [{ translateY: translateY.value }],
   }));
 
-  const summaryRows = booking
-    ? [
-        {
-          label: "Route",
-          value: `${cityShort(booking.trip.fromCity)} → ${cityShort(booking.trip.toCity)}`,
-        },
-        { label: "Date & Time", value: formatDate(booking.trip.departureAt) },
-        { label: "Voyager", value: booking.trip.driverName },
-        {
-          label: "Seats",
-          value: `${booking.seats} seat${booking.seats === 1 ? "" : "s"}`,
-        },
-        { label: "Total Paid", value: `$${booking.totalAmount.toFixed(2)}` },
-      ]
-    : [];
+  const ticketWidth = Math.round(Math.min(width * 0.50, 184));
+  const { boxHeight: ticketHeight } = ticketBox(ticketWidth);
 
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: colors.background }]}>
       <View style={[styles.container, { paddingTop: Platform.OS === "web" ? 67 : 20 }]}>
-        <View style={styles.content}>
-          <Animated.View style={[styles.iconRing, iconStyle, { backgroundColor: "#EBF2ED" }]}>
-            <View style={[styles.iconInner, { backgroundColor: colors.primary }]}>
-              <Feather name="check" size={36} color="#fff" />
-            </View>
-          </Animated.View>
-
-          <Animated.View style={[styles.textBlock, contentStyle]}>
-            <Text style={[styles.title, { color: colors.foreground }]}>You're all set!</Text>
-            <Text style={[styles.subtitle, { color: colors.mutedForeground }]}>
-              {booking?.groupId
-                ? "Your seat is confirmed. You can now chat privately with your Voyager."
-                : "Your seat is confirmed. Have a safe trip!"}
-            </Text>
-          </Animated.View>
-
-          {loading ? (
-            <ActivityIndicator size="large" color={colors.primary} />
-          ) : error || !booking ? (
+        <ScrollView
+          contentContainerStyle={styles.content}
+          showsVerticalScrollIndicator={false}
+        >
+          {error && !booking ? (
             <View style={[styles.summaryCard, CARD_SHADOW]}>
               <Text style={[styles.errorText, { color: colors.mutedForeground }]}>
                 {error || "Booking details unavailable."}
               </Text>
             </View>
           ) : (
-            <Animated.View style={[styles.summaryCard, contentStyle, CARD_SHADOW]}>
-              {summaryRows.map((row, i) => (
-                <View key={row.label}>
-                  {i > 0 && <View style={[styles.rowDivider, { backgroundColor: colors.border }]} />}
-                  <View style={styles.summaryRow}>
-                    <Text style={[styles.summaryLabel, { color: colors.mutedForeground }]}>{row.label}</Text>
-                    <Text style={[styles.summaryValue, { color: colors.foreground }]}>{row.value}</Text>
-                  </View>
-                </View>
-              ))}
-            </Animated.View>
+            <TicketPrinter
+              stage={stage}
+              title={
+                booking
+                  ? `${cityShort(booking.trip.fromCity)} → ${cityShort(booking.trip.toCity)}`
+                  : "Your adventure"
+              }
+              subtitle={
+                booking
+                  ? `${booking.seats} seat${booking.seats === 1 ? "" : "s"} · ${formatDate(booking.trip.departureAt)}`
+                  : "Confirming your seat"
+              }
+              total={booking ? `$${booking.totalAmount.toFixed(2)}` : "—"}
+              ticketHeight={ticketHeight}
+            >
+              {booking ? (
+                <Ticket
+                  fromCity={cityShort(booking.trip.fromCity)}
+                  toCity={cityShort(booking.trip.toCity)}
+                  date={ticketDate(booking.trip.departureAt)}
+                  departs={ticketTime(booking.trip.departureAt)}
+                  voyager={booking.trip.driverName}
+                  seats={booking.seats}
+                  reference={ticketReference(booking.id, booking.trip.departureAt)}
+                  width={ticketWidth}
+                />
+              ) : null}
+            </TicketPrinter>
           )}
 
           <Animated.View style={[styles.badges, contentStyle]}>
@@ -218,34 +254,19 @@ export default function BookingConfirmed() {
 const styles = StyleSheet.create({
   safe: { flex: 1 },
   container: { flex: 1, paddingHorizontal: 24, paddingBottom: 28 },
-  content: { flex: 1, alignItems: "center", justifyContent: "center", gap: 24 },
-  iconRing: {
-    width: 120,
-    height: 120,
-    borderRadius: 60,
+  content: {
+    flexGrow: 1,
     alignItems: "center",
     justifyContent: "center",
+    gap: 12,
+    paddingBottom: 2,
   },
-  iconInner: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  textBlock: { alignItems: "center", gap: 8 },
-  title: { fontSize: 28, fontFamily: "Inter_700Bold", letterSpacing: -0.5, textAlign: "center" },
-  subtitle: { fontSize: 15, fontFamily: "Inter_400Regular", textAlign: "center" },
   summaryCard: {
     width: "100%",
     backgroundColor: "#fff",
     borderRadius: 20,
     padding: 20,
   },
-  summaryRow: { flexDirection: "row", justifyContent: "space-between", paddingVertical: 12 },
-  rowDivider: { height: 1 },
-  summaryLabel: { fontSize: 14, fontFamily: "Inter_400Regular" },
-  summaryValue: { fontSize: 14, fontFamily: "Inter_600SemiBold" },
   errorText: { fontSize: 14, fontFamily: "Inter_400Regular", textAlign: "center" },
   badges: { flexDirection: "row", gap: 10 },
   badge: {

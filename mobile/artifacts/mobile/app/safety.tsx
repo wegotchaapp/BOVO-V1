@@ -158,7 +158,10 @@ export default function Safety() {
         ? `${emergencyName} · ${emergencyPhone || "no number saved"}`
         : "None saved — tap to add one",
       onPress: () => router.push("/preferences" as any),
-      color: emergencyName ? colors.primary : "#D97706",
+      // This row goes amber precisely to flag the missing contact, so the glyph
+      // is carrying state, not decoration. #D97706 is 2.90:1 on the pale fill,
+      // under the 3:1 floor; this is 3.79:1.
+      color: emergencyName ? colors.primary : "#C2620A",
       bg: emergencyName ? colors.secondary : "#FEF3E2",
     },
     {
@@ -221,8 +224,13 @@ export default function Safety() {
             </Pressable>
           </View>
 
+          {/* The contact half of this promise is only true if one is saved, and
+              the row two below already says when none is. `notifyEmergencyContacts`
+              alerts opted-in contacts, so with none it tells nobody. */}
           <Text style={[styles.sosNote, { color: colors.mutedForeground }]}>
-            Texts and calls 911 with your location, and alerts your emergency contact
+            {emergencyName
+              ? `Texts and calls 911 with your location, and alerts ${emergencyName}.`
+              : "Texts and calls 911 with your location. Add an emergency contact below and we'll alert them too."}
           </Text>
         </View>
 

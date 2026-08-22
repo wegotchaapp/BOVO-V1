@@ -314,7 +314,7 @@ export default function MessagesTab() {
             <Feather name="users" size={20} color={colors.mutedForeground} />
             <View style={{ flex: 1 }}>
               <Text style={[styles.emptyGroupsTitle, { color: colors.foreground }]}>
-                {q ? "No matching groups" : "No trip groups yet"}
+                {q ? "No matching groups" : "No adventure groups yet"}
               </Text>
               <Text style={[styles.emptyGroupsSub, { color: colors.mutedForeground }]}>
                 {q

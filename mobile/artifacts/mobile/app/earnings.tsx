@@ -222,13 +222,13 @@ export default function Earnings() {
               <View style={[styles.irsNote, { backgroundColor: colors.muted }]}>
                 <Feather name="file-text" size={12} color={colors.mutedForeground} />
                 <Text style={[styles.irsNoteText, { color: colors.mutedForeground }]}>
-                  IRS 1099-K required if annual savings exceed $600. Keep records of all trips.
+                  IRS 1099-K required if annual savings exceed $600. Keep records of every adventure.
                 </Text>
               </View>
             </View>
 
             <Text style={[styles.sectionTitle, { color: colors.foreground, marginBottom: 12 }]}>
-              Trip History
+              Adventure History
             </Text>
 
             {data.trips.length === 0 ? (
@@ -237,7 +237,7 @@ export default function Earnings() {
                   <Feather name="navigation" size={22} color={colors.mutedForeground} />
                 </View>
                 <Text style={[styles.emptyTitle, { color: colors.foreground }]}>
-                  No completed trips yet
+                  No completed adventures yet
                 </Text>
                 <Text style={[styles.emptyBody, { color: colors.mutedForeground }]}>
                   Once you complete an adventure with Sailors, your cost-recovery and tax records will show up here automatically.
@@ -247,7 +247,7 @@ export default function Earnings() {
                   style={[styles.emptyCta, { backgroundColor: colors.primary }]}
                   activeOpacity={0.88}
                 >
-                  <Text style={styles.emptyCtaText}>Post a trip</Text>
+                  <Text style={styles.emptyCtaText}>Post an adventure</Text>
                 </TouchableOpacity>
               </View>
             ) : (

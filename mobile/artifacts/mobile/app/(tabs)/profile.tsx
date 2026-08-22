@@ -41,7 +41,7 @@ interface BenefitRow {
 const TRAVEL_PLUS_BENEFITS: BenefitRow[] = [
   { label: "Service fee on bookings", free: "12%", plus: "0%" },
   { label: "Priority match in queue", free: false, plus: true },
-  { label: "Free trip cancellation", free: "1/mo", plus: "Unlimited" },
+  { label: "Free adventure cancellation", free: "1/mo", plus: "Unlimited" },
   { label: "Premium Voyager badge", free: false, plus: true },
   { label: "24/7 priority support", free: false, plus: true },
 ];
@@ -103,7 +103,7 @@ export default function ProfileTab() {
     {
       title: "Account",
       items: [
-        { icon: "map", label: "My Adventures", sublabel: `${user?.trips ?? 0} trips`, route: "/(tabs)/trips" },
+        { icon: "map", label: "My Adventures", sublabel: `${user?.trips ?? 0} adventures`, route: "/(tabs)/trips" },
         {
           icon: "sliders",
           label: "Travel Preferences",
@@ -181,7 +181,7 @@ export default function ProfileTab() {
   async function handleDeleteAccount() {
     const step1 = await confirm(
       "Delete Account",
-      "Are you sure you want to delete your Bovogo account?\n\nYour profile, trip history, and data will be permanently erased after a 7-day grace period. You can contact support within 7 days to cancel this request.",
+      "Are you sure you want to delete your Bovogo account?\n\nYour profile, adventure history, and data will be permanently erased after a 7-day grace period. You can contact support within 7 days to cancel this request.",
       { confirmText: "Schedule Deletion", cancelText: "Cancel", destructive: true },
     );
     if (!step1) return;

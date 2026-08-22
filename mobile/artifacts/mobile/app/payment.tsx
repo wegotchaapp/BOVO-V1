@@ -92,7 +92,7 @@ function PaymentBody() {
     let cancelled = false;
     if (!tripId) {
       setTripLoading(false);
-      setTripError("No trip selected. Please pick a trip first.");
+      setTripError("No adventure selected. Pick one first.");
       return;
     }
     setTripLoading(true);
@@ -106,7 +106,7 @@ function PaymentBody() {
       })
       .catch((err) => {
         if (!cancelled) {
-          setTripError(err?.message || "Couldn't load trip.");
+          setTripError(err?.message || "Couldn't load the adventure.");
           setTripLoading(false);
         }
       });

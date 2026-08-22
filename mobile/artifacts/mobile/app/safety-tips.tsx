@@ -21,7 +21,7 @@ const BEFORE: Tip[] = [
   {
     icon: "share-2",
     title: "Share your adventure",
-    body: "Send your live route and ETA to someone you trust from the Safety Center. They'll be able to follow your position for the whole trip.",
+    body: "Send your live route and ETA to someone you trust from the Safety Center. They'll be able to follow your position for the whole adventure.",
   },
   {
     icon: "battery-charging",

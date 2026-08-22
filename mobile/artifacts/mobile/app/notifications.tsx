@@ -35,7 +35,7 @@ const ROWS: {
   },
   {
     key: "tripUpdates",
-    label: "Trip updates",
+    label: "Adventure updates",
     sub: "Departures, delays, and cancellations",
   },
   {

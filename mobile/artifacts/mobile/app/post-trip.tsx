@@ -249,7 +249,7 @@ function DriverTripCard({
           </View>
           <View style={styles.tripMetaRow}>
             <Feather name="star" size={10} color="#C4954A" />
-            <Text style={[styles.tripMetaText, { color: colors.mutedForeground }]}>4.9 · 12 trips · Just now</Text>
+            <Text style={[styles.tripMetaText, { color: colors.mutedForeground }]}>4.9 · 12 adventures · Just now</Text>
           </View>
         </View>
       </View>
@@ -429,12 +429,12 @@ export default function PostTrip() {
       });
       await showSuccess(
         "Adventure Posted!",
-        "Your trip is now live on the feed. Sailors can reply to join.",
+        "Your adventure is now live on the feed. Sailors can reply to join.",
         () => router.replace("/(tabs)"),
       );
     } catch (err) {
       await showAlert(
-        "Couldn't post trip",
+        "Couldn't post adventure",
         err instanceof Error ? err.message : "Please try again in a moment.",
       );
     } finally {
@@ -748,7 +748,7 @@ export default function PostTrip() {
             to={displayTo || "To"}
             date={formatDate(date)}
             time={`${WHEEL_HOURS[wheelHour]}:${WHEEL_MINUTES[wheelMinute]} ${WHEEL_PERIODS[wheelPeriod]}`}
-            message={messageTrimmed || "Your trip message will appear here…"}
+            message={messageTrimmed || "Your message will appear here…"}
             seats={seats}
             luggage={luggage}
             pricePerSeat={pricePerSeat}

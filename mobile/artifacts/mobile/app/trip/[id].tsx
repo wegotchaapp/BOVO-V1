@@ -265,7 +265,7 @@ export default function TripDetails() {
 
         {trip.note ? (
           <View style={[styles.aboutCard, CARD_SHADOW]}>
-            <Text style={[styles.sectionTitle, { color: colors.foreground }]}>About this trip</Text>
+            <Text style={[styles.sectionTitle, { color: colors.foreground }]}>About this adventure</Text>
             <Text style={[styles.aboutText, { color: colors.mutedForeground }]}>{trip.note}</Text>
           </View>
         ) : null}

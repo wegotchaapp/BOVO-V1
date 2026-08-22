@@ -137,7 +137,7 @@ export default function TripDetails() {
             <View style={styles.ratingRow}>
               <Feather name="star" size={13} color="#C4954A" />
               <Text style={[styles.rating, { color: colors.mutedForeground }]}>
-                {trip.driver.rating.toFixed(1)} · {trip.driver.trips} trip{trip.driver.trips !== 1 ? "s" : ""}
+                {trip.driver.rating.toFixed(1)} · {trip.driver.trips} adventure{trip.driver.trips !== 1 ? "s" : ""}
               </Text>
             </View>
             {trip.driver.isTopDriver && (
@@ -270,10 +270,12 @@ export default function TripDetails() {
           </View>
         ) : null}
 
-        <View style={[styles.insuranceBadge, { backgroundColor: "#EBF2ED" }]}>
+        {/* Protection is opt-out at payment, so this says included by default
+            rather than asserting this particular seat is covered. */}
+        <View style={styles.insuranceBadge}>
           <Feather name="shield" size={16} color={colors.primary} />
           <Text style={[styles.insuranceText, { color: colors.primary }]}>
-            This trip is covered by Bovogo insurance
+            Every seat includes protection by default
           </Text>
         </View>
       </ScrollView>
@@ -307,7 +309,7 @@ const styles = StyleSheet.create({
   headerBtn: { width: 40, height: 40, borderRadius: 20, alignItems: "center", justifyContent: "center" },
   headerTitle: { fontSize: 17, fontFamily: "Inter_600SemiBold" },
   content: { paddingHorizontal: 20, paddingBottom: 120, gap: 14 },
-  driverCard: { backgroundColor: "#fff", borderRadius: 20, padding: 18, flexDirection: "row", alignItems: "center", gap: 14 },
+  driverCard: { backgroundColor: "#fff", borderRadius: 16, padding: 20, flexDirection: "row", alignItems: "center", gap: 14 },
   driverInfo: { flex: 1, gap: 5 },
   driverName: { fontSize: 18, fontFamily: "Inter_700Bold" },
   ratingRow: { flexDirection: "row", alignItems: "center", gap: 5 },
@@ -315,7 +317,7 @@ const styles = StyleSheet.create({
   topBadge: { flexDirection: "row", alignItems: "center", gap: 5, alignSelf: "flex-start", paddingHorizontal: 10, paddingVertical: 4, borderRadius: 20 },
   topBadgeText: { fontSize: 11, fontFamily: "Inter_600SemiBold" },
   msgBtn: { width: 44, height: 44, borderRadius: 22, alignItems: "center", justifyContent: "center" },
-  routeCard: { backgroundColor: "#fff", borderRadius: 20, padding: 20 },
+  routeCard: { backgroundColor: "#fff", borderRadius: 16, padding: 20 },
   routeStop: { flexDirection: "row", alignItems: "flex-start", gap: 14 },
   stopDot: { width: 12, height: 12, borderRadius: 6, marginTop: 5 },
   stopInfo: { flex: 1, gap: 4 },
@@ -325,23 +327,34 @@ const styles = StyleSheet.create({
   connectorLine: { height: 24, borderLeftWidth: 2, borderStyle: "dashed" },
   distanceBadge: { flexDirection: "row", alignItems: "center", gap: 5, marginLeft: 16, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 20 },
   distanceText: { fontSize: 11, fontFamily: "Inter_500Medium" },
-  detailsCard: { backgroundColor: "#fff", borderRadius: 20, padding: 18 },
+  detailsCard: { backgroundColor: "#fff", borderRadius: 16, padding: 20 },
   detailRow: { flexDirection: "row", alignItems: "center", paddingVertical: 12, gap: 12 },
-  detailIcon: { width: 34, height: 34, borderRadius: 10, alignItems: "center", justifyContent: "center" },
+  detailIcon: { width: 32, height: 32, borderRadius: 8, alignItems: "center", justifyContent: "center" },
   detailLabel: { flex: 1, fontSize: 14, fontFamily: "Inter_400Regular" },
   detailValue: { fontSize: 14, fontFamily: "Inter_600SemiBold" },
   rowDivider: { height: 1 },
-  prefsCard: { backgroundColor: "#fff", borderRadius: 20, padding: 18, gap: 14 },
+  prefsCard: { backgroundColor: "#fff", borderRadius: 16, padding: 20, gap: 14 },
   sectionTitle: { fontSize: 15, fontFamily: "Inter_600SemiBold" },
   prefChips: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
-  chip: { flexDirection: "row", alignItems: "center", gap: 6, paddingHorizontal: 12, paddingVertical: 7, borderRadius: 20, borderWidth: 1 },
+  chip: { flexDirection: "row", alignItems: "center", gap: 6, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 999, borderWidth: 1 },
   chipText: { fontSize: 12, fontFamily: "Inter_500Medium" },
-  aboutCard: { backgroundColor: "#fff", borderRadius: 20, padding: 18, gap: 10 },
+  aboutCard: { backgroundColor: "#fff", borderRadius: 16, padding: 20, gap: 10 },
   aboutText: { fontSize: 14, fontFamily: "Inter_400Regular", lineHeight: 22 },
-  insuranceBadge: { flexDirection: "row", alignItems: "center", gap: 10, padding: 14, borderRadius: 14 },
-  insuranceText: { fontSize: 13, fontFamily: "Inter_500Medium", flex: 1 },
+  insuranceBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    paddingVertical: 16,
+  },
+  insuranceText: {
+    fontSize: 12,
+    fontFamily: "Inter_500Medium",
+    letterSpacing: 0.8,
+    textTransform: "uppercase",
+  },
   footer: { position: "absolute", bottom: 0, left: 0, right: 0, flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 20, paddingVertical: 16, borderTopWidth: 1, paddingBottom: 30 },
-  footerPrice: { fontSize: 26, fontFamily: "Inter_700Bold", letterSpacing: -0.5 },
+  footerPrice: { fontSize: 22, fontFamily: "Inter_700Bold", letterSpacing: -0.4 },
   footerLabel: { fontSize: 12, fontFamily: "Inter_400Regular" },
   requestBtn: { flexDirection: "row", alignItems: "center", gap: 8, paddingHorizontal: 28, height: 52, borderRadius: 26 },
   requestBtnText: { color: "#fff", fontSize: 16, fontFamily: "Inter_600SemiBold" },

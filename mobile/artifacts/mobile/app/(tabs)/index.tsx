@@ -117,7 +117,7 @@ function PostCard({ post, onPress, hasNewReplies }: { post: Trip; onPress: () =>
           <View style={styles.postRatingRow}>
             <Feather name="star" size={10} color="#C4954A" />
             <Text style={[styles.postRatingText, { color: colors.mutedForeground }]}>
-              {post.driver.rating.toFixed(1)} · {post.driver.trips} trip{post.driver.trips !== 1 ? "s" : ""}
+              {post.driver.rating.toFixed(1)} · {post.driver.trips} adventure{post.driver.trips !== 1 ? "s" : ""}
             </Text>
             <Text style={[styles.postDot, { color: colors.border }]}>·</Text>
             <Text style={[styles.postRatingText, { color: colors.mutedForeground }]}>{formatTimeAgo(post.createdAt)}</Text>

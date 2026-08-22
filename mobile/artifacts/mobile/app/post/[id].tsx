@@ -258,7 +258,7 @@ export default function PostDetail() {
                 <View style={styles.ratingRow}>
                   <Feather name="star" size={11} color="#C4954A" />
                   <Text style={[styles.ratingText, { color: colors.mutedForeground }]}>
-                    {post.driver.rating.toFixed(1)} · {post.driver.trips} trip{post.driver.trips !== 1 ? "s" : ""}
+                    {post.driver.rating.toFixed(1)} · {post.driver.trips} adventure{post.driver.trips !== 1 ? "s" : ""}
                   </Text>
                 </View>
               </View>

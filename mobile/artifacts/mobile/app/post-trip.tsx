@@ -27,8 +27,10 @@ import {
   getDistanceMiles,
   seatPrice,
 } from "@/lib/pricing";
-import { showAlert, showSuccess } from "@/lib/alert";
-import { createTrip } from "@/lib/trips";
+import { showAlert } from "@/lib/alert";
+import { createTrip, deleteTrip } from "@/lib/trips";
+import { HoldToConfirm } from "@/components/HoldToConfirm";
+import { UndoBar } from "@/components/UndoBar";
 
 const MAX_MESSAGE = 500;
 /** Route rail geometry — the connector is positioned from these, so they must agree
@@ -322,6 +324,8 @@ export default function PostTrip() {
   const [luggage, setLuggage] = useState(2);
   const [submitting, setSubmitting] = useState(false);
   const [touched, setTouched] = useState(false);
+  // Set once an adventure is live, while the undo window is open.
+  const [postedTripId, setPostedTripId] = useState<string | null>(null);
 
   // The from/to buttons grow when a neighbourhood is chosen; the connector length
   // is derived from these rather than hard-coded so it stays attached to both dots.
@@ -418,7 +422,7 @@ export default function PostTrip() {
     const h24 = wheelPeriod === 0 ? (h12 === 12 ? 0 : h12) : (h12 === 12 ? 12 : h12 + 12);
     departure.setHours(h24, wheelMinute * 5, 0, 0);
     try {
-      await createTrip({
+      const created = await createTrip({
         fromCity: fromCity,
         toCity: toCity,
         departureAt: departure.toISOString(),
@@ -427,11 +431,10 @@ export default function PostTrip() {
         pricePerSeat,
         note: messageTrimmed,
       });
-      await showSuccess(
-        "Adventure Posted!",
-        "Your adventure is now live on the feed. Sailors can reply to join.",
-        () => router.replace("/(tabs)"),
-      );
+      // Rather than an alert that has to be dismissed, the adventure is live and
+      // there is a short window to take it back. Leaving the screen is what ends
+      // the window, so the Voyager is never hurried off it.
+      setPostedTripId(created.id);
     } catch (err) {
       await showAlert(
         "Couldn't post adventure",
@@ -440,6 +443,28 @@ export default function PostTrip() {
     } finally {
       setSubmitting(false);
     }
+  }
+
+  /** Take the adventure back down. It has only been live for seconds. */
+  async function undoPost() {
+    const id = postedTripId;
+    setPostedTripId(null);
+    if (!id) return;
+    try {
+      await deleteTrip(id);
+      await showAlert("Taken down", "Your adventure is no longer on the feed.");
+    } catch (err) {
+      await showAlert(
+        "Couldn't take it down",
+        err instanceof Error ? err.message : "It is still live — try removing it from My Adventures.",
+      );
+    }
+  }
+
+  /** Window closed without an undo: the adventure stands, so move on. */
+  function settlePost() {
+    setPostedTripId(null);
+    router.replace("/(tabs)");
   }
 
   // ─── Location picker ────────────────────────────────────────────────────────
@@ -715,29 +740,18 @@ export default function PostTrip() {
               </Text>
             </View>
 
-            {/* Post button */}
-            <TouchableOpacity
-              style={[
-                styles.postBtn,
-                {
-                  backgroundColor: isValid ? colors.primary : colors.muted,
-                  opacity: submitting ? 0.7 : 1,
-                },
-              ]}
-              onPress={handlePost}
-              disabled={!isValid || submitting}
-              activeOpacity={0.88}
-              accessibilityLabel="Post trip"
-            >
-              {submitting ? (
-                <Text style={[styles.postBtnText, { color: "#fff" }]}>Posting…</Text>
-              ) : (
-                <>
-                  <Feather name="send" size={16} color={isValid ? "#fff" : colors.mutedForeground} />
-                  <Text style={[styles.postBtnText, { color: isValid ? "#fff" : colors.mutedForeground }]}>Post Adventure</Text>
-                </>
-              )}
-            </TouchableOpacity>
+            {/* Posting is deliberate: the adventure goes straight onto the feed
+                and other people plan around it, so it takes a hold rather than a
+                tap. The undo window below catches a change of mind. */}
+            <HoldToConfirm
+              label="Hold to post"
+              confirmedLabel="Posted"
+              icon="send"
+              onConfirm={handlePost}
+              disabled={!isValid}
+              busy={submitting}
+              busyLabel="Posting…"
+            />
           </View>
 
           {/* Live preview */}
@@ -1002,6 +1016,13 @@ export default function PostTrip() {
           </View>
         </View>
       </Modal>
+
+      <UndoBar
+        visible={postedTripId !== null}
+        message="Adventure posted"
+        onUndo={undoPost}
+        onExpire={settlePost}
+      />
     </SafeAreaView>
   );
 }
@@ -1088,16 +1109,6 @@ const styles = StyleSheet.create({
   priceBadge: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20 },
   priceBadgeText: { fontSize: 15, fontFamily: "Inter_700Bold" },
 
-  postBtn: {
-    height: 52,
-    borderRadius: 26,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 8,
-    marginTop: 4,
-  },
-  postBtnText: { fontSize: 15, fontFamily: "Inter_600SemiBold" },
 
   // Preview
   previewLabel: {

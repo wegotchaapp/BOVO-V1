@@ -143,7 +143,9 @@ export default function Onboarding() {
     if (step > 0) setStep(step - 1);
   }
 
-  const progress = (step / (STEPS.length - 1)) * 100;
+  // Counted over intervals rather than steps, this read 0% beside a label
+  // saying "1/6" and 40% beside "3/6". The label counts steps, so this does too.
+  const progress = ((step + 1) / STEPS.length) * 100;
 
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: colors.background }]}>

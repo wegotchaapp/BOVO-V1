@@ -107,9 +107,9 @@ function PostCard({ post, onPress, hasNewReplies }: { post: Trip; onPress: () =>
           <View style={styles.postDriverNameRow}>
             <Text style={[styles.postDriverName, { color: colors.foreground }]}>{post.driver.name}</Text>
             {post.driver.isTopDriver && (
-              <View style={[styles.topBadge, { backgroundColor: "#FEF3E2" }]}>
-                <Feather name="award" size={9} color="#C4954A" />
-                <Text style={[styles.topBadgeText, { color: "#C4954A" }]}>Top Voyager</Text>
+              <View style={[styles.topBadge, { backgroundColor: "#C4954A" }]}>
+                <Feather name="award" size={9} color="#111210" />
+                <Text style={[styles.topBadgeText, { color: "#111210" }]}>Top Voyager</Text>
               </View>
             )}
           </View>

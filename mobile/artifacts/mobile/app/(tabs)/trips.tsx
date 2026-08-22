@@ -329,11 +329,11 @@ export default function TripsTab() {
           )}
           {item.status === "completed" && !item.rated && item.role === "rider" && (
             <TouchableOpacity
-              style={[styles.actionChip, { backgroundColor: "#FEF3E2" }]}
+              style={[styles.actionChip, { backgroundColor: "#C4954A" }]}
               onPress={() => router.push({ pathname: "/rate-trip/[id]", params: { id: item.id } })}
             >
-              <Feather name="star" size={11} color="#C4954A" />
-              <Text style={[styles.chipText, { color: "#C4954A" }]}>Rate</Text>
+              <Feather name="star" size={11} color="#111210" />
+              <Text style={[styles.chipText, { color: "#111210" }]}>Rate</Text>
             </TouchableOpacity>
           )}
           {item.status === "completed" && item.rated && (

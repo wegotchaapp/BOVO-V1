@@ -248,9 +248,9 @@ export default function PostDetail() {
                 <View style={styles.driverNameRow}>
                   <Text style={[styles.driverName, { color: colors.foreground }]}>{post.driver.name}</Text>
                   {post.driver.isTopDriver && (
-                    <View style={[styles.topBadge, { backgroundColor: "#FEF3E2" }]}>
-                      <Feather name="award" size={10} color="#C4954A" />
-                      <Text style={[styles.topBadgeText, { color: "#C4954A" }]}>Top Voyager</Text>
+                    <View style={[styles.topBadge, { backgroundColor: "#C4954A" }]}>
+                      <Feather name="award" size={10} color="#111210" />
+                      <Text style={[styles.topBadgeText, { color: "#111210" }]}>Top Voyager</Text>
                     </View>
                   )}
                 </View>

@@ -41,6 +41,19 @@ const colors = {
   radius: 16,
 };
 
+/**
+ * Gold for text sitting on a dark forest surface — the post-trip wheel sheet and the
+ * Travel+ compare table, the only dark grounds in this otherwise light app.
+ *
+ * The brand gold `#C4954A` is 4.41:1 on `#1B3D2F` and only 3.67:1 on the compare
+ * table's `#29493B` (6% white over forest), so it fails the 4.5:1 floor for the
+ * 12–15px text it is used at. Lightened along the same hue to 5.86:1 and 4.88:1.
+ *
+ * This is the inverse of `accentForeground`: gold stays a fill on light grounds, but
+ * on dark it becomes legible as text.
+ */
+export const GOLD_ON_DARK = "#D9AF6A";
+
 export const CARD_SHADOW = {
   shadowColor: "#1B3D2F",
   shadowOffset: { width: 0, height: 2 },

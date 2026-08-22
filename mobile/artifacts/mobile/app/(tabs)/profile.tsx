@@ -18,7 +18,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useAuth } from "@/context/AuthContext";
 import { useColors } from "@/hooks/useColors";
-import { CARD_SHADOW } from "@/constants/colors";
+import { CARD_SHADOW, GOLD_ON_DARK } from "@/constants/colors";
 import { openSupportConversation } from "@/lib/conversations";
 import { confirm, showAlert } from "@/lib/alert";
 
@@ -203,7 +203,7 @@ export default function ProfileTab() {
 
   const badges = [
     { icon: "check-circle", label: "Verified", color: "#059669", bg: "#ECFDF5", show: user?.isVerified },
-    { icon: "award", label: "Top Sailor", color: "#C4954A", bg: "#FEF3E2", show: (user?.trips ?? 0) >= 5 },
+    { icon: "award", label: "Top Sailor", color: "#111210", bg: "#C4954A", show: (user?.trips ?? 0) >= 5 },
     { icon: "map-pin", label: "Texan", color: colors.primary, bg: colors.secondary, show: true },
   ].filter((b) => b.show);
 
@@ -262,7 +262,7 @@ export default function ProfileTab() {
           )}
           {user?.isFoundingMember && (
             <View style={styles.crownOverlay}>
-              <Feather name="award" size={16} color="#C4954A" />
+              <Feather name="award" size={16} color="#111210" />
             </View>
           )}
           <View style={[styles.cameraOverlay, { backgroundColor: colors.primary }]}>
@@ -273,15 +273,15 @@ export default function ProfileTab() {
 
         <View style={styles.badgesRow}>
           {user?.isFoundingMember && (
-            <View style={[styles.driverBadge, { backgroundColor: "#FEF3E2" }]}>
-              <Feather name="award" size={11} color="#C4954A" />
-              <Text style={[styles.driverBadgeText, { color: "#C4954A" }]}>Founding Member</Text>
+            <View style={[styles.driverBadge, { backgroundColor: "#C4954A" }]}>
+              <Feather name="award" size={11} color="#111210" />
+              <Text style={[styles.driverBadgeText, { color: "#111210" }]}>Founding Member</Text>
             </View>
           )}
           {isDriver && (
-            <View style={[styles.driverBadge, { backgroundColor: "#FEF3E2" }]}>
-              <Feather name="navigation" size={11} color="#C4954A" />
-              <Text style={[styles.driverBadgeText, { color: "#C4954A" }]}>Verified Voyager</Text>
+            <View style={[styles.driverBadge, { backgroundColor: "#C4954A" }]}>
+              <Feather name="navigation" size={11} color="#111210" />
+              <Text style={[styles.driverBadgeText, { color: "#111210" }]}>Verified Voyager</Text>
             </View>
           )}
           {badges.map((b) => (
@@ -508,7 +508,7 @@ const styles = StyleSheet.create({
     borderRadius: 13,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "#FEF3E2",
+    backgroundColor: "#C4954A",
     borderWidth: 2,
     borderColor: "#fff",
   },
@@ -650,7 +650,7 @@ const styles = StyleSheet.create({
   compareLabel: { color: "rgba(255,255,255,0.92)", fontSize: 13, fontFamily: "Inter_400Regular" },
   compareCell: { alignItems: "center", justifyContent: "center" },
   compareFreeText: { color: "rgba(255,255,255,0.7)", fontSize: 12, fontFamily: "Inter_500Medium", textAlign: "center" },
-  comparePlusText: { color: "#C4954A", fontSize: 12, fontFamily: "Inter_700Bold", textAlign: "center" },
+  comparePlusText: { color: GOLD_ON_DARK, fontSize: 12, fontFamily: "Inter_700Bold", textAlign: "center" },
 
   travelPlusCta: {
     flexDirection: "row",

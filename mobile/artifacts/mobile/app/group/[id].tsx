@@ -364,8 +364,8 @@ export default function GroupDetail() {
                     {m.userId === user?.id ? "You" : m.name.split(" ")[0]}
                   </Text>
                   {m.role === "driver" && (
-                    <View style={[styles.driverTag, { backgroundColor: "#FEF3E2" }]}>
-                      <Text style={[styles.driverTagText, { color: "#C4954A" }]}>Voyager</Text>
+                    <View style={[styles.driverTag, { backgroundColor: "#C4954A" }]}>
+                      <Text style={[styles.driverTagText, { color: "#111210" }]}>Voyager</Text>
                     </View>
                   )}
                   {m.userId !== user?.id ? (

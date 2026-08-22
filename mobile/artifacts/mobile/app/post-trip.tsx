@@ -17,7 +17,7 @@ import {
 
 import { Alert } from "@/lib/alert";
 
-import { CARD_SHADOW } from "@/constants/colors";
+import { CARD_SHADOW, GOLD_ON_DARK } from "@/constants/colors";
 import { ALL_CITY_OPTIONS, MVP_CITIES, isMvpCity } from "@/data/cities";
 import { filterNeighborhoods, getNeighborhoods } from "@/data/locations";
 import { useColors } from "@/hooks/useColors";
@@ -239,9 +239,9 @@ function DriverTripCard({
         <View style={{ flex: 1 }}>
           <View style={styles.tripNameRow}>
             <Text style={[styles.tripName, { color: colors.foreground }]}>{driverName}</Text>
-            <View style={[styles.topBadge, { backgroundColor: "#FEF3E2" }]}>
-              <Feather name="award" size={9} color="#C4954A" />
-              <Text style={[styles.topBadgeText, { color: "#C4954A" }]}>Top Voyager</Text>
+            <View style={[styles.topBadge, { backgroundColor: "#C4954A" }]}>
+              <Feather name="award" size={9} color="#111210" />
+              <Text style={[styles.topBadgeText, { color: "#111210" }]}>Top Voyager</Text>
             </View>
           </View>
           <View style={styles.tripMetaRow}>
@@ -1154,7 +1154,7 @@ const styles = StyleSheet.create({
   },
   wheelTitle: { fontSize: 15, fontFamily: "Inter_600SemiBold", color: "#F8F7F3", letterSpacing: -0.2 },
   wheelCancelText: { fontSize: 15, fontFamily: "Inter_400Regular", color: "rgba(248,247,243,0.45)" },
-  wheelDoneText: { fontSize: 15, fontFamily: "Inter_700Bold", color: "#C4954A" },
+  wheelDoneText: { fontSize: 15, fontFamily: "Inter_700Bold", color: GOLD_ON_DARK },
   wheelBody: {
     flexDirection: "row",
     alignItems: "center",
@@ -1187,7 +1187,7 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   wheelPreviewLabel: { fontSize: 13, fontFamily: "Inter_400Regular", color: "rgba(248,247,243,0.45)" },
-  wheelPreviewValue: { fontSize: 22, fontFamily: "Inter_700Bold", color: "#C4954A", letterSpacing: -0.5 },
+  wheelPreviewValue: { fontSize: 22, fontFamily: "Inter_700Bold", color: GOLD_ON_DARK, letterSpacing: -0.5 },
 
   // Refund disclaimer
   refundNotice: { flexDirection: "row", alignItems: "flex-start", gap: 9, padding: 14, borderRadius: 14, borderWidth: 1, marginTop: 4 },

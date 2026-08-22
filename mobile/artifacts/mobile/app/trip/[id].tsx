@@ -140,9 +140,9 @@ export default function TripDetails() {
               </Text>
             </View>
             {trip.driver.isTopDriver && (
-              <View style={[styles.topBadge, { backgroundColor: "#FEF3E2" }]}>
-                <Feather name="award" size={11} color="#C4954A" />
-                <Text style={[styles.topBadgeText, { color: "#C4954A" }]}>Top Voyager</Text>
+              <View style={[styles.topBadge, { backgroundColor: "#C4954A" }]}>
+                <Feather name="award" size={11} color="#111210" />
+                <Text style={[styles.topBadgeText, { color: "#111210" }]}>Top Voyager</Text>
               </View>
             )}
           </View>

@@ -51,6 +51,18 @@ export interface UploadedVideoFile {
   size: number;
 }
 
+/** "Silver Toyota Camry" — what a Sailor looks for at the kerb. */
+function describeVehicle(v: {
+  color?: string | null;
+  make?: string | null;
+  model?: string | null;
+}): string | null {
+  const parts = [v.color, v.make, v.model]
+    .map((p) => (p ?? '').trim())
+    .filter(Boolean);
+  return parts.length ? parts.join(' ') : null;
+}
+
 @Injectable()
 export class MobileTripsService {
   private readonly s3: AWS.S3;
@@ -181,7 +193,7 @@ export class MobileTripsService {
     // A Voyager may only post once their vehicle is fully documented: VIN,
     // seat/door counts, all five photos, insurance and registration. Enforced
     // here rather than only in the UI so it cannot be bypassed via the API.
-    await this.vehiclesService.assertReadyToDrive(driverId);
+    const vehicle = await this.vehiclesService.assertReadyToDrive(driverId);
 
     const departure = new Date(dto.departureAt);
     if (Number.isNaN(departure.getTime())) {
@@ -205,7 +217,12 @@ export class MobileTripsService {
       // Voyager cannot post a seat above the cost-share ceiling.
       price_per_seat: seatPriceForRoute(dto.fromCity, dto.toCity).toFixed(2),
       note: dto.note ?? '',
-      car: dto.car ?? null,
+      // Posting is already gated on a fully documented vehicle, so the car is
+      // known here. It used to come only from the client, which never sent it —
+      // leaving every trip with an empty car, so Sailors saw "Vehicle" on
+      // tracking and "—" on the adventure detail and had nothing to identify at
+      // pickup. The client may still override it.
+      car: dto.car?.trim() || describeVehicle(vehicle),
       pref_smoking: dto.preferences?.smoking ?? false,
       pref_pets: dto.preferences?.pets ?? false,
       pref_music: dto.preferences?.music ?? true,
@@ -290,7 +307,7 @@ export class MobileTripsService {
     }
     if (!trip.start_video_url) {
       throw new BadRequestException(
-        'You must record a video of your car before starting the ride.',
+        'You must record a video of your car before starting the adventure.',
       );
     }
     if (trip.status !== 'in_progress') {

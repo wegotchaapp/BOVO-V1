@@ -77,7 +77,7 @@ export default function Landing() {
         </View>
 
         <View style={styles.pills}>
-          {["Insured Rides", "Verified People", "Live Tracking"].map((label) => (
+          {["Insured Adventures", "Verified People", "Live Tracking"].map((label) => (
             <View key={label} style={styles.pill}>
               <Text style={styles.pillText}>{label}</Text>
             </View>

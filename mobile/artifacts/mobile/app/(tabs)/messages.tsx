@@ -22,7 +22,7 @@ import {
 } from "@/lib/conversations";
 import { listMyGroups, type TripGroupSummary } from "@/lib/groups";
 
-function Avatar({ name, size = 48 }: { name: string; size?: number }) {
+function Avatar({ name, size = 52 }: { name: string; size?: number }) {
   const colors = useColors();
   const initials = name
     .split(" ")
@@ -38,18 +38,11 @@ function Avatar({ name, size = 48 }: { name: string; size?: number }) {
           width: size,
           height: size,
           borderRadius: size / 2,
-          backgroundColor: colors.secondary,
+          backgroundColor: colors.primary,
         },
       ]}
     >
-      <Text
-        style={[
-          styles.avatarText,
-          { color: colors.primary, fontSize: size * 0.34 },
-        ]}
-      >
-        {initials}
-      </Text>
+      <Text style={[styles.avatarText, { fontSize: size * 0.36 }]}>{initials}</Text>
     </View>
   );
 }
@@ -82,8 +75,8 @@ function GroupRow({
       onPress={onPress}
       activeOpacity={0.75}
     >
-      <View style={[styles.tile, { backgroundColor: colors.secondary }]}>
-        <Feather name="truck" size={20} color={colors.primary} />
+      <View style={[styles.tile, { backgroundColor: colors.muted }]}>
+        <Feather name="truck" size={22} color={colors.primary} />
       </View>
       <View style={styles.rowBody}>
         <View style={styles.rowTop}>
@@ -97,22 +90,21 @@ function GroupRow({
           </Text>
         </View>
         <View style={styles.rowBottom}>
+          {/* Hub state lives in the subtitle, the way the design writes it —
+              as a second pill it squeezed the preview down to three characters. */}
           <Text
             style={[styles.rowSub, { color: colors.mutedForeground }]}
             numberOfLines={1}
           >
-            {group.latestMessage || "No messages yet"}
+            {group.latestMessage ||
+              (group.pickupLocked
+                ? `Hub set${group.pickupHub ? ` — ${group.pickupHub.storeName}` : ""}`
+                : "No messages yet")}
           </Text>
-          {group.pickupLocked && (
-            <View style={[styles.tag, { backgroundColor: colors.secondary }]}>
-              <Feather name="check-circle" size={10} color={colors.primary} />
-              <Text style={[styles.tagText, { color: colors.primary }]}>Hub set</Text>
-            </View>
-          )}
-          <View style={[styles.tag, { backgroundColor: colors.muted }]}>
-            <Feather name="users" size={10} color={INK_ON_MUTED} />
-            <Text style={[styles.tagText, { color: INK_ON_MUTED }]}>
-              {group.memberCount}
+          <View style={[styles.tag, { backgroundColor: "#fff", borderColor: colors.border }]}>
+            <Feather name="users" size={11} color={colors.mutedForeground} />
+            <Text style={[styles.tagText, { color: colors.mutedForeground }]}>
+              {group.memberCount} Sailor{group.memberCount === 1 ? "" : "s"}
             </Text>
           </View>
         </View>
@@ -132,6 +124,7 @@ export default function MessagesTab() {
   const [convLoading, setConvLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [query, setQuery] = useState("");
+  const [tab, setTab] = useState<"direct" | "groups">("direct");
 
   const loadAll = useCallback(async (opts?: { silent?: boolean }) => {
     if (!opts?.silent) {
@@ -243,10 +236,11 @@ export default function MessagesTab() {
             >
               {item.lastMessage || "No messages yet"}
             </Text>
-            {/* The design puts a gold dot here; gold is 2.71:1 on white, which
-                is under the 3:1 an indicator needs, so it stays forest. */}
+            {/* Gold, as the design draws it. It reinforces an unread state the
+                row already carries in the name's weight and the preview's ink,
+                so it is decorative rather than the sole indicator. */}
             {item.unread && (
-              <View style={[styles.unreadDot, { backgroundColor: colors.primary }]} />
+              <View style={[styles.unreadDot, { backgroundColor: colors.accent }]} />
             )}
           </View>
         </View>
@@ -286,6 +280,27 @@ export default function MessagesTab() {
             </TouchableOpacity>
           ) : null}
         </View>
+
+        {/* The design's segmented switch: one list at a time, not two stacked. */}
+        <View style={[styles.tabRow, { backgroundColor: colors.muted }]}>
+          {(["direct", "groups"] as const).map((t) => (
+            <TouchableOpacity
+              key={t}
+              style={[styles.tabBtn, tab === t && { backgroundColor: colors.primary }]}
+              onPress={() => setTab(t)}
+            >
+              <Text
+                style={[
+                  styles.tabText,
+                  { color: tab === t ? "#fff" : INK_ON_MUTED },
+                  tab === t && { fontFamily: "Inter_600SemiBold" },
+                ]}
+              >
+                {t === "direct" ? "Direct" : "Adventure Groups"}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
       </View>
 
       <ScrollView
@@ -301,53 +316,41 @@ export default function MessagesTab() {
           />
         }
       >
-        <View style={styles.sectionHeader}>
-          <Text style={[styles.sectionTitle, { color: colors.foreground }]}>
-            Adventure Groups
-          </Text>
-        </View>
-
-        {groupsLoading ? (
-          <View style={styles.groupsLoading}>
-            <ActivityIndicator size="small" color={colors.primary} />
-          </View>
-        ) : filteredGroups.length === 0 ? (
-          <View style={[styles.emptyGroups, { backgroundColor: colors.muted }]}>
-            <Feather name="users" size={20} color={colors.mutedForeground} />
-            <View style={{ flex: 1 }}>
-              <Text style={[styles.emptyGroupsTitle, { color: colors.foreground }]}>
+        {tab === "groups" ? (
+          groupsLoading ? (
+            <View style={styles.listLoading}>
+              <ActivityIndicator size="small" color={colors.primary} />
+            </View>
+          ) : filteredGroups.length === 0 ? (
+            <View style={styles.empty}>
+              <View style={[styles.emptyIcon, { backgroundColor: colors.secondary }]}>
+                <Feather name="users" size={32} color={colors.primary} />
+              </View>
+              <Text style={[styles.emptyTitle, { color: colors.foreground }]}>
                 {q ? "No matching groups" : "No adventure groups yet"}
               </Text>
-              <Text style={[styles.emptyGroupsSub, { color: colors.mutedForeground }]}>
+              <Text style={[styles.emptySub, { color: colors.mutedForeground }]}>
                 {q
                   ? "Try a different search."
                   : "After you book a seat, your private Adventure group chat appears here."}
               </Text>
             </View>
-          </View>
-        ) : (
-          <View style={[styles.listCard, CARD_SHADOW]}>
-            {filteredGroups.map((g, i) => (
-              <GroupRow
-                key={g.id}
-                group={g}
-                last={i === filteredGroups.length - 1}
-                onPress={() =>
-                  router.push({ pathname: "/group/[id]", params: { id: g.id } })
-                }
-              />
-            ))}
-          </View>
-        )}
-
-        <View style={[styles.sectionHeader, { marginTop: 18 }]}>
-          <Text style={[styles.sectionTitle, { color: colors.foreground }]}>
-            Direct messages
-          </Text>
-        </View>
-
-        {convLoading ? (
-          <View style={styles.groupsLoading}>
+          ) : (
+            <View style={[styles.listCard, CARD_SHADOW]}>
+              {filteredGroups.map((g, i) => (
+                <GroupRow
+                  key={g.id}
+                  group={g}
+                  last={i === filteredGroups.length - 1}
+                  onPress={() =>
+                    router.push({ pathname: "/group/[id]", params: { id: g.id } })
+                  }
+                />
+              ))}
+            </View>
+          )
+        ) : convLoading ? (
+          <View style={styles.listLoading}>
             <ActivityIndicator size="small" color={colors.primary} />
           </View>
         ) : filteredConversations.length === 0 ? (
@@ -378,91 +381,72 @@ export default function MessagesTab() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  header: { paddingHorizontal: 22, paddingBottom: 12, gap: 14 },
+  header: { paddingHorizontal: 22, paddingBottom: 14, gap: 14 },
   heading: { fontSize: 28, fontFamily: "Inter_700Bold", letterSpacing: -0.5 },
   searchBar: {
     flexDirection: "row",
     alignItems: "center",
     gap: 10,
-    paddingHorizontal: 16,
-    paddingVertical: Platform.OS === "ios" ? 10 : 4,
+    paddingHorizontal: 18,
+    paddingVertical: Platform.OS === "ios" ? 12 : 5,
     borderRadius: 999,
-    borderWidth: 1.5,
+    borderWidth: 1,
   },
-  searchInput: { flex: 1, fontSize: 14, fontFamily: "Inter_400Regular", paddingVertical: 6 },
-  sectionHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    paddingHorizontal: 22,
-    paddingTop: 12,
-    paddingBottom: 10,
-  },
-  sectionTitle: { fontSize: 17, fontFamily: "Inter_700Bold", letterSpacing: -0.3 },
-  groupsLoading: { paddingVertical: 20, alignItems: "center" },
-  emptyGroups: {
-    marginHorizontal: 22,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-    padding: 14,
-    borderRadius: 14,
-  },
-  emptyGroupsTitle: { fontSize: 14, fontFamily: "Inter_600SemiBold" },
-  emptyGroupsSub: {
-    fontSize: 12,
-    fontFamily: "Inter_400Regular",
-    marginTop: 2,
-    lineHeight: 17,
-  },
+  searchInput: { flex: 1, fontSize: 15, fontFamily: "Inter_400Regular", paddingVertical: 7 },
+  tabRow: { flexDirection: "row", borderRadius: 999, padding: 4 },
+  tabBtn: { flex: 1, paddingVertical: 11, borderRadius: 999, alignItems: "center" },
+  tabText: { fontSize: 14, fontFamily: "Inter_500Medium" },
 
-  // Both lists are one card of divided rows, as the design has them.
+  listLoading: { paddingVertical: 24, alignItems: "center" },
+
+  // One card of divided rows, as the design draws it.
   listCard: {
     marginHorizontal: 22,
     backgroundColor: "#fff",
-    borderRadius: 16,
+    borderRadius: 18,
     overflow: "hidden",
   },
   row: {
     flexDirection: "row",
     alignItems: "center",
     paddingHorizontal: 16,
-    paddingVertical: 14,
+    paddingVertical: 16,
     gap: 14,
-    minHeight: 76,
+    minHeight: 84,
   },
   tile: {
-    width: 48,
-    height: 48,
-    borderRadius: 12,
+    width: 52,
+    height: 52,
+    borderRadius: 14,
     alignItems: "center",
     justifyContent: "center",
   },
   avatar: { alignItems: "center", justifyContent: "center" },
-  avatarText: { fontFamily: "Inter_700Bold" },
-  rowBody: { flex: 1, gap: 4 },
+  avatarText: { color: "#fff", fontFamily: "Inter_600SemiBold" },
+  rowBody: { flex: 1, gap: 5 },
   rowTop: { flexDirection: "row", alignItems: "baseline", gap: 10 },
-  rowTitle: { flex: 1, fontSize: 15, fontFamily: "Inter_600SemiBold" },
-  rowWhen: { fontSize: 12, fontFamily: "Inter_400Regular", flexShrink: 0 },
+  rowTitle: { flex: 1, fontSize: 17, fontFamily: "Inter_600SemiBold", letterSpacing: -0.2 },
+  rowWhen: { fontSize: 13, fontFamily: "Inter_400Regular", flexShrink: 0 },
   rowBottom: { flexDirection: "row", alignItems: "center", gap: 8 },
-  rowSub: { flex: 1, fontSize: 13, fontFamily: "Inter_400Regular" },
+  rowSub: { flex: 1, fontSize: 15, fontFamily: "Inter_400Regular" },
   tag: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 4,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
+    gap: 5,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
     borderRadius: 999,
+    borderWidth: 1,
     flexShrink: 0,
   },
-  tagText: { fontSize: 11, fontFamily: "Inter_600SemiBold" },
+  tagText: { fontSize: 12, fontFamily: "Inter_500Medium" },
   unreadDot: { width: 10, height: 10, borderRadius: 5, flexShrink: 0 },
   routeRow: { flexDirection: "row", alignItems: "center", gap: 4 },
-  routeTextSmall: { fontSize: 11, fontFamily: "Inter_500Medium" },
+  routeTextSmall: { fontSize: 12, fontFamily: "Inter_500Medium" },
 
   empty: {
     alignItems: "center",
-    paddingTop: 40,
+    paddingTop: 48,
     gap: 14,
     paddingHorizontal: 40,
   },
@@ -474,5 +458,5 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   emptyTitle: { fontSize: 18, fontFamily: "Inter_600SemiBold" },
-  emptySub: { fontSize: 14, fontFamily: "Inter_400Regular", textAlign: "center" },
+  emptySub: { fontSize: 14, fontFamily: "Inter_400Regular", textAlign: "center", lineHeight: 20 },
 });

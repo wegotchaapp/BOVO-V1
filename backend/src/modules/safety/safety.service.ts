@@ -11,41 +11,18 @@ import { SosTriggerType, SosStatus, DeviationStatus, BookingStatus, UserRole } f
 import { PinoLogger } from 'nestjs-pino';
 import axios from 'axios';
 import { RealtimeGateway } from '../../common/gateways/realtime.gateway';
+import { MobileSosEvent } from '../mobile-api/entities/mobile.entities';
+import { NoonlightService } from '../noonlight/noonlight.service';
 import { NotificationsService } from '../notifications/notifications.service';
 
 /**
  * Kept short: an SOS must not stall behind a slow third party. If Noonlight
  * hasn't answered in this window we escalate locally and move on.
  */
-const NOONLIGHT_TIMEOUT_MS = 5_000;
-
-/**
- * Metres of GPS uncertainty reported to Noonlight when the client did not send
- * its own. `accuracy` is required on the coordinates object, and inventing a
- * tight figure would tell a dispatcher we are more certain of the location than
- * we are, so this is deliberately loose. Pass the device's real accuracy through
- * whenever there is one.
- */
-const DEFAULT_LOCATION_ACCURACY_M = 50;
-
-/**
- * Noonlight rejects a leading "+" outright — "phone should be a supported phone
- * format" — and wants bare digits with the country code. Verified against the
- * sandbox API: `+15550000000` is a 400, `15550000000` is a 201.
- */
-function toNoonlightPhone(raw: string | null | undefined): string {
-  const digits = (raw ?? '').replace(/\D/g, '');
-  // Bovogo is a Texas-only service, so a bare 10-digit number is a US number
-  // that simply has no country code on it.
-  return digits.length === 10 ? `1${digits}` : digits;
-}
-
 @Injectable()
 export class SafetyService {
   private mapboxAccessToken: string;
   private appUrl: string;
-  private noonlightApiUrl: string;
-  private noonlightApiKey: string;
 
   constructor(
     @InjectRepository(TripPing)
@@ -64,16 +41,16 @@ export class SafetyService {
     private readonly userRepo: Repository<User>,
     @InjectRepository(EmergencyContact)
     private readonly emergencyContactRepo: Repository<EmergencyContact>,
+    @InjectRepository(MobileSosEvent)
+    private readonly mobileSosRepo: Repository<MobileSosEvent>,
     private readonly config: ConfigService,
     private readonly logger: PinoLogger,
     private readonly notifications: NotificationsService,
     private readonly realtime: RealtimeGateway,
+    private readonly noonlight: NoonlightService,
   ) {
     this.mapboxAccessToken = this.config.get<string>('MAPBOX_ACCESS_TOKEN') || '';
     this.appUrl = this.config.get<string>('APP_URL') || 'https://bovogo.app';
-    this.noonlightApiUrl =
-      this.config.get<string>('NOONLIGHT_API_URL') || 'https://api-sandbox.noonlight.com';
-    this.noonlightApiKey = this.config.get<string>('NOONLIGHT_API_KEY') || '';
   }
 
   /**
@@ -82,69 +59,6 @@ export class SafetyService {
    * paging, 911 on-device) must complete even if Noonlight is unreachable.
    * Returns the alarm id, or null when unconfigured or the call fails.
    */
-  private async createNoonlightAlarm(input: {
-    person: { name: string; phone: string };
-    location: Record<string, unknown>;
-    instructions: string;
-  }): Promise<string | null> {
-    if (!this.noonlightApiKey) {
-      this.logger.warn(
-        'NOONLIGHT_API_KEY is not set — SOS will escalate locally only, with no professional dispatch.',
-      );
-      return null;
-    }
-
-    // Noonlight rejects the alarm outright without a dialable number
-    // ("phone should be a supported phone format"), so a missing one is worth
-    // saying plainly rather than spending a round trip to be told.
-    if (input.person.phone.length < 11) {
-      this.logger.error(
-        { digits: input.person.phone.length },
-        'Noonlight dispatch skipped — no usable phone number on file, which Noonlight requires to open an alarm.',
-      );
-      return null;
-    }
-
-    try {
-      const res = await axios.post(
-        `${this.noonlightApiUrl}/dispatch/v1/alarms`,
-        {
-          name: input.person.name,
-          phone: input.person.phone,
-          location: input.location,
-          instructions: { entry: input.instructions },
-        },
-        {
-          headers: {
-            Authorization: `Bearer ${this.noonlightApiKey}`,
-            'Content-Type': 'application/json',
-          },
-          timeout: NOONLIGHT_TIMEOUT_MS,
-        },
-      );
-
-      const alarmId: string | null = res.data?.id ?? null;
-      this.logger.info({ alarmId }, 'Noonlight alarm created');
-      return alarmId;
-    } catch (err) {
-      // Never log the error object itself: an axios error carries `config`,
-      // and `config.headers.Authorization` is the Noonlight API key. Logging
-      // `{ err }` wrote the key in plaintext on every failure.
-      const res = (err as any)?.response;
-      this.logger.error(
-        {
-          status: res?.status ?? null,
-          key: res?.data?.key ?? null,
-          details: res?.data?.details ?? null,
-          noonlightMessage: res?.data?.message ?? null,
-          message: (err as any)?.message ?? null,
-        },
-        'Noonlight dispatch failed — continuing with local SOS escalation',
-      );
-      return null;
-    }
-  }
-
   async receivePing(
     userId: string,
     bookingId: string,
@@ -399,28 +313,15 @@ export class SafetyService {
       }
     }
 
-    // Noonlight's schema takes either `coordinates` or `address`, and rejects
-    // anything else on the object ("location should not have additional
-    // properties"). The previous shape sent latitude/longitude at the top level
-    // alongside an address stub of empty strings, so every dispatch 400'd.
-    const location = {
-      coordinates: {
-        lat,
-        lng,
-        accuracy: accuracyMeters ?? DEFAULT_LOCATION_ACCURACY_M,
-      },
-    };
-
-    const person = {
-      name: user.name,
-      phone: toNoonlightPhone(user.phone),
-    };
 
     // Dispatch to Noonlight first so professional responders are engaged as
     // early as possible; the call is non-throwing and returns null on failure.
-    const noonlightAlarmId = await this.createNoonlightAlarm({
-      person,
-      location,
+    const noonlightAlarmId = await this.noonlight.createAlarm({
+      name: user.name,
+      phone: user.phone,
+      lat,
+      lng,
+      accuracyMeters,
       instructions: `Bovogo SOS activated via ${triggerType}. ${tripContext}`.trim(),
     });
 
@@ -538,6 +439,41 @@ export class SafetyService {
    *
    *   [{ event_id, event_time, event_type: "alarm.closed", meta: { alarm_id } }]
    */
+  /** Maps a Noonlight event verb to a status, or null when we have not seen it. */
+  private mapEventType(eventType: string): SosStatus | null {
+    // Only mappings confirmed against real sandbox traffic. Anything else is
+    // left alone rather than guessed at — this is the status of a live
+    // emergency, and a wrong guess reads as a resolved incident.
+    if (eventType === 'alarm.closed' || eventType === 'alarm.canceled') return SosStatus.RESOLVED;
+    if (eventType === 'alarm.dispatched') return SosStatus.DISPATCHED;
+    return null;
+  }
+
+  private async applyMobileEvent(
+    sos: MobileSosEvent,
+    eventType: string,
+    alarmId: string,
+  ): Promise<{ applied: boolean; reason?: 'no_change' | 'unmapped_event' }> {
+    const next = this.mapEventType(eventType);
+    if (next === null) {
+      this.logger.warn(
+        { mobileSosId: sos.id, alarmId, eventType },
+        'Noonlight event type not mapped — mobile SOS status left unchanged',
+      );
+      return { applied: false, reason: 'unmapped_event' };
+    }
+    if (sos.status === next) {
+      return { applied: false, reason: 'no_change' };
+    }
+    sos.status = next;
+    await this.mobileSosRepo.save(sos);
+    this.logger.info(
+      { mobileSosId: sos.id, alarmId, eventType, newStatus: next },
+      'Mobile SOS status updated via Noonlight webhook',
+    );
+    return { applied: true };
+  }
+
   async handleNoonlightEvent(event: {
     event_type?: string;
     meta?: { alarm_id?: string };
@@ -553,20 +489,25 @@ export class SafetyService {
     const sosEvent = await this.sosRepo.findOne({
       where: { noonlight_alarm_id: alarmId },
     });
+
+    // An alarm raised from the app lives in mobile_sos_events, not here: the
+    // two auth layers keep separate user tables and sos_events.user_id is a
+    // foreign key onto the platform `users`. Either table may own the alarm.
     if (!sosEvent) {
-      this.logger.warn({ alarmId, eventType }, 'Noonlight event for unknown alarm');
-      return { applied: false, reason: 'unknown_alarm' };
+      const mobileSos = await this.mobileSosRepo.findOne({
+        where: { noonlight_alarm_id: alarmId },
+      });
+      if (!mobileSos) {
+        this.logger.warn({ alarmId, eventType }, 'Noonlight event for unknown alarm');
+        return { applied: false, reason: 'unknown_alarm' };
+      }
+      return this.applyMobileEvent(mobileSos, eventType, alarmId);
     }
 
     // Only mappings confirmed against real sandbox traffic. Anything else is
     // logged and left alone rather than guessed at — this is the status of a
     // live emergency, and a wrong guess here reads as a resolved incident.
-    const next =
-      eventType === 'alarm.closed' || eventType === 'alarm.canceled'
-        ? SosStatus.RESOLVED
-        : eventType === 'alarm.dispatched'
-        ? SosStatus.DISPATCHED
-        : null;
+    const next = this.mapEventType(eventType);
 
     if (next === null) {
       this.logger.warn(

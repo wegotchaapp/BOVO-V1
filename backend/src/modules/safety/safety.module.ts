@@ -11,13 +11,16 @@ import { Booking } from '../../database/entities/booking.entities';
 import { Trip } from '../../database/entities/trip.entities';
 import { User } from '../../database/entities/user.entity';
 import { EmergencyContact } from '../../database/entities/communication.entities';
+import { MobileSosEvent } from '../mobile-api/entities/mobile.entities';
 import { NotificationsModule } from '../notifications/notifications.module';
+import { NoonlightModule } from '../noonlight/noonlight.module';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([TripPing, SosEvent, Incident, DeviationEvent, Booking, Trip, User, EmergencyContact]),
+    TypeOrmModule.forFeature([TripPing, SosEvent, Incident, DeviationEvent, Booking, Trip, User, EmergencyContact, MobileSosEvent]),
     BullModule.registerQueue({ name: 'safety-jobs' }),
     forwardRef(() => NotificationsModule),
+    NoonlightModule,
   ],
   controllers: [SafetyController, NoonlightWebhookController],
   providers: [SafetyService, SafetyJobProcessor, SafetyScheduler],

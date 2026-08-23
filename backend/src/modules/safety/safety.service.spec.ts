@@ -12,6 +12,8 @@ import { EmergencyContact } from '../../database/entities/communication.entities
 import { SosTriggerType, SosStatus, DeviationStatus, BookingStatus, UserRole } from '../../common/enums';
 import { PinoLogger } from 'nestjs-pino';
 import { RealtimeGateway } from '../../common/gateways/realtime.gateway';
+import { MobileSosEvent } from '../mobile-api/entities/mobile.entities';
+import { NoonlightService } from '../noonlight/noonlight.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import axios from 'axios';
 
@@ -28,6 +30,8 @@ describe('SafetyService', () => {
   let tripRepo: jest.Mocked<Repository<Trip>>;
   let userRepo: jest.Mocked<Repository<User>>;
   let emergencyContactRepo: jest.Mocked<Repository<EmergencyContact>>;
+  let mobileSosRepo: jest.Mocked<Repository<MobileSosEvent>>;
+  let noonlight: { createAlarm: jest.Mock };
   let notificationsService: jest.Mocked<NotificationsService>;
   let logger: jest.Mocked<PinoLogger>;
 
@@ -144,6 +148,16 @@ describe('SafetyService', () => {
           useFactory: mockRepo,
         },
         {
+          provide: getRepositoryToken(MobileSosEvent),
+          useFactory: mockRepo,
+        },
+        {
+          // The real one is exercised through the live sandbox, not here; these
+          // tests are about what SafetyService does with the id it gets back.
+          provide: NoonlightService,
+          useValue: { createAlarm: jest.fn().mockResolvedValue('noonlight-alarm-123') },
+        },
+        {
           provide: ConfigService,
           useValue: {
             get: jest.fn((key: string) => {
@@ -192,6 +206,8 @@ describe('SafetyService', () => {
     tripRepo = module.get(getRepositoryToken(Trip));
     userRepo = module.get(getRepositoryToken(User));
     emergencyContactRepo = module.get(getRepositoryToken(EmergencyContact));
+    mobileSosRepo = module.get(getRepositoryToken(MobileSosEvent));
+    noonlight = module.get(NoonlightService);
     notificationsService = module.get(NotificationsService);
     logger = module.get(PinoLogger);
 
@@ -308,7 +324,10 @@ describe('SafetyService', () => {
       expect(sosRepo.save).toHaveBeenCalled();
       expect(incidentRepo.save).toHaveBeenCalled();
       expect(result.sos_id).toBe('sos-1');
-      expect(result.noonlight_alarm_id).toBeNull();
+      expect(result.noonlight_alarm_id).toBe('noonlight-alarm-123');
+      expect(noonlight.createAlarm).toHaveBeenCalledWith(
+        expect.objectContaining({ lat: 34.0522, lng: -118.2437 }),
+      );
     });
 
     it('should continue with local flow if Noonlight API fails', async () => {
@@ -318,7 +337,9 @@ describe('SafetyService', () => {
       sosRepo.save.mockResolvedValue({ id: 'sos-2' } as SosEvent);
       incidentRepo.create.mockReturnValue({ id: 'inc-2' } as Incident);
       incidentRepo.save.mockResolvedValue({ id: 'inc-2' } as Incident);
-      mockedAxios.post.mockRejectedValue(new Error('Noonlight down'));
+      // Dispatch returns null when Noonlight refuses or is unreachable; it
+      // never throws, precisely so local escalation still runs.
+      noonlight.createAlarm.mockResolvedValueOnce(null);
       emergencyContactRepo.find.mockResolvedValue([]);
       userRepo.find.mockResolvedValue([]);
 

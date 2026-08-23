@@ -693,3 +693,46 @@ export class MobileLiveLocation {
   @UpdateDateColumn({ type: 'timestamptz' })
   updated_at!: Date;
 }
+
+/**
+ * A mobile-side SOS activation.
+ *
+ * The platform's `sos_events` cannot hold these: its `user_id` is a foreign key
+ * onto the platform `users` table, and the mobile auth layer is deliberately
+ * isolated with its own `mobile_users`. This is the mobile equivalent, and it
+ * exists so a mobile SOS leaves a durable record and so a Noonlight callback
+ * has something to correlate its alarm id against.
+ */
+@Entity('mobile_sos_events')
+export class MobileSosEvent {
+  @PrimaryGeneratedColumn('uuid')
+  id!: string;
+
+  @Index()
+  @Column({ type: 'uuid' })
+  user_id!: string;
+
+  @Index()
+  @Column({ type: 'uuid', nullable: true })
+  trip_id!: string | null;
+
+  /** Mirrors the platform SosStatus values so both tables read the same way. */
+  @Column({ type: 'varchar', length: 20, default: 'active' })
+  status!: 'active' | 'dispatched' | 'resolved' | 'false_alarm';
+
+  @Column({ type: 'double precision', nullable: true })
+  latitude!: number | null;
+
+  @Column({ type: 'double precision', nullable: true })
+  longitude!: number | null;
+
+  @Index()
+  @Column({ type: 'varchar', length: 100, nullable: true })
+  noonlight_alarm_id!: string | null;
+
+  @Column({ type: 'boolean', default: false })
+  contact_notified!: boolean;
+
+  @CreateDateColumn({ type: 'timestamptz' })
+  created_at!: Date;
+}

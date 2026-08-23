@@ -145,6 +145,12 @@ export class SosBody {
   @Max(180)
   longitude?: number;
 
+  /** GPS uncertainty in metres, passed straight through to Noonlight. */
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  accuracy?: number;
+
   @IsOptional()
   @IsString()
   @MaxLength(64)

@@ -10,6 +10,7 @@ import {
   MobileOdometerReading,
   MobileRating,
   MobileSession,
+  MobileSosEvent,
   MobileTrip,
   MobileTripGroup,
   MobileTripGroupMember,
@@ -24,6 +25,7 @@ import { MobileAuthService } from './services/mobile-auth.service';
 import { MobileTripsService } from './services/mobile-trips.service';
 import { MobileBookingsService } from './services/mobile-bookings.service';
 import { MobileGroupsService } from './services/mobile-groups.service';
+import { NoonlightModule } from '../noonlight/noonlight.module';
 import { MobileEarningsService } from './services/mobile-earnings.service';
 import { MobileOdometerService } from './services/mobile-odometer.service';
 import { MobileBackgroundCheckService } from './services/mobile-background-check.service';
@@ -58,6 +60,7 @@ import { MobileSafetyController } from './controllers/mobile-safety.controller';
 @Module({
   imports: [
     NotificationsModule,
+    NoonlightModule,
     TypeOrmModule.forFeature([
       MobileUser,
       MobileSession,
@@ -75,6 +78,7 @@ import { MobileSafetyController } from './controllers/mobile-safety.controller';
       MobileRating,
       MobileDriverTrip,
       MobileOdometerReading,
+      MobileSosEvent,
     ]),
   ],
   controllers: [

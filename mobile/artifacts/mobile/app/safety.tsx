@@ -387,8 +387,13 @@ export default function Safety() {
             <Text style={styles.sosModalSub}>
               Your emergency contacts will be notified in {countdown} second{countdown !== 1 ? "s" : ""}.
             </Text>
-            <Text style={styles.sosModalSub} numberOfLines={1}>
-              Your GPS location is being shared.
+            {/* Same unconditional-claim problem the footer had: with location
+                off there is no fix to share, and this is the screen where a
+                false reassurance costs the most. */}
+            <Text style={styles.sosModalSub} numberOfLines={2}>
+              {locationBlocked
+                ? "Location is off — no GPS position will be sent."
+                : "Your GPS location is being shared."}
             </Text>
             <TouchableOpacity style={styles.cancelSOS} onPress={cancelSOS}>
               <Text style={styles.cancelSOSText}>Cancel — I'm Safe</Text>

@@ -19,7 +19,7 @@ import { Alert } from "@/lib/alert";
 
 import { useColors } from "@/hooks/useColors";
 import { useAuth } from "@/context/AuthContext";
-import { CARD_SHADOW } from "@/constants/colors";
+import { CARD_SHADOW, INK_ON_MUTED } from "@/constants/colors";
 import {
   getSosLocation,
   hasLocationPermission,
@@ -349,10 +349,29 @@ export default function Safety() {
           ))}
         </View>
 
-        <View style={[styles.notice, { backgroundColor: colors.secondary }]}>
-          <Feather name="shield" size={14} color={colors.primary} />
-          <Text style={[styles.noticeText, { color: colors.primary }]}>
-            Bovogo monitors all live trips for safety. GPS tracking is active during your ride.
+        {/* Stated conditionally: with location off there is no GPS tracking to
+            speak of, and claiming otherwise directly contradicts the warning
+            further up this same screen. */}
+        <View
+          style={[
+            styles.notice,
+            { backgroundColor: locationBlocked ? colors.muted : colors.secondary },
+          ]}
+        >
+          <Feather
+            name={locationBlocked ? "shield-off" : "shield"}
+            size={14}
+            color={locationBlocked ? INK_ON_MUTED : colors.primary}
+          />
+          <Text
+            style={[
+              styles.noticeText,
+              { color: locationBlocked ? INK_ON_MUTED : colors.primary },
+            ]}
+          >
+            {locationBlocked
+              ? "Bovogo monitors live adventures for safety, but GPS tracking is off on this device."
+              : "Bovogo monitors live adventures for safety. GPS tracking is active during your adventure."}
           </Text>
         </View>
       </ScrollView>

@@ -73,26 +73,28 @@ export class NoonlightWebhookController {
     }
 
     const payload = req.body;
-    // Log the whole payload while bringing this up: the service reads
-    // alarm_id/status, and sandbox traffic is how we confirm those are the
-    // field names Noonlight actually sends.
     this.logger.info({ payload }, 'Noonlight webhook received');
 
-    if (!payload?.alarm_id || typeof payload.status !== 'string') {
-      this.logger.warn(
-        { keys: payload ? Object.keys(payload) : null },
-        'Noonlight webhook payload missing alarm_id or status — ignoring',
-      );
-      return { received: true, applied: false };
+    // Noonlight posts an array of events. A single object is accepted too, so
+    // that a future change of theirs degrades to "handled" rather than "dropped".
+    const events: any[] = Array.isArray(payload)
+      ? payload
+      : payload && typeof payload === 'object'
+      ? [payload]
+      : [];
+
+    if (events.length === 0) {
+      this.logger.warn('Noonlight webhook body held no events — ignoring');
+      return { received: true, applied: 0, events: 0 };
     }
 
-    const result = await this.safetyService.handleNoonlightWebhook({
-      alarm_id: String(payload.alarm_id),
-      status: payload.status,
-      dispatch_status: payload.dispatch_status,
-    });
+    let applied = 0;
+    for (const event of events) {
+      const result = await this.safetyService.handleNoonlightEvent(event);
+      if (result.applied) applied += 1;
+    }
 
-    return { received: true, ...result };
+    return { received: true, events: events.length, applied };
   }
 
   /** HMAC-SHA256 over the exact bytes received, hex or base64. */

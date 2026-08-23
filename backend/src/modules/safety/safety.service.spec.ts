@@ -457,61 +457,100 @@ describe('SafetyService', () => {
     });
   });
 
-  describe('handleNoonlightWebhook', () => {
-    it('should update SOS status to DISPATCHED when webhook confirms dispatch', async () => {
-      const mockSos = {
+  describe('handleNoonlightEvent', () => {
+    // Payload shape captured from a real sandbox callback:
+    // [{ event_id, event_time, event_type: 'alarm.closed', meta: { alarm_id } }]
+    const sosFor = (status: SosStatus) =>
+      ({
         id: 'sos-1',
         user_id: 'user-1',
-        booking_id: 'booking-1',
-        status: SosStatus.ACTIVE,
+        status,
         noonlight_alarm_id: 'noonlight-alarm-123',
-      } as SosEvent;
+      }) as SosEvent;
 
-      sosRepo.findOne.mockResolvedValue(mockSos);
-      sosRepo.save.mockResolvedValue({ ...mockSos, status: SosStatus.DISPATCHED });
-      bookingRepo.findOne.mockResolvedValue(mockBooking);
-      userRepo.find.mockResolvedValue([]);
+    it('moves an alarm to DISPATCHED on alarm.dispatched', async () => {
+      sosRepo.findOne.mockResolvedValue(sosFor(SosStatus.ACTIVE));
+      sosRepo.save.mockResolvedValue({} as SosEvent);
 
-      await service.handleNoonlightWebhook({
-        alarm_id: 'noonlight-alarm-123',
-        status: 'dispatched',
-        dispatch_status: 'dispatched',
+      const res = await service.handleNoonlightEvent({
+        event_type: 'alarm.dispatched',
+        meta: { alarm_id: 'noonlight-alarm-123' },
       });
 
+      expect(res).toEqual({ applied: true });
       expect(sosRepo.save).toHaveBeenCalledWith(
         expect.objectContaining({ status: SosStatus.DISPATCHED }),
       );
     });
 
-    it('should update SOS status to FALSE_ALARM when webhook confirms cancellation', async () => {
-      const mockSos = {
-        id: 'sos-1',
-        user_id: 'user-1',
-        status: SosStatus.ACTIVE,
-        noonlight_alarm_id: 'noonlight-alarm-123',
-      } as SosEvent;
+    it('resolves the SOS on alarm.closed', async () => {
+      sosRepo.findOne.mockResolvedValue(sosFor(SosStatus.ACTIVE));
+      sosRepo.save.mockResolvedValue({} as SosEvent);
 
-      sosRepo.findOne.mockResolvedValue(mockSos);
-      sosRepo.save.mockResolvedValue({ ...mockSos, status: SosStatus.FALSE_ALARM });
-
-      await service.handleNoonlightWebhook({
-        alarm_id: 'noonlight-alarm-123',
-        status: 'cancelled',
+      const res = await service.handleNoonlightEvent({
+        event_type: 'alarm.closed',
+        meta: { alarm_id: 'noonlight-alarm-123' },
       });
 
+      expect(res).toEqual({ applied: true });
       expect(sosRepo.save).toHaveBeenCalledWith(
-        expect.objectContaining({ status: SosStatus.FALSE_ALARM }),
+        expect.objectContaining({ status: SosStatus.RESOLVED }),
       );
     });
 
-    it('should ignore webhooks for unknown alarms', async () => {
+    it('reads the alarm id from meta, not the top level', async () => {
       sosRepo.findOne.mockResolvedValue(null);
 
-      await service.handleNoonlightWebhook({
-        alarm_id: 'unknown-alarm',
-        status: 'dispatched',
+      await service.handleNoonlightEvent({
+        event_type: 'alarm.closed',
+        meta: { alarm_id: 'noonlight-alarm-123' },
       });
 
+      expect(sosRepo.findOne).toHaveBeenCalledWith({
+        where: { noonlight_alarm_id: 'noonlight-alarm-123' },
+      });
+    });
+
+    it('ignores events for unknown alarms', async () => {
+      sosRepo.findOne.mockResolvedValue(null);
+
+      const res = await service.handleNoonlightEvent({
+        event_type: 'alarm.closed',
+        meta: { alarm_id: 'unknown-alarm' },
+      });
+
+      expect(res).toEqual({ applied: false, reason: 'unknown_alarm' });
+      expect(sosRepo.save).not.toHaveBeenCalled();
+    });
+
+    it('ignores an event with no meta.alarm_id', async () => {
+      const res = await service.handleNoonlightEvent({ event_type: 'alarm.closed' });
+
+      expect(res).toEqual({ applied: false, reason: 'unknown_alarm' });
+      expect(sosRepo.findOne).not.toHaveBeenCalled();
+    });
+
+    it('leaves the status alone for an unmapped event type', async () => {
+      sosRepo.findOne.mockResolvedValue(sosFor(SosStatus.ACTIVE));
+
+      const res = await service.handleNoonlightEvent({
+        event_type: 'alarm.something.new',
+        meta: { alarm_id: 'noonlight-alarm-123' },
+      });
+
+      expect(res).toEqual({ applied: false, reason: 'unmapped_event' });
+      expect(sosRepo.save).not.toHaveBeenCalled();
+    });
+
+    it('does not re-save when the status already matches', async () => {
+      sosRepo.findOne.mockResolvedValue(sosFor(SosStatus.RESOLVED));
+
+      const res = await service.handleNoonlightEvent({
+        event_type: 'alarm.closed',
+        meta: { alarm_id: 'noonlight-alarm-123' },
+      });
+
+      expect(res).toEqual({ applied: false, reason: 'no_change' });
       expect(sosRepo.save).not.toHaveBeenCalled();
     });
   });

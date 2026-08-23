@@ -6,18 +6,18 @@ import { NoonlightWebhookController } from './noonlight-webhook.controller';
 const SECRET = 'whsec_test_value';
 
 function build(overrides: Record<string, string | undefined> = {}) {
-  const handleNoonlightWebhook = jest.fn().mockResolvedValue({ applied: true });
+  const handleNoonlightEvent = jest.fn().mockResolvedValue({ applied: true });
   const config = {
     get: (k: string) =>
       ({ NOONLIGHT_WEBHOOK_SECRET: SECRET, NODE_ENV: 'test', ...overrides })[k],
   };
   const logger = { info: jest.fn(), warn: jest.fn(), error: jest.fn() };
   const controller = new NoonlightWebhookController(
-    { handleNoonlightWebhook } as any,
+    { handleNoonlightEvent } as any,
     config as any,
     logger as any,
   );
-  return { controller, handleNoonlightWebhook, logger };
+  return { controller, handleNoonlightEvent, logger };
 }
 
 function req(body: unknown) {
@@ -29,18 +29,24 @@ const sign = (r: { rawBody: Buffer }, enc: 'hex' | 'base64') =>
   crypto.createHmac('sha256', SECRET).update(r.rawBody).digest(enc);
 
 describe('NoonlightWebhookController', () => {
-  const payload = { alarm_id: 'alarm-1', status: 'dispatched' };
+  // The shape a real sandbox callback delivers.
+  const payload = [
+    {
+      event_id: 'evt-1',
+      event_time: '2026-08-23T09:50:51.440Z',
+      event_type: 'alarm.closed',
+      meta: { alarm_id: 'alarm-1' },
+    },
+  ];
 
   it('accepts a hex signature and forwards the alarm', async () => {
-    const { controller, handleNoonlightWebhook } = build();
+    const { controller, handleNoonlightEvent } = build();
     const r = req(payload);
     const res = await controller.handle(r, { 'x-noonlight-signature': sign(r, 'hex') });
-    expect(res).toEqual({ received: true, applied: true });
-    expect(handleNoonlightWebhook).toHaveBeenCalledWith({
-      alarm_id: 'alarm-1',
-      status: 'dispatched',
-      dispatch_status: undefined,
-    });
+    expect(res).toEqual({ received: true, events: 1, applied: 1 });
+    expect(handleNoonlightEvent).toHaveBeenCalledWith(
+      expect.objectContaining({ event_type: 'alarm.closed', meta: { alarm_id: 'alarm-1' } }),
+    );
   });
 
   it('accepts a base64 signature', async () => {
@@ -52,11 +58,11 @@ describe('NoonlightWebhookController', () => {
   });
 
   it('rejects a wrong signature without touching the service', async () => {
-    const { controller, handleNoonlightWebhook } = build();
+    const { controller, handleNoonlightEvent } = build();
     await expect(
       controller.handle(req(payload), { 'x-noonlight-signature': 'nope' }),
     ).rejects.toBeInstanceOf(UnauthorizedException);
-    expect(handleNoonlightWebhook).not.toHaveBeenCalled();
+    expect(handleNoonlightEvent).not.toHaveBeenCalled();
   });
 
   it('rejects a missing signature header', async () => {
@@ -69,7 +75,7 @@ describe('NoonlightWebhookController', () => {
   it('rejects a body that was altered after signing', async () => {
     const { controller } = build();
     const original = req(payload);
-    const tampered = req({ alarm_id: 'alarm-1', status: 'cancelled' });
+    const tampered = req([{ event_type: 'alarm.dispatched', meta: { alarm_id: 'alarm-1' } }]);
     await expect(
       controller.handle(tampered, { 'x-noonlight-signature': sign(original, 'hex') }),
     ).rejects.toBeInstanceOf(UnauthorizedException);
@@ -84,33 +90,52 @@ describe('NoonlightWebhookController', () => {
   });
 
   it('fails closed in production when no secret is configured', async () => {
-    const { controller, handleNoonlightWebhook } = build({
+    const { controller, handleNoonlightEvent } = build({
       NOONLIGHT_WEBHOOK_SECRET: undefined,
       NODE_ENV: 'production',
     });
     await expect(controller.handle(req(payload), {})).rejects.toBeInstanceOf(
       UnauthorizedException,
     );
-    expect(handleNoonlightWebhook).not.toHaveBeenCalled();
+    expect(handleNoonlightEvent).not.toHaveBeenCalled();
   });
 
   it('allows unsigned traffic outside production so sandbox bring-up can start', async () => {
-    const { controller, handleNoonlightWebhook, logger } = build({
+    const { controller, handleNoonlightEvent, logger } = build({
       NOONLIGHT_WEBHOOK_SECRET: undefined,
     });
     await expect(controller.handle(req(payload), {})).resolves.toMatchObject({
       received: true,
     });
-    expect(handleNoonlightWebhook).toHaveBeenCalled();
+    expect(handleNoonlightEvent).toHaveBeenCalled();
     expect(logger.warn).toHaveBeenCalled();
   });
 
-  it('ignores a payload with no alarm_id', async () => {
-    const { controller, handleNoonlightWebhook } = build();
-    const r = req({ id: 'alarm-1' });
+  it('applies every event in the array', async () => {
+    const { controller, handleNoonlightEvent } = build();
+    const r = req([
+      { event_type: 'alarm.dispatched', meta: { alarm_id: 'a' } },
+      { event_type: 'alarm.closed', meta: { alarm_id: 'b' } },
+    ]);
     const res = await controller.handle(r, { 'x-noonlight-signature': sign(r, 'hex') });
-    expect(res).toEqual({ received: true, applied: false });
-    expect(handleNoonlightWebhook).not.toHaveBeenCalled();
+    expect(res).toEqual({ received: true, events: 2, applied: 2 });
+    expect(handleNoonlightEvent).toHaveBeenCalledTimes(2);
+  });
+
+  it('accepts a bare object as a single event', async () => {
+    const { controller, handleNoonlightEvent } = build();
+    const r = req({ event_type: 'alarm.closed', meta: { alarm_id: 'a' } });
+    const res = await controller.handle(r, { 'x-noonlight-signature': sign(r, 'hex') });
+    expect(res).toEqual({ received: true, events: 1, applied: 1 });
+    expect(handleNoonlightEvent).toHaveBeenCalledTimes(1);
+  });
+
+  it('ignores an empty array', async () => {
+    const { controller, handleNoonlightEvent } = build();
+    const r = req([]);
+    const res = await controller.handle(r, { 'x-noonlight-signature': sign(r, 'hex') });
+    expect(res).toEqual({ received: true, applied: 0, events: 0 });
+    expect(handleNoonlightEvent).not.toHaveBeenCalled();
   });
 
   it('honours a custom signature header name', async () => {

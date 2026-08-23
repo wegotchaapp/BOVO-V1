@@ -271,7 +271,15 @@ export class SafetyController {
   @ApiOperation({ summary: 'Activate SOS emergency alert' })
   async activateSOS(
     @Request() req: any,
-    @Body() body: { trigger_type: SosTriggerType; booking_id?: string; latitude: number; longitude: number },
+    @Body()
+    body: {
+      trigger_type: SosTriggerType;
+      booking_id?: string;
+      latitude: number;
+      longitude: number;
+      /** GPS uncertainty in metres, passed straight to Noonlight when present. */
+      accuracy?: number;
+    },
   ) {
     return this.safetyService.activateSOS(
       req.user.id,
@@ -279,6 +287,7 @@ export class SafetyController {
       body.booking_id,
       body.latitude,
       body.longitude,
+      body.accuracy,
     );
   }
 

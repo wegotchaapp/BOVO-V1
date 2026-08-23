@@ -2,15 +2,17 @@ import {
   BadRequestException,
   Injectable,
   InternalServerErrorException,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { priceBooking } from '../mobile-pricing';
 import { InjectRepository } from '@nestjs/typeorm';
-import { DataSource, Repository } from 'typeorm';
+import { DataSource, MoreThanOrEqual, Repository } from 'typeorm';
 import Stripe from 'stripe';
 import {
   MobileBooking,
+  MobileDeviationEvent,
   MobileLiveLocation,
   MobileTrip,
   MobileTripGroup,
@@ -19,6 +21,20 @@ import {
   MobileUser,
 } from '../entities/mobile.entities';
 import { CreateBookingBody, LiveLocationBody } from '../dto/mobile.dto';
+import { distanceFromRouteMiles } from '../../../common/geo/route-geometry';
+import { RoutingService } from '../../routing/routing.service';
+
+/**
+ * Miles off the adventure's own route before it counts as a deviation.
+ *
+ * Generous on purpose: interchanges, service roads and rest stops all put a
+ * driver a short way off the line, and a false alarm on a safety feature is
+ * worse than a slightly late true one.
+ */
+const DEVIATION_THRESHOLD_MILES = 5;
+
+/** One deviation record per off-route stretch, not one per ping. */
+const DEVIATION_COOLDOWN_MS = 10 * 60 * 1000;
 import { bookingToDto } from '../mobile.mappers';
 import { MobileConversationsService } from './mobile-conversations.service';
 import { MobileEmailNotificationsService } from './mobile-email-notifications.service';
@@ -38,6 +54,8 @@ function round2(n: number): number {
 
 @Injectable()
 export class MobileBookingsService {
+  private readonly logger = new Logger(MobileBookingsService.name);
+
   constructor(
     @InjectRepository(MobileBooking)
     private readonly bookings: Repository<MobileBooking>,
@@ -49,6 +67,9 @@ export class MobileBookingsService {
     private readonly groups: Repository<MobileTripGroup>,
     @InjectRepository(MobileLiveLocation)
     private readonly liveLocations: Repository<MobileLiveLocation>,
+    @InjectRepository(MobileDeviationEvent)
+    private readonly deviations: Repository<MobileDeviationEvent>,
+    private readonly routing: RoutingService,
     private readonly dataSource: DataSource,
     private readonly config: ConfigService,
     private readonly conversations: MobileConversationsService,
@@ -458,7 +479,90 @@ export class MobileBookingsService {
     row.speed = dto.speed ?? null;
     await this.liveLocations.save(row);
 
-    return { ok: true, updatedAt: row.updated_at.toISOString() };
+    // Only the driver's position can put the adventure off course; a Sailor's
+    // phone reports wherever they happen to be.
+    const deviation = isDriver
+      ? await this.checkRouteDeviation(trip, userId, dto.latitude, dto.longitude)
+      : null;
+
+    return {
+      ok: true,
+      updatedAt: row.updated_at.toISOString(),
+      ...(deviation ? { deviation } : {}),
+    };
+  }
+
+  /**
+   * Distance from the adventure's own stored route, not from the nearest road.
+   *
+   * Returns a summary when the driver is off course, otherwise null. Never
+   * throws: a location ping must land even if we cannot tell where the route is.
+   */
+  private async checkRouteDeviation(
+    trip: MobileTrip,
+    userId: string,
+    latitude: number,
+    longitude: number,
+  ): Promise<{ distanceMiles: number; recorded: boolean } | null> {
+    try {
+      const encoded = await this.ensureRoute(trip);
+      if (!encoded) return null;
+
+      const distance = distanceFromRouteMiles(
+        { latitude, longitude },
+        this.routing.decode(encoded),
+      );
+      // null means an empty route — "cannot tell", never "on course".
+      if (distance === null || distance <= DEVIATION_THRESHOLD_MILES) return null;
+
+      // One record per off-route stretch rather than one per ping: at a ping
+      // every few seconds, a single wrong turn would otherwise generate
+      // hundreds of identical alerts.
+      const since = new Date(Date.now() - DEVIATION_COOLDOWN_MS);
+      const recent = await this.deviations.count({
+        where: { trip_id: trip.id, created_at: MoreThanOrEqual(since) },
+      });
+
+      if (recent === 0) {
+        await this.deviations.save(
+          this.deviations.create({
+            trip_id: trip.id,
+            user_id: userId,
+            latitude,
+            longitude,
+            distance_miles: Number(distance.toFixed(2)),
+            status: 'pending',
+          }),
+        );
+        this.logger.warn(
+          `Route deviation on trip ${trip.id}: ${distance.toFixed(1)} mi from route at ${latitude},${longitude}`,
+        );
+      }
+
+      return { distanceMiles: Number(distance.toFixed(2)), recorded: recent === 0 };
+    } catch (err) {
+      this.logger.error(
+        `Deviation check failed for trip ${trip.id}: ${err instanceof Error ? err.message : err}`,
+      );
+      return null;
+    }
+  }
+
+  /**
+   * The adventure's route, fetched from Mapbox on first need and reused after.
+   *
+   * `route_fetched_at` is stamped even when the fetch yields nothing, so an
+   * unroutable pair is not retried on every single ping.
+   */
+  private async ensureRoute(trip: MobileTrip): Promise<string | null> {
+    if (trip.route_polyline) return trip.route_polyline;
+    if (trip.route_fetched_at) return null;
+
+    const encoded = await this.routing.routeBetweenCities(trip.from_city, trip.to_city);
+    trip.route_polyline = encoded;
+    trip.route_fetched_at = new Date();
+    await this.trips.save(trip);
+    return encoded;
   }
 
   /**

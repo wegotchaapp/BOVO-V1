@@ -4,6 +4,7 @@ import { NotificationsModule } from '../notifications/notifications.module';
 import {
   MobileBooking,
   MobileConversation,
+  MobileDeviationEvent,
   MobileDirectMessage,
   MobileDriverTrip,
   MobileLiveLocation,
@@ -26,6 +27,7 @@ import { MobileTripsService } from './services/mobile-trips.service';
 import { MobileBookingsService } from './services/mobile-bookings.service';
 import { MobileGroupsService } from './services/mobile-groups.service';
 import { NoonlightModule } from '../noonlight/noonlight.module';
+import { RoutingModule } from '../routing/routing.module';
 import { MobileEarningsService } from './services/mobile-earnings.service';
 import { MobileOdometerService } from './services/mobile-odometer.service';
 import { MobileBackgroundCheckService } from './services/mobile-background-check.service';
@@ -61,6 +63,7 @@ import { MobileSafetyController } from './controllers/mobile-safety.controller';
   imports: [
     NotificationsModule,
     NoonlightModule,
+    RoutingModule,
     TypeOrmModule.forFeature([
       MobileUser,
       MobileSession,
@@ -79,6 +82,7 @@ import { MobileSafetyController } from './controllers/mobile-safety.controller';
       MobileDriverTrip,
       MobileOdometerReading,
       MobileSosEvent,
+      MobileDeviationEvent,
     ]),
   ],
   controllers: [

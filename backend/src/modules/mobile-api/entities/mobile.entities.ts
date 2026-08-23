@@ -328,6 +328,16 @@ export class MobileTrip {
   @Column({ type: 'timestamptz', nullable: true })
   started_at!: Date | null;
 
+  /**
+   * Encoded Mapbox driving polyline for this adventure, fetched once and reused
+   * by every location ping so deviation checks do no network I/O.
+   */
+  @Column({ type: 'text', nullable: true })
+  route_polyline!: string | null;
+
+  @Column({ type: 'timestamptz', nullable: true })
+  route_fetched_at!: Date | null;
+
   @CreateDateColumn({ type: 'timestamptz' })
   created_at!: Date;
 }
@@ -732,6 +742,43 @@ export class MobileSosEvent {
 
   @Column({ type: 'boolean', default: false })
   contact_notified!: boolean;
+
+  @CreateDateColumn({ type: 'timestamptz' })
+  created_at!: Date;
+}
+
+
+/**
+ * A mobile adventure straying from its own route.
+ *
+ * The platform `deviation_events` cannot hold these — its `booking_id` is a
+ * foreign key onto the platform `bookings` — so this is the mobile equivalent,
+ * the same split that `mobile_sos_events` exists for.
+ */
+@Entity('mobile_deviation_events')
+export class MobileDeviationEvent {
+  @PrimaryGeneratedColumn('uuid')
+  id!: string;
+
+  @Index()
+  @Column({ type: 'uuid' })
+  trip_id!: string;
+
+  @Index()
+  @Column({ type: 'uuid' })
+  user_id!: string;
+
+  @Column({ type: 'double precision' })
+  latitude!: number;
+
+  @Column({ type: 'double precision' })
+  longitude!: number;
+
+  @Column({ type: 'double precision' })
+  distance_miles!: number;
+
+  @Column({ type: 'varchar', length: 20, default: 'pending' })
+  status!: 'pending' | 'acknowledged' | 'resolved';
 
   @CreateDateColumn({ type: 'timestamptz' })
   created_at!: Date;

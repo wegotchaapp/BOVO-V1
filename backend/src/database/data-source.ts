@@ -38,6 +38,7 @@ import {
   MobileConversation,
   MobileDirectMessage,
   MobileSosEvent,
+  MobileDeviationEvent,
   MobileLiveLocation,
   MobileOdometerReading,
 } from '../modules/mobile-api/entities/mobile.entities';
@@ -118,6 +119,7 @@ export const AppDataSource = new DataSource({
     MobileLiveLocation,
     MobileOdometerReading,
     MobileSosEvent,
+    MobileDeviationEvent,
   ],
   // __filename ends in .js when compiled, .ts when running under ts-node.
   // This resolves to the correct migration files in both environments.

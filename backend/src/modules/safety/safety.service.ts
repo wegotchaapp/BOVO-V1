@@ -13,15 +13,19 @@ import axios from 'axios';
 import { RealtimeGateway } from '../../common/gateways/realtime.gateway';
 import { MobileSosEvent } from '../mobile-api/entities/mobile.entities';
 import { NoonlightService } from '../noonlight/noonlight.service';
+import { RoutingService } from '../routing/routing.service';
+import { distanceFromRouteMiles } from '../../common/geo/route-geometry';
 import { NotificationsService } from '../notifications/notifications.service';
 
 /**
  * Kept short: an SOS must not stall behind a slow third party. If Noonlight
  * hasn't answered in this window we escalate locally and move on.
  */
+/** Miles off the trip's own route before it counts as a deviation. */
+const DEVIATION_THRESHOLD_MILES = 5;
+
 @Injectable()
 export class SafetyService {
-  private mapboxAccessToken: string;
   private appUrl: string;
 
   constructor(
@@ -48,8 +52,8 @@ export class SafetyService {
     private readonly notifications: NotificationsService,
     private readonly realtime: RealtimeGateway,
     private readonly noonlight: NoonlightService,
+    private readonly routing: RoutingService,
   ) {
-    this.mapboxAccessToken = this.config.get<string>('MAPBOX_ACCESS_TOKEN') || '';
     this.appUrl = this.config.get<string>('APP_URL') || 'https://bovogo.app';
   }
 
@@ -138,20 +142,22 @@ export class SafetyService {
     }
 
     try {
-      const snappedPoint = await this.snapToRoad(lat, lng);
-      if (!snappedPoint) {
-        this.logger.warn({ lat, lng }, 'Could not snap point to road');
+      // Distance from *this trip's* route, not from the nearest road. The old
+      // implementation asked Mapbox to snap the point to the road network and
+      // measured how far it moved, which answers a different question: a driver
+      // 200 miles off course but on a highway measured zero, and one parked in a
+      // field measured a deviation. The polyline checked for above was never
+      // read. It also sent a single coordinate to Map Matching, which requires
+      // at least two, so every call 422'd and the feature never once fired.
+      const route = this.routing.decode(trip.mapbox_route_polyline);
+      const distanceFromRoute = distanceFromRouteMiles({ latitude: lat, longitude: lng }, route);
+
+      if (distanceFromRoute === null) {
+        this.logger.warn({ bookingId: booking.id }, 'Stored route decoded to nothing — cannot check deviation');
         return false;
       }
 
-      const distanceFromRoute = this.haversineDistance(
-        snappedPoint.latitude,
-        snappedPoint.longitude,
-        lat,
-        lng,
-      );
-
-      if (distanceFromRoute > 5) {
+      if (distanceFromRoute > DEVIATION_THRESHOLD_MILES) {
         this.logger.warn(
           { bookingId: booking.id, deviationMiles: distanceFromRoute },
           'Route deviation detected (>5 miles)',
@@ -165,24 +171,6 @@ export class SafetyService {
     } catch (err) {
       this.logger.warn({ err, bookingId: booking.id }, 'Deviation detection failed');
       return false;
-    }
-  }
-
-  private async snapToRoad(lat: number, lng: number): Promise<{ latitude: number; longitude: number } | null> {
-    if (!this.mapboxAccessToken) return null;
-
-    try {
-      const url = `https://api.mapbox.com/matching/v5/mapbox/driving/${lng},${lat}?access_token=${this.mapboxAccessToken}&radiuses=50&geometries=geojson&overview=false`;
-      const { data } = await axios.get(url);
-
-      if (data.features && data.features.length > 0) {
-        const coords = data.features[0].geometry.coordinates[0];
-        return { longitude: coords[0], latitude: coords[1] };
-      }
-      return null;
-    } catch (err) {
-      this.logger.warn({ err }, 'Mapbox Map Matching failed');
-      return null;
     }
   }
 

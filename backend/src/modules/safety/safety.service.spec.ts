@@ -14,6 +14,20 @@ import { PinoLogger } from 'nestjs-pino';
 import { RealtimeGateway } from '../../common/gateways/realtime.gateway';
 import { MobileSosEvent } from '../mobile-api/entities/mobile.entities';
 import { NoonlightService } from '../noonlight/noonlight.service';
+import { RoutingService } from '../routing/routing.service';
+import { decodePolyline, encodePolyline } from '../../common/geo/route-geometry';
+
+/**
+ * A real route through the coordinate the ping tests use (34.0522,-118.2437),
+ * running roughly north-south through it. The fixture used to be the string
+ * 'encoded_polyline_data', which decodes to nonsense — fine when the code never
+ * read the polyline, misleading now that it does.
+ */
+const ROUTE_THROUGH_TEST_POINT = encodePolyline([
+  { latitude: 34.2022, longitude: -118.2437 },
+  { latitude: 34.0522, longitude: -118.2437 },
+  { latitude: 33.9022, longitude: -118.2437 },
+]);
 import { NotificationsService } from '../notifications/notifications.service';
 import axios from 'axios';
 
@@ -71,7 +85,7 @@ describe('SafetyService', () => {
     origin_lng: -118.2437,
     dest_lat: 33.9425,
     dest_lng: -118.4081,
-    mapbox_route_polyline: 'encoded_polyline_data',
+    mapbox_route_polyline: ROUTE_THROUGH_TEST_POINT,
     expected_arrival_time: new Date(Date.now() + 3600000).toISOString(),
     vehicle: {
       id: 'vehicle-1',
@@ -156,6 +170,15 @@ describe('SafetyService', () => {
           // tests are about what SafetyService does with the id it gets back.
           provide: NoonlightService,
           useValue: { createAlarm: jest.fn().mockResolvedValue('noonlight-alarm-123') },
+        },
+        {
+          // Decodes for real — the geometry has its own suite — so only the
+          // network fetch is stubbed.
+          provide: RoutingService,
+          useValue: {
+            decode: (enc: string) => decodePolyline(enc, 5),
+            routeBetweenCities: jest.fn().mockResolvedValue(null),
+          },
         },
         {
           provide: ConfigService,
@@ -627,7 +650,7 @@ describe('SafetyService', () => {
       expect(result.accuracy).toBe(10);
       expect(result.driver_name).toBe('John D.');
       expect(result.vehicle_make).toBe('Toyota');
-      expect(result.route_polyline).toBe('encoded_polyline_data');
+      expect(result.route_polyline).toBe(ROUTE_THROUGH_TEST_POINT);
       expect(result.status).toBe(BookingStatus.EN_ROUTE);
     });
 

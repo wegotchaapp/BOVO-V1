@@ -14,6 +14,7 @@ import { EmergencyContact } from '../../database/entities/communication.entities
 import { MobileSosEvent } from '../mobile-api/entities/mobile.entities';
 import { NotificationsModule } from '../notifications/notifications.module';
 import { NoonlightModule } from '../noonlight/noonlight.module';
+import { RoutingModule } from '../routing/routing.module';
 
 @Module({
   imports: [
@@ -21,6 +22,7 @@ import { NoonlightModule } from '../noonlight/noonlight.module';
     BullModule.registerQueue({ name: 'safety-jobs' }),
     forwardRef(() => NotificationsModule),
     NoonlightModule,
+    RoutingModule,
   ],
   controllers: [SafetyController, NoonlightWebhookController],
   providers: [SafetyService, SafetyJobProcessor, SafetyScheduler],

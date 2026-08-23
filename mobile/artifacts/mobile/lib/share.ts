@@ -39,7 +39,7 @@ export interface LiveShareInput {
  * location fix could be obtained, so the caller can explain why.
  */
 export async function shareLiveLocation(input: LiveShareInput = {}): Promise<boolean> {
-  const coord = await getSosLocation();
+  const { coord } = await getSosLocation();
   if (!coord) return false;
 
   const parts = ["I'm sharing my live Bovogo adventure with you."];

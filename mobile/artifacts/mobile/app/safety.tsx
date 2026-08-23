@@ -3,6 +3,7 @@ import { useRouter } from "expo-router";
 import React, { useEffect, useRef, useState } from "react";
 import {
   Animated,
+  Linking,
   Modal,
   Platform,
   Pressable,
@@ -19,7 +20,13 @@ import { Alert } from "@/lib/alert";
 import { useColors } from "@/hooks/useColors";
 import { useAuth } from "@/context/AuthContext";
 import { CARD_SHADOW } from "@/constants/colors";
-import { triggerSos } from "@/lib/safety";
+import {
+  getSosLocation,
+  hasLocationPermission,
+  triggerSos,
+  type SosLocationFailure,
+  type SosOutcome,
+} from "@/lib/safety";
 import { shareLiveLocation } from "@/lib/share";
 
 const HOLD_DURATION = 3000;
@@ -32,6 +39,9 @@ export default function Safety() {
   const emergencyName = user?.emergencyName?.trim() ?? "";
   const emergencyPhone = user?.emergencyPhone?.trim() ?? "";
   const [sharing, setSharing] = useState(false);
+  // Checked without prompting, so the gap is visible before an emergency rather
+  // than discovered during one.
+  const [locationBlocked, setLocationBlocked] = useState(false);
 
   const holdProgress = useRef(new Animated.Value(0)).current;
   const holdAnim = useRef<Animated.CompositeAnimation | null>(null);
@@ -82,23 +92,83 @@ export default function Safety() {
     // Auto-texts the emergency contact with live location, then opens the 911
     // text composer and dialer (the OS requires one tap from the user).
     try {
-      const result = await triggerSos();
-      // Say so when the contact was not reached. Believing someone has been
-      // alerted when they have not is worse than knowing you are on your own.
-      if (!result.contactNotified) {
-        Alert.alert(
-          "Your emergency contact wasn't alerted",
-          result.reason === "no_emergency_contact"
-            ? "You haven't saved one yet. Reach someone directly, then add a contact in the Safety Center."
-            : "We couldn't get the message out. Call them directly if you can.",
-        );
-      }
+      // Reported through onResult rather than the resolved promise: the 911
+      // handoff that follows can navigate away or background the app, and this
+      // has to reach the user either way.
+      await triggerSos({
+        onResult: reportSosOutcome,
+        onNoLocation: reportNoLocation,
+      });
     } catch {
       Alert.alert(
         "SOS",
         "We couldn't open your phone's dialer automatically. Please call 911 directly.",
       );
     }
+  }
+
+  /**
+   * Known before any network call, so this is the one warning guaranteed to be
+   * on screen before the 911 handoff takes the app away.
+   */
+  function reportNoLocation(reason: SosLocationFailure) {
+    setLocationBlocked(reason === "permission_denied");
+    Alert.alert(
+      "No responders were sent",
+      reason === "permission_denied"
+        ? "Bovogo couldn't get your location, so we couldn't dispatch anyone. Your phone's 911 call is still the fastest route — turn on location access to let us dispatch next time."
+        : "We couldn't get a location fix, so we couldn't dispatch anyone. Use the 911 call your phone just opened.",
+    );
+  }
+
+  function reportSosOutcome(result: SosOutcome) {
+    setLocationBlocked(result.locationReason === "permission_denied");
+
+    // Already reported by reportNoLocation, before the handoff.
+    if (result.locationReason) return;
+
+    // Dispatch needs coordinates — Noonlight cannot open an alarm without them
+    // — so without a location nobody is sent. That is the one outcome the user
+    // must not be left assuming went the other way.
+    if (!result.dispatched) {
+      Alert.alert(
+        "No responders were sent",
+        "We couldn't reach the dispatch service. Use the 911 call your phone just opened.",
+      );
+      return;
+    }
+
+    // Say so when the contact was not reached. Believing someone has been
+    // alerted when they have not is worse than knowing you are on your own.
+    if (!result.contactNotified) {
+      Alert.alert(
+        "Your emergency contact wasn't alerted",
+        result.reason === "no_emergency_contact"
+          ? "You haven't saved one yet. Reach someone directly, then add a contact in the Safety Center."
+          : "We couldn't get the message out. Call them directly if you can.",
+      );
+    }
+  }
+
+  async function openLocationSettings() {
+    // Asking again is a no-op once the OS has recorded a denial, so send the
+    // user to Settings when the prompt is spent.
+    const granted = await hasLocationPermission();
+    if (granted) {
+      setLocationBlocked(false);
+      return;
+    }
+    const fresh = await getSosLocation();
+    if (fresh.coord) {
+      setLocationBlocked(false);
+      return;
+    }
+    Linking.openSettings().catch(() => {
+      Alert.alert(
+        "Turn on location",
+        "Open Settings, find Bovogo, and allow location access so an SOS can dispatch responders.",
+      );
+    });
   }
 
   function cancelSOS() {
@@ -110,6 +180,14 @@ export default function Safety() {
 
   useEffect(() => {
     return () => { clearInterval(countdownRef.current!); };
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    hasLocationPermission().then((granted) => {
+      if (!cancelled) setLocationBlocked(!granted);
+    });
+    return () => { cancelled = true; };
   }, []);
 
   const progressDeg = holdProgress.interpolate({ inputRange: [0, 1], outputRange: ["0deg", "360deg"] });
@@ -232,6 +310,21 @@ export default function Safety() {
               ? `Texts and calls 911 with your location, and alerts ${emergencyName}.`
               : "Texts and calls 911 with your location. Add an emergency contact below and we'll alert them too."}
           </Text>
+
+          {/* Without coordinates no alarm can be opened, so this is worth
+              knowing now rather than in the middle of an emergency. */}
+          {locationBlocked && (
+            <TouchableOpacity
+              style={[styles.locationWarning, { backgroundColor: "#FEF3E2" }]}
+              onPress={openLocationSettings}
+              activeOpacity={0.85}
+            >
+              <Feather name="map-pin" size={15} color="#7A5A1E" />
+              <Text style={[styles.locationWarningText, { color: "#7A5A1E" }]}>
+                Location is off, so an SOS can't dispatch responders. Tap to turn it on.
+              </Text>
+            </TouchableOpacity>
+          )}
         </View>
 
         <View style={styles.actions}>
@@ -338,6 +431,21 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(0,0,0,0.2)",
   },
   holdProgressFill: { height: 6 },
+  locationWarning: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    borderRadius: 14,
+    marginTop: 14,
+  },
+  locationWarningText: {
+    flex: 1,
+    fontSize: 13,
+    fontFamily: "Inter_500Medium",
+    lineHeight: 18,
+  },
   sosNote: { fontSize: 12, fontFamily: "Inter_400Regular", textAlign: "center" },
   actions: { gap: 12 },
   actionItem: {

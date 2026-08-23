@@ -90,6 +90,7 @@ function RootLayoutNav() {
         {/* Both draw their own header; without these they also got the router's
             default one, showing the route name in lowercase above it. */}
         <Stack.Screen name="matching" options={{ headerShown: false }} />
+        <Stack.Screen name="emergency-contact" options={{ headerShown: false }} />
         <Stack.Screen name="preferences" options={{ headerShown: false }} />
         <Stack.Screen
           name="subscribe"

@@ -157,7 +157,7 @@ export default function Safety() {
       subtitle: emergencyName
         ? `${emergencyName} · ${emergencyPhone || "no number saved"}`
         : "None saved — tap to add one",
-      onPress: () => router.push("/preferences" as any),
+      onPress: () => router.push("/emergency-contact" as any),
       // This row goes amber precisely to flag the missing contact, so the glyph
       // is carrying state, not decoration. #D97706 is 2.90:1 on the pale fill,
       // under the 3:1 floor; this is 3.79:1.

@@ -485,25 +485,41 @@ export class SafetyService {
     return { status: 'safe_word_mismatch' };
   }
 
-  async handleNoonlightWebhook(payload: { alarm_id: string; status: string; dispatch_status?: string }): Promise<void> {
+  /** Reports what it did so the webhook endpoint can answer honestly. */
+  async handleNoonlightWebhook(payload: {
+    alarm_id: string;
+    status: string;
+    dispatch_status?: string;
+  }): Promise<{ applied: boolean; reason?: 'unknown_alarm' | 'no_change' }> {
     const sosEvent = await this.sosRepo.findOne({
       where: { noonlight_alarm_id: payload.alarm_id },
     });
     if (!sosEvent) {
       this.logger.warn({ alarmId: payload.alarm_id }, 'Noonlight webhook for unknown alarm');
-      return;
+      return { applied: false, reason: 'unknown_alarm' };
     }
 
+    // The guard here used to be `sosEvent.status !== undefined`, which is always
+    // true for a row loaded from the database — so an unrecognised status
+    // re-saved the unchanged row and logged that it had been updated.
+    const previous = sosEvent.status;
     if (payload.status === 'dispatched') {
       sosEvent.status = SosStatus.DISPATCHED;
     } else if (payload.status === 'cancelled') {
       sosEvent.status = SosStatus.FALSE_ALARM;
     }
 
-    if (sosEvent.status !== undefined) {
-      await this.sosRepo.save(sosEvent);
-      this.logger.info({ sosId: sosEvent.id, newStatus: sosEvent.status }, 'SOS status updated via Noonlight webhook');
+    if (sosEvent.status === previous) {
+      this.logger.info(
+        { sosId: sosEvent.id, status: payload.status, dispatchStatus: payload.dispatch_status },
+        'Noonlight webhook carried no status change',
+      );
+      return { applied: false, reason: 'no_change' };
     }
+
+    await this.sosRepo.save(sosEvent);
+    this.logger.info({ sosId: sosEvent.id, newStatus: sosEvent.status }, 'SOS status updated via Noonlight webhook');
+    return { applied: true };
   }
 
   async submitUnsafeFeeling(

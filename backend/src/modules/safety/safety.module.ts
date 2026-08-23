@@ -2,6 +2,7 @@ import { Module, forwardRef } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { BullModule } from '@nestjs/bullmq';
 import { SafetyController } from './safety.controller';
+import { NoonlightWebhookController } from './noonlight-webhook.controller';
 import { SafetyService } from './safety.service';
 import { SafetyJobProcessor } from './processors/safety.processor';
 import { SafetyScheduler } from './safety.scheduler';
@@ -18,7 +19,7 @@ import { NotificationsModule } from '../notifications/notifications.module';
     BullModule.registerQueue({ name: 'safety-jobs' }),
     forwardRef(() => NotificationsModule),
   ],
-  controllers: [SafetyController],
+  controllers: [SafetyController, NoonlightWebhookController],
   providers: [SafetyService, SafetyJobProcessor, SafetyScheduler],
   exports: [SafetyService],
 })

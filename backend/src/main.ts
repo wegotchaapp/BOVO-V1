@@ -30,15 +30,33 @@ async function bootstrap() {
 
   app.use(helmet());
   app.use(compression());
+  // Must precede the global json parser: body-parser sets `req._body` and
+  // short-circuits on the second pass, so a path-specific `verify` registered
+  // afterwards never runs and rawBody is never captured.
+  app.use(
+    '/safety/noonlight/webhook',
+    express.json({
+      type: 'application/json',
+      limit: '1mb',
+      verify: (req: any, _res, buf) => {
+        (req as any).rawBody = buf;
+      },
+    }),
+  );
+
+  app.use('/identity/webhook', express.json({
+    type: 'application/json',
+    limit: '5mb',
+    verify: (req: any, _res, buf) => {
+      (req as any).rawBody = buf;
+    },
+  }));
+
   app.use(express.json({ limit: '10mb' }));
   app.use(express.urlencoded({ extended: true }));
 
   const uploadsDir = path.join(process.cwd(), 'uploads');
   app.use('/uploads', express.static(uploadsDir));
-
-  app.use('/identity/webhook', express.json({ type: 'application/json', limit: '5mb', verify: (req: any, _res, buf) => {
-    (req as any).rawBody = buf;
-  }}));
 
   const allExceptionsFilter = new AllExceptionsFilter(app.get(Logger));
   app.useGlobalFilters(allExceptionsFilter);

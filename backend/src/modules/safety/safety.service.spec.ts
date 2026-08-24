@@ -512,7 +512,39 @@ describe('SafetyService', () => {
         noonlight_alarm_id: 'noonlight-alarm-123',
       }) as SosEvent;
 
-    it('moves an alarm to DISPATCHED on alarm.dispatched', async () => {
+    // Noonlight documents exactly three verbs. alarm.dispatched and
+    // alarm.canceled — which this code used to map — are not among them.
+    it('moves an alarm to DISPATCHED on alarm.psap_contacted', async () => {
+      sosRepo.findOne.mockResolvedValue(sosFor(SosStatus.ACTIVE));
+      sosRepo.save.mockResolvedValue({} as SosEvent);
+
+      const res = await service.handleNoonlightEvent({
+        event_type: 'alarm.psap_contacted',
+        meta: { alarm_id: 'noonlight-alarm-123' },
+      });
+
+      expect(res).toEqual({ applied: true });
+      expect(sosRepo.save).toHaveBeenCalledWith(
+        expect.objectContaining({ status: SosStatus.DISPATCHED }),
+      );
+    });
+
+    it('marks a user cancellation as FALSE_ALARM on alarm.status.canceled', async () => {
+      sosRepo.findOne.mockResolvedValue(sosFor(SosStatus.ACTIVE));
+      sosRepo.save.mockResolvedValue({} as SosEvent);
+
+      const res = await service.handleNoonlightEvent({
+        event_type: 'alarm.status.canceled',
+        meta: { alarm_id: 'noonlight-alarm-123' },
+      });
+
+      expect(res).toEqual({ applied: true });
+      expect(sosRepo.save).toHaveBeenCalledWith(
+        expect.objectContaining({ status: SosStatus.FALSE_ALARM }),
+      );
+    });
+
+    it('still honours the legacy alarm.dispatched alias', async () => {
       sosRepo.findOne.mockResolvedValue(sosFor(SosStatus.ACTIVE));
       sosRepo.save.mockResolvedValue({} as SosEvent);
 
@@ -525,6 +557,32 @@ describe('SafetyService', () => {
       expect(sosRepo.save).toHaveBeenCalledWith(
         expect.objectContaining({ status: SosStatus.DISPATCHED }),
       );
+    });
+
+    // alarm.psap_contacted is documented to fire more than once, and webhooks
+    // can arrive out of order — a late one must not reopen a closed emergency.
+    it('does not reopen a resolved SOS when a PSAP event arrives late', async () => {
+      sosRepo.findOne.mockResolvedValue(sosFor(SosStatus.RESOLVED));
+
+      const res = await service.handleNoonlightEvent({
+        event_type: 'alarm.psap_contacted',
+        meta: { alarm_id: 'noonlight-alarm-123' },
+      });
+
+      expect(res).toEqual({ applied: false, reason: 'already_terminal' });
+      expect(sosRepo.save).not.toHaveBeenCalled();
+    });
+
+    it('does not reopen a false-alarm SOS when a PSAP event arrives late', async () => {
+      sosRepo.findOne.mockResolvedValue(sosFor(SosStatus.FALSE_ALARM));
+
+      const res = await service.handleNoonlightEvent({
+        event_type: 'alarm.psap_contacted',
+        meta: { alarm_id: 'noonlight-alarm-123' },
+      });
+
+      expect(res).toEqual({ applied: false, reason: 'already_terminal' });
+      expect(sosRepo.save).not.toHaveBeenCalled();
     });
 
     it('resolves the SOS on alarm.closed', async () => {

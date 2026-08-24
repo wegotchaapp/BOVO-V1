@@ -427,21 +427,65 @@ export class SafetyService {
    *
    *   [{ event_id, event_time, event_type: "alarm.closed", meta: { alarm_id } }]
    */
-  /** Maps a Noonlight event verb to a status, or null when we have not seen it. */
+  /**
+   * Maps a Noonlight event verb to a status, or null when we have not seen it.
+   *
+   * Noonlight documents exactly three webhook verbs, and two of the three we
+   * used to map were invented — `alarm.dispatched` and `alarm.canceled` are not
+   * strings Noonlight ever sends, so the only event that did anything was
+   * `alarm.closed`. A cancelled alarm was silently dropped as unmapped, and
+   * DISPATCHED was unreachable by any real callback.
+   *
+   *   alarm.closed          — closed by the Noonlight dispatcher.
+   *   alarm.status.canceled — the user cancelled, via the dispatcher's text/call.
+   *   alarm.psap_contacted  — an outbound call to the PSAP. May fire many times.
+   *
+   * `alarm.psap_contacted` is the genuine "help is being reached" signal, so it
+   * is what DISPATCHED now hangs on. A user-cancelled alarm maps to FALSE_ALARM
+   * rather than RESOLVED because that is already what cancelSOS() records when
+   * the same person cancels the same alarm through the app with their safe word
+   * — one real-world outcome should not get two names based on the channel.
+   */
   private mapEventType(eventType: string): SosStatus | null {
-    // Only mappings confirmed against real sandbox traffic. Anything else is
-    // left alone rather than guessed at — this is the status of a live
-    // emergency, and a wrong guess reads as a resolved incident.
-    if (eventType === 'alarm.closed' || eventType === 'alarm.canceled') return SosStatus.RESOLVED;
+    // Verified against a live sandbox callback.
+    if (eventType === 'alarm.closed') return SosStatus.RESOLVED;
+
+    // Documented by Noonlight but never yet observed here.
+    if (eventType === 'alarm.status.canceled') return SosStatus.FALSE_ALARM;
+    if (eventType === 'alarm.psap_contacted') return SosStatus.DISPATCHED;
+
+    // The two verbs we previously invented, kept only as aliases: if Noonlight's
+    // docs turn out to lag their traffic, these carry the same meaning as the
+    // documented verbs above and so cannot produce a state the others would not.
+    if (eventType === 'alarm.canceled') return SosStatus.FALSE_ALARM;
     if (eventType === 'alarm.dispatched') return SosStatus.DISPATCHED;
+
+    // Anything else is left alone rather than guessed at — this is the status of
+    // a live emergency, and a wrong guess reads as a resolved incident.
     return null;
+  }
+
+  /**
+   * Statuses that mean the incident is over. Nothing moves out of one.
+   *
+   * `alarm.psap_contacted` is documented to fire repeatedly, and webhooks can
+   * arrive out of order or be replayed, so without this a late PSAP callback
+   * would reopen a closed emergency as DISPATCHED.
+   */
+  // Widened to `string`: the mobile entity types its column as a literal union
+  // rather than the SosStatus enum, and both call sites share this guard.
+  private isTerminal(status: string): boolean {
+    return status === SosStatus.RESOLVED || status === SosStatus.FALSE_ALARM;
   }
 
   private async applyMobileEvent(
     sos: MobileSosEvent,
     eventType: string,
     alarmId: string,
-  ): Promise<{ applied: boolean; reason?: 'no_change' | 'unmapped_event' }> {
+  ): Promise<{
+    applied: boolean;
+    reason?: 'no_change' | 'unmapped_event' | 'already_terminal';
+  }> {
     const next = this.mapEventType(eventType);
     if (next === null) {
       this.logger.warn(
@@ -452,6 +496,13 @@ export class SafetyService {
     }
     if (sos.status === next) {
       return { applied: false, reason: 'no_change' };
+    }
+    if (this.isTerminal(sos.status)) {
+      this.logger.warn(
+        { mobileSosId: sos.id, alarmId, eventType, status: sos.status, next },
+        'Noonlight event arrived after the mobile SOS closed — status left terminal',
+      );
+      return { applied: false, reason: 'already_terminal' };
     }
     sos.status = next;
     await this.mobileSosRepo.save(sos);
@@ -465,7 +516,10 @@ export class SafetyService {
   async handleNoonlightEvent(event: {
     event_type?: string;
     meta?: { alarm_id?: string };
-  }): Promise<{ applied: boolean; reason?: 'unknown_alarm' | 'no_change' | 'unmapped_event' }> {
+  }): Promise<{
+    applied: boolean;
+    reason?: 'unknown_alarm' | 'no_change' | 'unmapped_event' | 'already_terminal';
+  }> {
     const alarmId = event.meta?.alarm_id;
     const eventType = event.event_type ?? '';
 
@@ -511,6 +565,14 @@ export class SafetyService {
         'Noonlight event carried no status change',
       );
       return { applied: false, reason: 'no_change' };
+    }
+
+    if (this.isTerminal(sosEvent.status)) {
+      this.logger.warn(
+        { sosId: sosEvent.id, alarmId, eventType, status: sosEvent.status, next },
+        'Noonlight event arrived after the SOS closed — status left terminal',
+      );
+      return { applied: false, reason: 'already_terminal' };
     }
 
     sosEvent.status = next;

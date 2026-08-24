@@ -79,10 +79,16 @@ export function bearingDegrees(
   return ((Math.atan2(y, x) * 180) / Math.PI + 360) % 360;
 }
 
-/** Digits-only phone for tel: links. */
-export function phoneToTelHref(phone: string | null | undefined): string | null {
+/** Digits-only phone, or null when there is nothing dialable. */
+export function normalizeDialablePhone(phone: string | null | undefined): string | null {
   if (!phone) return null;
   const digits = phone.replace(/[^\d+]/g, "");
   if (digits.length < 10) return null;
-  return `tel:${digits}`;
+  return digits;
+}
+
+/** Digits-only phone for tel: links. */
+export function phoneToTelHref(phone: string | null | undefined): string | null {
+  const digits = normalizeDialablePhone(phone);
+  return digits ? `tel:${digits}` : null;
 }

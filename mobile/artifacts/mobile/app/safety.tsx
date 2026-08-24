@@ -21,6 +21,7 @@ import { useColors } from "@/hooks/useColors";
 import { useAuth } from "@/context/AuthContext";
 import { CARD_SHADOW, INK_ON_MUTED } from "@/constants/colors";
 import {
+  MANUAL_CALL_911_MESSAGE,
   getSosLocation,
   hasLocationPermission,
   triggerSos,
@@ -98,6 +99,7 @@ export default function Safety() {
       await triggerSos({
         onResult: reportSosOutcome,
         onNoLocation: reportNoLocation,
+        onManualCall: () => Alert.alert("Call 911 yourself", MANUAL_CALL_911_MESSAGE),
       });
     } catch {
       Alert.alert(
@@ -117,7 +119,7 @@ export default function Safety() {
       "No responders were sent",
       reason === "permission_denied"
         ? "Bovogo couldn't get your location, so we couldn't dispatch anyone. Your phone's 911 call is still the fastest route — turn on location access to let us dispatch next time."
-        : "We couldn't get a location fix, so we couldn't dispatch anyone. Use the 911 call your phone just opened.",
+        : "We couldn't get a location fix, so we couldn't dispatch anyone. Call 911 yourself now.",
     );
   }
 
@@ -133,7 +135,7 @@ export default function Safety() {
     if (!result.dispatched) {
       Alert.alert(
         "No responders were sent",
-        "We couldn't reach the dispatch service. Use the 911 call your phone just opened.",
+        "We couldn't reach the dispatch service. Call 911 yourself now.",
       );
       return;
     }

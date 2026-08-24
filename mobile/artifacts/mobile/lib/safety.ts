@@ -121,30 +121,78 @@ export function notifyBackendSos(
 }
 
 /**
+ * Whether a phone/SMS handoff actually reached the OS.
+ *
+ * `unavailable_on_web` is not an error — it is the deliberate refusal below.
+ */
+export type HandoffResult = "opened" | "unavailable_on_web" | "failed";
+
+/**
+ * Opens the system dialer for `phone`, or says why it could not.
+ *
+ * **Web deliberately does nothing.** react-native-web implements
+ * `Linking.openURL("tel:")` as `window.location = url`, which unloads the
+ * running app — mid-SOS that is the worst possible moment, because everything
+ * queued behind it (including telling the user nobody was dispatched) dies with
+ * the page. Its `canOpenURL()` also always resolves `true` and `openURL()` never
+ * rejects, so a caller's own `catch` or `canOpenURL` guard can detect none of
+ * this. Callers must show the number instead when this returns anything but
+ * `"opened"` — the returned value is the only signal they get.
+ */
+export async function openDialer(phone: string): Promise<HandoffResult> {
+  if (Platform.OS === "web") return "unavailable_on_web";
+  try {
+    await Linking.openURL(`tel:${phone}`);
+    return "opened";
+  } catch {
+    return "failed";
+  }
+}
+
+/**
  * Opens the system SMS composer addressed to 911 with the help message and
  * live location prefilled. The OS requires the user to tap Send themselves.
+ *
+ * Web is refused for the same reason as `openDialer`: react-native-web sends
+ * `sms:` through `window.open`, which is silently swallowed by popup blockers
+ * while still resolving as though it worked.
  */
-export async function openSms911(coord: SosCoord | null): Promise<void> {
+export async function openSms911(coord: SosCoord | null): Promise<HandoffResult> {
+  if (Platform.OS === "web") return "unavailable_on_web";
+
   const body = coord
     ? `Help required. My live location: ${mapsUrl(coord)}`
     : "Help required.";
   try {
-    if (Platform.OS !== "web" && (await SMS.isAvailableAsync())) {
+    if (await SMS.isAvailableAsync()) {
       await SMS.sendSMSAsync(["911"], body);
-      return;
+      return "opened";
     }
   } catch {
     // Fall through to the sms: URL below.
   }
   const separator = Platform.OS === "ios" ? "&" : "?";
-  await Linking.openURL(`sms:911${separator}body=${encodeURIComponent(body)}`).catch(
-    () => {},
-  );
+  try {
+    await Linking.openURL(`sms:911${separator}body=${encodeURIComponent(body)}`);
+    return "opened";
+  } catch {
+    return "failed";
+  }
 }
 
+/**
+ * Shown when the dialer did not open and the user has to place the call.
+ *
+ * Phrased as an instruction, never as a claim about what the app just did —
+ * copy asserting "the 911 call your phone just opened" is false wherever the
+ * handoff was refused, which is exactly when the user most needs the truth.
+ */
+export const MANUAL_CALL_911_MESSAGE =
+  "Bovogo couldn't open the dialer on this device. Call 911 yourself now — that call is the fastest route to help.";
+
 /** Opens the phone dialer with 911 ready; the user taps once to call. */
-export async function openCall911(): Promise<void> {
-  await Linking.openURL("tel:911").catch(() => {});
+export async function openCall911(): Promise<HandoffResult> {
+  return openDialer("911");
 }
 
 /**
@@ -158,12 +206,23 @@ export async function openCall911(): Promise<void> {
  * reaching emergency services must never wait on our API.
  *
  * `onResult` fires the moment the backend answers, rather than after the 911
- * handoff. The handoff is not a normal await: on web `Linking.openURL("tel:")`
- * assigns `window.location`, and on a device it sends the app to the background.
- * Anything waiting behind it — including telling the user that nobody was
- * dispatched — may never run at all.
+ * handoff. The handoff is not a normal await: on a device it sends the app to
+ * the background, so anything waiting behind it — including telling the user
+ * that nobody was dispatched — may never run at all.
+ *
+ * On web both handoffs are refused rather than attempted (see `openDialer`), so
+ * steps 3 and 4 are no-ops there and `onManualCall` carries the whole message.
+ * That refusal is what makes this flow testable on Expo web at all: it used to
+ * unload the app partway through.
  */
-export type SosOutcome = SosNotifyResult & { locationReason?: SosLocationFailure };
+export type SosOutcome = SosNotifyResult & {
+  locationReason?: SosLocationFailure;
+  /**
+   * Whether the 911 dialer actually opened. Anything but `"opened"` means the
+   * user still has to place the call themselves and must be told so.
+   */
+  callHandoff?: HandoffResult;
+};
 
 export async function triggerSos(options?: {
   coord?: SosCoord | null;
@@ -179,6 +238,13 @@ export async function triggerSos(options?: {
    * that follows navigates the page on web and backgrounds the app on a device.
    */
   onNoLocation?: (reason: SosLocationFailure) => void;
+  /**
+   * Called when the 911 dialer did not open and the user must call themselves.
+   *
+   * On web this always fires, by design — see `openDialer`. Screens are expected
+   * to put the number on screen in response, because nothing else will.
+   */
+  onManualCall?: (result: HandoffResult) => void;
 }): Promise<SosOutcome> {
   let coord = options?.coord ?? null;
   let locationReason: SosLocationFailure | undefined;
@@ -193,13 +259,22 @@ export async function triggerSos(options?: {
     options?.onNoLocation?.(locationReason ?? "unavailable");
   }
 
+  let callHandoff: HandoffResult | undefined;
+
   const notified = notifyBackendSos(coord, options?.tripId).then((r) => {
-    const outcome: SosOutcome = { ...r, locationReason };
+    const outcome: SosOutcome = { ...r, locationReason, callHandoff };
     options?.onResult?.(outcome);
     return outcome;
   });
 
   await openSms911(coord);
-  await openCall911();
-  return notified;
+  callHandoff = await openCall911();
+
+  // Fired here rather than inside `onResult`, which waits on the API: on web
+  // both handoffs are refused outright, so this is the only thing that tells
+  // the user a call still has to happen — and it must not queue behind a
+  // network round trip during an emergency.
+  if (callHandoff !== "opened") options?.onManualCall?.(callHandoff);
+
+  return notified.then((outcome) => ({ ...outcome, callHandoff }));
 }

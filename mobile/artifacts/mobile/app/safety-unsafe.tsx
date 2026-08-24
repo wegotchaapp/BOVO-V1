@@ -1,6 +1,5 @@
 import { Feather } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
-import { Linking } from "react-native";
 import React, { useState } from "react";
 import {
   Keyboard,
@@ -18,7 +17,7 @@ import { Alert } from "@/lib/alert";
 
 import { CARD_SHADOW } from "@/constants/colors";
 import { useColors } from "@/hooks/useColors";
-import { triggerSos } from "@/lib/safety";
+import { MANUAL_CALL_911_MESSAGE, openDialer, triggerSos } from "@/lib/safety";
 import { shareLiveLocation } from "@/lib/share";
 import { useAuth } from "@/context/AuthContext";
 
@@ -69,7 +68,9 @@ export default function SafetyUnsafe() {
   function handleOption(id: string) {
     if (id === "911") {
       // Real SOS: emergency-contact SMS via backend + 911 text composer + dialer.
-      triggerSos().catch(() => {
+      triggerSos({
+        onManualCall: () => Alert.alert("Call 911 yourself", MANUAL_CALL_911_MESSAGE),
+      }).catch(() => {
         Alert.alert("SOS", "Couldn't open the dialer automatically. Please call 911 directly.");
       });
     } else if (id === "record") {
@@ -101,9 +102,12 @@ export default function SafetyUnsafe() {
         );
         return;
       }
-      Linking.openURL(`tel:${emergencyPhone}`).catch(() => {
+      // The result is the only signal available: on web `Linking` resolves and
+      // reports success whatever happens, so a `.catch` here would never fire.
+      openDialer(emergencyPhone).then((result) => {
+        if (result === "opened") return;
         Alert.alert(
-          "Couldn't open the dialer",
+          "Call them from your phone",
           `Call ${emergencyName || "your emergency contact"} on ${emergencyPhone}.`,
         );
       });

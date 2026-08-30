@@ -1,25 +1,38 @@
-import { useState, useEffect } from 'react';
-import { getModerationQueue, getReportDetail } from '../lib/api';
+import { useState, useEffect, useCallback } from 'react';
+import { getErrorMessage, getModerationQueue, getReportDetail } from '../lib/api';
 import { ErrorNotice, EmptyState } from '../components/QueryState';
 
+interface ModerationReport {
+  id: string;
+  reporter_id?: string;
+  subject_user_id?: string;
+  reason?: string;
+  report_type?: string;
+  status: string;
+  created_at?: string;
+}
+
 export default function TrustSafetyPage() {
-  const [reports, setReports] = useState<any[]>([]);
+  const [reports, setReports] = useState<ModerationReport[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
-  const [selected, setSelected] = useState<any>(null);
+  const [selected, setSelected] = useState<unknown>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const fetch = () => {
+  const fetch = useCallback(() => {
     setLoading(true);
     setError(null);
     getModerationQueue({ page })
       .then((r) => { setReports(r.reports || []); setTotal(r.total || 0); })
-      .catch((e: any) => setError(e?.response?.data?.message || e?.message || 'Could not load this data.'))
+      .catch((e: unknown) => setError(getErrorMessage(e, 'Could not load this data.')))
       .finally(() => setLoading(false));
-  };
+  }, [page]);
 
-  useEffect(() => { fetch(); }, [page]);
+  useEffect(() => {
+    const timeoutId = window.setTimeout(fetch, 0);
+    return () => window.clearTimeout(timeoutId);
+  }, [fetch]);
 
   const handleView = async (id: string) => {
     try { const r = await getReportDetail(id); setSelected(r); } catch { setSelected({ id, error: 'Could not load detail' }); }
@@ -59,7 +72,7 @@ export default function TrustSafetyPage() {
               </thead>
               <tbody>
                 {reports.length === 0 && <tr><td colSpan={7} className="text-ink-soft py-4 text-center">No reports in queue</td></tr>}
-                {reports.map((r: any) => (
+                {reports.map((r) => (
                   <tr key={r.id} className="border-b border-border text-ink hover:bg-card">
                     <td className="py-3 px-2 text-xs text-ink-soft">{r.id?.slice(0, 8)}…</td>
                     <td className="py-3 px-2 text-xs">{r.reporter_id?.slice(0, 8) || '—'}…</td>

@@ -8,6 +8,7 @@ import { Payment, Payout } from '../../database/entities/payment.entities';
 import { SosEvent, Incident } from '../../database/entities/safety.entities';
 import { Vehicle } from '../../database/entities/profile.entities';
 import { AuditEvent } from '../../database/entities/audit.entity';
+import { ComplianceLog } from '../../database/entities/compliance-log.entity';
 import { SupportTicket } from '../../database/entities/support-ticket.entity';
 import { SupportTicketMessage } from '../../database/entities/support-ticket-message.entity';
 import { SupportAgent } from '../../database/entities/support-agent.entity';
@@ -15,6 +16,7 @@ import { AdminController } from './admin.controller';
 import { AdminService } from './admin.service';
 import { AdminGuard } from './admin.guard';
 import {
+  MobileDriverTrip,
   MobileUser,
   MobileVehicle,
 } from '../mobile-api/entities/mobile.entities';
@@ -38,7 +40,9 @@ import {
       Vehicle,
       MobileVehicle,
       MobileUser,
+      MobileDriverTrip,
       AuditEvent,
+      ComplianceLog,
       SupportTicket,
       SupportTicketMessage,
       SupportAgent,

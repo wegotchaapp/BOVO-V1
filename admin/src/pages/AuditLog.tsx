@@ -1,25 +1,41 @@
-import { useState, useEffect } from 'react';
-import { getAuditTrail } from '../lib/api';
+import { useState, useEffect, useCallback } from 'react';
+import { getAuditTrail, getErrorMessage } from '../lib/api';
 import { ErrorNotice, EmptyState } from '../components/QueryState';
 
+interface AuditEvent {
+  id: string;
+  action?: string;
+  event_type?: string;
+  actor_id?: string;
+  entity_type?: string;
+  entity_id?: string;
+  ts?: string;
+  created_at?: string;
+}
+
+const formatDateTime = (value?: string) => (value ? new Date(value).toLocaleString() : '—');
+
 export default function AuditLogPage() {
-  const [events, setEvents] = useState<any[]>([]);
+  const [events, setEvents] = useState<AuditEvent[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
   const [filter, setFilter] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const fetch = () => {
+  const fetch = useCallback(() => {
     setLoading(true);
     setError(null);
     getAuditTrail({ event_type: filter || undefined, page })
       .then((r) => { setEvents(r.events); setTotal(r.total); })
-      .catch((e: any) => setError(e?.response?.data?.message || e?.message || 'Could not load this data.'))
+      .catch((e: unknown) => setError(getErrorMessage(e, 'Could not load this data.')))
       .finally(() => setLoading(false));
-  };
+  }, [filter, page]);
 
-  useEffect(() => { fetch(); }, [page, filter]);
+  useEffect(() => {
+    const timeoutId = window.setTimeout(fetch, 0);
+    return () => window.clearTimeout(timeoutId);
+  }, [fetch]);
 
   const pages = Math.ceil(total / 50);
 
@@ -53,7 +69,7 @@ export default function AuditLogPage() {
                 </tr>
               </thead>
               <tbody>
-                {events.map((e: any) => (
+                {events.map((e) => (
                   <tr key={e.id} className="border-b border-border text-ink hover:bg-card">
                     <td className="py-3 px-2">
                       <span className="px-2 py-0.5 rounded text-xs bg-inset text-ink">{e.action || e.event_type}</span>
@@ -61,7 +77,7 @@ export default function AuditLogPage() {
                     <td className="py-3 px-2 text-xs">{e.actor_id?.slice(0, 8) || 'system'}…</td>
                     <td className="py-3 px-2 text-xs text-ink-soft">{e.entity_type}</td>
                     <td className="py-3 px-2 text-xs text-ink-soft">{e.entity_id?.slice(0, 8) || '—'}…</td>
-                    <td className="py-3 px-2 text-xs text-ink-soft">{new Date(e.ts || e.created_at).toLocaleString()}</td>
+                    <td className="py-3 px-2 text-xs text-ink-soft">{formatDateTime(e.ts ?? e.created_at)}</td>
                   </tr>
                 ))}
               </tbody>

@@ -40,10 +40,12 @@ export default function ConfirmDialog({
   // Reset per invocation so a previous reason never leaks into the next action.
   useEffect(() => {
     if (!request) return;
-    setValue(field.kind === 'number' ? (field.defaultValue ?? '') : '');
-    setError(null);
-    setPending(false);
-    const t = setTimeout(() => inputRef.current?.focus(), 0);
+    const t = window.setTimeout(() => {
+      setValue(field.kind === 'number' ? (field.defaultValue ?? '') : '');
+      setError(null);
+      setPending(false);
+      inputRef.current?.focus();
+    }, 0);
     return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [request]);

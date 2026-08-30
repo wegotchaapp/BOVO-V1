@@ -39,18 +39,43 @@ async function bootstrap() {
       type: 'application/json',
       limit: '1mb',
       verify: (req: any, _res, buf) => {
-        (req as any).rawBody = buf;
+        req.rawBody = buf;
       },
     }),
   );
 
-  app.use('/identity/webhook', express.json({
-    type: 'application/json',
-    limit: '5mb',
-    verify: (req: any, _res, buf) => {
-      (req as any).rawBody = buf;
-    },
-  }));
+  app.use(
+    '/identity/webhook',
+    express.json({
+      type: 'application/json',
+      limit: '5mb',
+      verify: (req: any, _res, buf) => {
+        req.rawBody = buf;
+      },
+    }),
+  );
+
+  app.use(
+    '/webhooks/checkr',
+    express.json({
+      type: 'application/json',
+      limit: '1mb',
+      verify: (req: any, _res, buf) => {
+        req.rawBody = buf;
+      },
+    }),
+  );
+
+  app.use(
+    '/api/background-check/webhook',
+    express.json({
+      type: 'application/json',
+      limit: '1mb',
+      verify: (req: any, _res, buf) => {
+        req.rawBody = buf;
+      },
+    }),
+  );
 
   app.use(express.json({ limit: '10mb' }));
   app.use(express.urlencoded({ extended: true }));
@@ -68,7 +93,10 @@ async function bootstrap() {
       transformOptions: { enableImplicitConversion: true },
     }),
   );
-  const auditInterceptor = new AuditInterceptor(app.get(Logger), app.get(AuditService));
+  const auditInterceptor = new AuditInterceptor(
+    app.get(Logger),
+    app.get(AuditService),
+  );
   app.useGlobalInterceptors(auditInterceptor);
 
   if (process.env.APP_ENV !== 'production') {

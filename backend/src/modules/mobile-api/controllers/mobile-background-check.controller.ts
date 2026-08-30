@@ -2,13 +2,17 @@ import {
   Body,
   Controller,
   Get,
+  Headers,
   HttpCode,
   HttpStatus,
   Post,
+  Req,
   UseFilters,
   UseGuards,
+  UnauthorizedException,
 } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
+import type { Request } from 'express';
 
 import { MobileHttpExceptionFilter } from '../mobile-http-exception.filter';
 import { MobileAuthGuard, MobileAuthUser } from '../mobile-auth.guard';
@@ -35,14 +39,17 @@ export class MobileBackgroundCheckController {
     return this.checks.status(user);
   }
 
-  /**
-   * Checkr webhook. Unauthenticated by design — Checkr signs requests rather
-   * than carrying a session. Signature verification belongs here before
-   * production traffic is pointed at it.
-   */
+  /** Checkr authenticates this callback with an HMAC, not a user session. */
   @Post('webhook')
   @HttpCode(HttpStatus.OK)
-  webhook(@Body() payload: Record<string, unknown>) {
-    return this.checks.handleWebhook(payload as never);
+  webhook(
+    @Req() request: Request & { rawBody?: Buffer },
+    @Headers('x-checkr-signature') signature?: string,
+    @Body() payload?: Record<string, unknown>,
+  ) {
+    if (!this.checks.isValidWebhookSignature(request.rawBody, signature)) {
+      throw new UnauthorizedException('Invalid webhook signature');
+    }
+    return this.checks.handleWebhook(payload ?? {});
   }
 }

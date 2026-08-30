@@ -1,25 +1,65 @@
-import { useState, useEffect } from 'react';
-import { getDriverDocs, verifyVehicle } from '../lib/api';
+import { useState, useEffect, useCallback } from 'react';
+import { getDriverDocs, getErrorMessage, verifyVehicle } from '../lib/api';
 import { ErrorNotice } from '../components/QueryState';
 
+interface Driver {
+  name?: string;
+}
+
+interface DriverVehicle {
+  id: string;
+  user?: Driver;
+  user_id?: string;
+  make?: string;
+  model?: string;
+  year?: number;
+  verification_status?: string;
+}
+
+interface DriverVerification {
+  id: string;
+  user?: Driver;
+  user_id?: string;
+  provider?: string;
+  status: string;
+  created_at?: string;
+}
+
+interface PendingDriver {
+  id: string;
+  name?: string;
+  email?: string;
+  background_check_status?: string;
+}
+
+interface DriverDocs {
+  vehicles: DriverVehicle[];
+  verifications: DriverVerification[];
+  pendingBackgroundChecks: PendingDriver[];
+  pendingW9: PendingDriver[];
+}
+
 export default function DriverDocsPage() {
-  const [data, setData] = useState<any>(null);
+  const [data, setData] = useState<DriverDocs | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [msg, setMsg] = useState('');
 
-  const fetch = () => {
+  const fetch = useCallback(() => {
     setLoading(true);
     setError(null);
     getDriverDocs()
       .then(setData)
-      .catch((e: any) =>
-        setError(e?.response?.data?.message || e?.message || 'Could not load driver documents.'),
+      .catch((e: unknown) =>
+        setError(getErrorMessage(e, 'Could not load driver documents.')),
       )
       .finally(() => setLoading(false));
-  };
+  }, []);
 
-  useEffect(() => { fetch(); }, []);
+  useEffect(() => {
+    const timeoutId = window.setTimeout(fetch, 0);
+    return () => window.clearTimeout(timeoutId);
+  }, [fetch]);
 
   const handleVerify = async (id: string, approved: boolean) => {
     await verifyVehicle(id, approved);
@@ -53,13 +93,13 @@ export default function DriverDocsPage() {
               </thead>
               <tbody>
                 {data?.vehicles?.length === 0 && <tr><td colSpan={5} className="text-ink-soft py-4 text-center">No vehicles</td></tr>}
-                {data?.vehicles?.map((v: any) => (
+                {data?.vehicles?.map((v) => (
                   <tr key={v.id} className="border-b border-border text-ink">
                     <td className="py-2 px-1 text-xs">{v.user?.name || v.user_id?.slice(0, 8) || '—'}</td>
                     <td className="py-2 px-1 text-xs">{v.make || ''} {v.model || ''}</td>
                     <td className="py-2 px-1 text-xs">{v.year || '—'}</td>
                     <td className="py-2 px-1">
-                      <span className={`px-2 py-0.5 rounded text-xs ${(v as any).verification_status === 'verified' ? 'bg-good/15 text-good' : (v as any).verification_status === 'rejected' ? 'bg-critical/15 text-critical' : 'bg-warning/15 text-warning'}`}>{(v as any).verification_status || 'pending'}</span>
+                      <span className={`px-2 py-0.5 rounded text-xs ${v.verification_status === 'verified' ? 'bg-good/15 text-good' : v.verification_status === 'rejected' ? 'bg-critical/15 text-critical' : 'bg-warning/15 text-warning'}`}>{v.verification_status || 'pending'}</span>
                     </td>
                     <td className="py-2 px-1">
                       <div className="flex gap-1">
@@ -88,7 +128,7 @@ export default function DriverDocsPage() {
               </thead>
               <tbody>
                 {data?.verifications?.length === 0 && <tr><td colSpan={4} className="text-ink-soft py-4 text-center">No verifications</td></tr>}
-                {data?.verifications?.map((v: any) => (
+                {data?.verifications?.map((v) => (
                   <tr key={v.id} className="border-b border-border text-ink">
                     <td className="py-2 px-1 text-xs">{v.user?.name || v.user_id?.slice(0, 8) || '—'}</td>
                     <td className="py-2 px-1 text-xs">{v.provider || '—'}</td>
@@ -105,7 +145,7 @@ export default function DriverDocsPage() {
 
         <div className="bg-card rounded-lg border border-border p-4">
           <h3 className="text-ink font-semibold mb-3">Pending Background Checks ({data?.pendingBackgroundChecks?.length || 0})</h3>
-          {data?.pendingBackgroundChecks?.map((u: any) => (
+          {data?.pendingBackgroundChecks?.map((u) => (
             <div key={u.id} className="text-ink text-sm py-1">{u.name || u.email} <span className="text-ink-soft">— {u.background_check_status}</span></div>
           ))}
           {!data?.pendingBackgroundChecks?.length && <div className="text-ink-soft text-sm">None pending</div>}
@@ -113,7 +153,7 @@ export default function DriverDocsPage() {
 
         <div className="bg-card rounded-lg border border-border p-4">
           <h3 className="text-ink font-semibold mb-3">W-9 Not Filed ({data?.pendingW9?.length || 0})</h3>
-          {data?.pendingW9?.map((u: any) => (
+          {data?.pendingW9?.map((u) => (
             <div key={u.id} className="text-ink text-sm py-1">{u.name || u.email}</div>
           ))}
           {!data?.pendingW9?.length && <div className="text-ink-soft text-sm">All filed</div>}

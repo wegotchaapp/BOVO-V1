@@ -4,7 +4,13 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Between, In, MoreThanOrEqual, Repository } from 'typeorm';
+import {
+  Between,
+  FindOptionsWhere,
+  In,
+  MoreThanOrEqual,
+  Repository,
+} from 'typeorm';
 import { randomBytes } from 'crypto';
 import * as bcrypt from 'bcrypt';
 import { User } from '../../database/entities/user.entity';
@@ -14,6 +20,7 @@ import { Payment, Payout } from '../../database/entities/payment.entities';
 import { SosEvent, Incident } from '../../database/entities/safety.entities';
 import { Vehicle } from '../../database/entities/profile.entities';
 import { AuditEvent } from '../../database/entities/audit.entity';
+import { ComplianceLog } from '../../database/entities/compliance-log.entity';
 import { SupportTicket } from '../../database/entities/support-ticket.entity';
 import { SupportTicketMessage } from '../../database/entities/support-ticket-message.entity';
 import { SupportAgent } from '../../database/entities/support-agent.entity';
@@ -23,6 +30,7 @@ import {
   SubscriptionTier,
 } from '../../common/enums';
 import {
+  MobileDriverTrip,
   MobileUser,
   MobileVehicle,
 } from '../mobile-api/entities/mobile.entities';
@@ -97,8 +105,12 @@ export class AdminService {
     private readonly mobileVehicles: Repository<MobileVehicle>,
     @InjectRepository(MobileUser)
     private readonly mobileUsers: Repository<MobileUser>,
+    @InjectRepository(MobileDriverTrip)
+    private readonly mobileDriverTrips: Repository<MobileDriverTrip>,
     @InjectRepository(AuditEvent)
     private readonly audit: Repository<AuditEvent>,
+    @InjectRepository(ComplianceLog)
+    private readonly complianceLogs: Repository<ComplianceLog>,
     @InjectRepository(SupportTicket)
     private readonly tickets: Repository<SupportTicket>,
     @InjectRepository(SupportTicketMessage)
@@ -500,6 +512,58 @@ export class AdminService {
     }
   }
 
+  async listComplianceLogs(filters: { rule?: string; user_id?: string }) {
+    const where: FindOptionsWhere<ComplianceLog> = {};
+    if (filters.rule) where.rule = filters.rule;
+    if (filters.user_id) where.user_id = filters.user_id;
+    return this.complianceLogs.find({
+      where,
+      order: { triggered_at: 'DESC' },
+      take: 200,
+    });
+  }
+
+  async driverTripsSummary() {
+    const [totalDriverTrips, totals, recentTrips] = await Promise.all([
+      this.mobileDriverTrips.count(),
+      this.mobileDriverTrips
+        .createQueryBuilder('trip')
+        .select('COALESCE(SUM(trip.net_amount), 0)', 'totalEarnings')
+        .getRawOne<{ totalEarnings: string }>(),
+      this.mobileDriverTrips.find({
+        order: { completed_at: 'DESC' },
+        take: 20,
+      }),
+    ]);
+    return {
+      totalDriverTrips,
+      totalEarnings: totals?.totalEarnings ?? '0',
+      recentTrips,
+    };
+  }
+
+  async driverEarnings(driverId: string) {
+    const totals = await this.mobileDriverTrips
+      .createQueryBuilder('trip')
+      .select('COUNT(*)', 'totalTrips')
+      .addSelect('COALESCE(SUM(trip.gross_amount), 0)', 'totalGross')
+      .addSelect('COALESCE(SUM(trip.platform_fee), 0)', 'totalFees')
+      .addSelect('COALESCE(SUM(trip.net_amount), 0)', 'totalNet')
+      .where('trip.driver_id = :driverId', { driverId })
+      .getRawOne<{
+        totalTrips: string;
+        totalGross: string;
+        totalFees: string;
+        totalNet: string;
+      }>();
+    return {
+      totalTrips: Number(totals?.totalTrips ?? 0),
+      totalGross: Number(totals?.totalGross ?? 0),
+      totalFees: Number(totals?.totalFees ?? 0),
+      totalNet: Number(totals?.totalNet ?? 0),
+    };
+  }
+
   // ─── Support ──────────────────────────────────────────────────────────────
   async listTickets(p: PageParams) {
     const { skip, take } = paginate(p);
@@ -584,7 +648,9 @@ export class AdminService {
    */
   async vehicleReviewQueue(status = 'pending_review') {
     const vehicles = await this.mobileVehicles.find({
-      where: { verification_status: status as MobileVehicle['verification_status'] },
+      where: {
+        verification_status: status as MobileVehicle['verification_status'],
+      },
       order: { updated_at: 'ASC' },
       take: 100,
     });
@@ -658,7 +724,9 @@ export class AdminService {
     await this.audit.save(
       this.audit.create({
         actor_id: actorId ?? null,
-        action: approved ? 'mobile_vehicle.approved' : 'mobile_vehicle.rejected',
+        action: approved
+          ? 'mobile_vehicle.approved'
+          : 'mobile_vehicle.rejected',
         entity_type: 'mobile_vehicle',
         entity_id: id,
         metadata: { note: trimmed || null, userId: vehicle.user_id },

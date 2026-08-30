@@ -1,31 +1,58 @@
-import { useState, useEffect, useRef } from 'react';
-import { getSupportTickets, getSupportTicket, updateTicketStatus, getTicketMessages, addTicketMessage } from '../lib/api';
+import { useState, useEffect, useRef, useCallback } from 'react';
+import { getSupportTickets, getSupportTicket, updateTicketStatus, getTicketMessages, addTicketMessage, getErrorMessage } from '../lib/api';
 import { ErrorNotice, EmptyState } from '../components/QueryState';
 
+interface SupportTicket {
+  id: string;
+  subject: string;
+  requester_name: string;
+  requester_role: string;
+  requester_email?: string;
+  requester_phone?: string;
+  trip_id?: string;
+  trip_origin?: string;
+  trip_destination?: string;
+  status: string;
+  priority: string;
+  created_at: string;
+}
+
+interface TicketMessage {
+  id: string;
+  author_type: string;
+  author_name: string;
+  internal: boolean;
+  created_at: string;
+  body: string;
+}
+
 export default function SupportTicketsPage() {
-  const [tickets, setTickets] = useState<any[]>([]);
+  const [tickets, setTickets] = useState<SupportTicket[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
   const [status, setStatus] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [msg, setMsg] = useState('');
-  const [detail, setDetail] = useState<any>(null);
-  const [messages, setMessages] = useState<any[]>([]);
+  const [detail, setDetail] = useState<SupportTicket | null>(null);
+  const [messages, setMessages] = useState<TicketMessage[]>([]);
   const [replyText, setReplyText] = useState('');
   const [replyInternal, setReplyInternal] = useState(false);
   const messagesEnd = useRef<HTMLDivElement>(null);
 
-  const fetch = () => {
+  const fetch = useCallback(() => {
     setLoading(true);
     setError(null);
     getSupportTickets({ status: status || undefined, page })
       .then((r) => { setTickets(r.tickets); setTotal(r.total); })
-      .catch((e: any) => setError(e?.response?.data?.message || e?.message || 'Could not load this data.'))
+      .catch((e: unknown) => setError(getErrorMessage(e, 'Could not load this data.')))
       .finally(() => setLoading(false));
-  };
+  }, [page, status]);
 
-  useEffect(() => { fetch(); }, [page, status]);
+  useEffect(() => {
+    const timeoutId = window.setTimeout(fetch, 0);
+    return () => window.clearTimeout(timeoutId);
+  }, [fetch]);
 
   useEffect(() => {
     if (messagesEnd.current) messagesEnd.current.scrollIntoView({ behavior: 'smooth' });
@@ -100,7 +127,7 @@ export default function SupportTicketsPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {tickets.map((t: any) => (
+                  {tickets.map((t) => (
                     <tr key={t.id} onClick={() => loadDetail(t.id)} className={`border-b border-border text-ink hover:bg-card cursor-pointer ${detail?.id === t.id ? 'bg-card' : ''}`}>
                       <td className="py-3 px-2">{t.subject}</td>
                       <td className="py-3 px-2 text-ink-soft">{t.requester_name}</td>
@@ -150,7 +177,7 @@ export default function SupportTicketsPage() {
             </div>
 
             <div className="flex-1 overflow-y-auto p-4 space-y-3 max-h-[500px]">
-              {messages.map((m: any) => (
+              {messages.map((m) => (
                 <div key={m.id} className={`flex ${m.author_type === 'agent' ? 'justify-end' : 'justify-start'}`}>
                   <div className={`max-w-[80%] rounded-lg px-4 py-2 text-sm ${
                     m.internal ? 'bg-warning/15 border border-warning/40 text-warning' :

@@ -1,9 +1,10 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { DataSource, EntityManager, Repository } from 'typeorm';
 import { PinoLogger } from 'nestjs-pino';
 import axios from 'axios';
+import { createHmac, timingSafeEqual } from 'crypto';
 
 import { MobileUser } from '../entities/mobile.entities';
 
@@ -22,8 +23,16 @@ import { MobileUser } from '../entities/mobile.entities';
 
 const CHECKR_TIMEOUT_MS = 10_000;
 
+type CheckrWebhookPayload = {
+  id?: string;
+  type?: string;
+  data?: { object?: { candidate_id?: string; status?: string; ssn?: string } };
+};
+
 /** Checkr report status → our coarse status. */
-function mapReportStatus(status: string): MobileUser['background_check_status'] {
+function mapReportStatus(
+  status: string,
+): MobileUser['background_check_status'] {
   switch (status) {
     case 'clear':
       return 'clear';
@@ -42,17 +51,24 @@ export class MobileBackgroundCheckService {
   private readonly apiKey: string;
   private readonly apiUrl: string;
   private readonly packageSlug: string;
+  private readonly webhookSecret: string;
 
   constructor(
     private readonly config: ConfigService,
     private readonly logger: PinoLogger,
     @InjectRepository(MobileUser)
     private readonly users: Repository<MobileUser>,
+    private readonly dataSource: DataSource,
   ) {
     this.apiKey = this.config.get<string>('CHECKR_API_KEY') || '';
-    this.apiUrl = this.config.get<string>('CHECKR_API_URL') || 'https://api.checkr.com';
+    this.apiUrl =
+      this.config.get<string>('CHECKR_API_URL') || 'https://api.checkr.com';
     this.packageSlug =
       this.config.get<string>('CHECKR_PACKAGE') || 'driver_pro';
+    // Checkr's account webhooks use the API key for their HMAC. A dedicated
+    // secret is preferred when the Checkr account supplies one.
+    this.webhookSecret =
+      this.config.get<string>('CHECKR_WEBHOOK_SECRET') || this.apiKey;
   }
 
   private get configured(): boolean {
@@ -75,7 +91,11 @@ export class MobileBackgroundCheckService {
       );
     }
     if (user.background_check_status === 'clear') {
-      return { alreadyCleared: true, invitationUrl: null, status: 'clear' as const };
+      return {
+        alreadyCleared: true,
+        invitationUrl: null,
+        status: 'clear' as const,
+      };
     }
 
     try {
@@ -161,19 +181,60 @@ export class MobileBackgroundCheckService {
     return this.toDto(user);
   }
 
+  /** HMAC-SHA256 over the exact body Checkr sent. Missing config fails closed. */
+  isValidWebhookSignature(
+    rawBody: Buffer | undefined,
+    signature?: string,
+  ): boolean {
+    if (!this.webhookSecret || !rawBody || !signature) return false;
+
+    const expected = createHmac('sha256', this.webhookSecret)
+      .update(rawBody)
+      .digest('hex');
+    const received = Buffer.from(signature);
+    const expectedBuffer = Buffer.from(expected);
+    return (
+      received.length === expectedBuffer.length &&
+      timingSafeEqual(received, expectedBuffer)
+    );
+  }
+
   /**
    * Checkr webhook. Updates the stored outcome and records the last four SSN
-   * digits Checkr echoes back — never the full number.
+   * digits Checkr echoes back — never the full number. Event ids are stored in
+   * the same transaction so Checkr retries cannot reapply a state transition.
    */
-  async handleWebhook(payload: {
-    type?: string;
-    data?: { object?: { candidate_id?: string; status?: string; ssn?: string } };
-  }) {
+  async handleWebhook(payload: CheckrWebhookPayload) {
+    const eventId = payload.id;
+    if (!eventId) return { ok: true, ignored: 'no event id' };
+
+    return this.dataSource.transaction(async (manager) =>
+      this.applyWebhookEvent(manager, eventId, payload),
+    );
+  }
+
+  private async applyWebhookEvent(
+    manager: EntityManager,
+    eventId: string,
+    payload: CheckrWebhookPayload,
+  ) {
     const object = payload?.data?.object;
     const candidateId = object?.candidate_id;
+    const inserted = await manager.query(
+      `
+        INSERT INTO "mobile_checkr_webhook_events"
+          ("event_id", "candidate_id", "event_type")
+        VALUES ($1, $2, $3)
+        ON CONFLICT ("event_id") DO NOTHING
+        RETURNING "event_id";
+      `,
+      [eventId, candidateId ?? null, payload.type ?? 'unknown'],
+    );
+    if (inserted.length === 0) return { ok: true, duplicate: true };
     if (!candidateId) return { ok: true, ignored: 'no candidate_id' };
 
-    const user = await this.users.findOne({
+    const users = manager.getRepository(MobileUser);
+    const user = await users.findOne({
       where: { checkr_candidate_id: candidateId },
     });
     if (!user) {
@@ -186,7 +247,11 @@ export class MobileBackgroundCheckService {
       if (user.background_check_status === 'clear') {
         user.ssn_verified = true;
       }
-      if (['clear', 'consider', 'suspended'].includes(user.background_check_status)) {
+      if (
+        ['clear', 'consider', 'suspended'].includes(
+          user.background_check_status,
+        )
+      ) {
         user.background_check_completed_at = new Date();
       }
     }
@@ -197,7 +262,7 @@ export class MobileBackgroundCheckService {
       if (last4.length === 4) user.ssn_last4 = last4;
     }
 
-    await this.users.save(user);
+    await users.save(user);
     return { ok: true };
   }
 

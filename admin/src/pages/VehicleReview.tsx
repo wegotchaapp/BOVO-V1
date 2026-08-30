@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { getVehicleReviewQueue, reviewMobileVehicle } from '../lib/api';
+import { useState, useEffect, useCallback } from 'react';
+import { getErrorMessage, getVehicleReviewQueue, reviewMobileVehicle } from '../lib/api';
 
 /**
  * The queue that stands behind the promise Sailors are given — that somebody
@@ -12,23 +12,53 @@ import { getVehicleReviewQueue, reviewMobileVehicle } from '../lib/api';
 
 const PHOTO_SLOTS = ['front', 'rear', 'left', 'right', 'interior'] as const;
 
+type PhotoSlot = typeof PHOTO_SLOTS[number];
+
+interface VehicleDocument {
+  url?: string;
+  expiresAt?: string;
+}
+
+interface ReviewVehicle {
+  id: string;
+  color?: string;
+  make?: string;
+  model?: string;
+  year?: number;
+  ownerName?: string;
+  ownerEmail?: string;
+  licensePlate?: string;
+  state?: string;
+  vin?: string;
+  seatCount?: number;
+  doorCount?: number;
+  verificationStatus?: string;
+  verificationNote?: string;
+  photos?: Partial<Record<PhotoSlot, string>>;
+  insurance?: VehicleDocument;
+  registration?: VehicleDocument;
+}
+
 export default function VehicleReviewPage() {
-  const [vehicles, setVehicles] = useState<any[]>([]);
+  const [vehicles, setVehicles] = useState<ReviewVehicle[]>([]);
   const [status, setStatus] = useState('pending_review');
   const [loading, setLoading] = useState(true);
   const [msg, setMsg] = useState('');
   const [notes, setNotes] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState<string | null>(null);
 
-  const load = (s = status) => {
+  const load = useCallback((s = status) => {
     setLoading(true);
     getVehicleReviewQueue(s)
       .then((d) => setVehicles(d.vehicles ?? []))
       .catch(console.error)
       .finally(() => setLoading(false));
-  };
+  }, [status]);
 
-  useEffect(() => { load(status); }, [status]);
+  useEffect(() => {
+    const timeoutId = window.setTimeout(load, 0);
+    return () => window.clearTimeout(timeoutId);
+  }, [load]);
 
   const decide = async (id: string, approved: boolean) => {
     const note = (notes[id] ?? '').trim();
@@ -43,8 +73,8 @@ export default function VehicleReviewPage() {
       setMsg(approved ? 'Vehicle approved — the Voyager can post now.' : 'Vehicle rejected.');
       setNotes((n) => ({ ...n, [id]: '' }));
       load(status);
-    } catch (e: any) {
-      setMsg(e?.response?.data?.message ?? 'Could not save that decision.');
+    } catch (e: unknown) {
+      setMsg(getErrorMessage(e, 'Could not save that decision.'));
     } finally {
       setBusy(null);
       setTimeout(() => setMsg(''), 4000);

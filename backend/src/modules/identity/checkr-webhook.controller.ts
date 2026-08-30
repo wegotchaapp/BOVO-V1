@@ -5,12 +5,24 @@ import {
   Headers,
   HttpCode,
   HttpStatus,
-  BadRequestException,
   Logger,
+  Req,
+  UnauthorizedException,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiHeader } from '@nestjs/swagger';
+import type { Request } from 'express';
 import { CheckrService } from './checkr.service';
 import { createHmac, timingSafeEqual } from 'crypto';
+
+type CheckrWebhookPayload = {
+  type?: string;
+  data?: {
+    id?: string;
+    candidate_id?: string;
+    status?: string;
+    adjudication?: string;
+  };
+};
 
 @ApiTags('webhooks')
 @Controller('webhooks')
@@ -20,9 +32,7 @@ export class CheckrWebhookController {
 
   constructor(private readonly checkrService: CheckrService) {
     this.webhookSecret =
-      process.env.CHECKR_WEBHOOK_SECRET ||
-      process.env.CHECKR_API_KEY ||
-      '';
+      process.env.CHECKR_WEBHOOK_SECRET || process.env.CHECKR_API_KEY || '';
   }
 
   @Post('checkr')
@@ -34,21 +44,24 @@ export class CheckrWebhookController {
     required: true,
   })
   async handleWebhook(
-    @Body() body: Record<string, any>,
-    @Headers('x-checkr-signature') signature: string,
+    @Req() request: Request & { rawBody?: Buffer },
+    @Body() body: CheckrWebhookPayload,
+    @Headers('x-checkr-signature') signature?: string,
   ) {
-    if (!signature) {
-      throw new BadRequestException('Missing X-Checkr-Signature header');
-    }
-
-    this.verifySignature(body, signature);
+    this.verifySignature(request.rawBody, signature);
 
     const { type, data } = body;
+    if (!data?.id) {
+      throw new UnauthorizedException('Invalid Checkr webhook payload');
+    }
 
     this.logger.log(`Received Checkr webhook: ${type} (report: ${data.id})`);
 
     switch (type) {
       case 'report.completed':
+        if (!data.candidate_id || !data.status) {
+          throw new UnauthorizedException('Invalid Checkr report payload');
+        }
         await this.checkrService.handleWebhookReportCompleted(
           data.id,
           data.candidate_id,
@@ -64,9 +77,7 @@ export class CheckrWebhookController {
         break;
 
       case 'candidate.completed':
-        this.logger.log(
-          `Candidate ${data.id} completed all reports`,
-        );
+        this.logger.log(`Candidate ${data.id} completed all reports`);
         break;
 
       case 'invitation.completed':
@@ -83,17 +94,16 @@ export class CheckrWebhookController {
   }
 
   private verifySignature(
-    body: Record<string, any>,
-    signature: string,
+    rawBody: Buffer | undefined,
+    signature?: string,
   ): void {
-    if (!this.webhookSecret) {
-      this.logger.warn(
-        'CHECKR_WEBHOOK_SECRET not configured, skipping signature verification',
+    if (!this.webhookSecret || !rawBody || !signature) {
+      this.logger.error(
+        'Checkr webhook rejected: signature verification unavailable',
       );
-      return;
+      throw new UnauthorizedException('Invalid Checkr webhook signature');
     }
 
-    const rawBody = JSON.stringify(body);
     const expectedSig = createHmac('sha256', this.webhookSecret)
       .update(rawBody)
       .digest('hex');
@@ -106,7 +116,7 @@ export class CheckrWebhookController {
       !timingSafeEqual(signatureBuffer, expectedBuffer)
     ) {
       this.logger.error('Checkr webhook signature verification failed');
-      throw new BadRequestException('Invalid webhook signature');
+      throw new UnauthorizedException('Invalid Checkr webhook signature');
     }
   }
 }

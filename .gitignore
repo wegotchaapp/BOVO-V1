@@ -70,3 +70,6 @@ Thumbs.db
 .agents/
 .claude/skills/
 .claude/settings.local.json
+# Codex's local MCP/runtime config. Tracked config would dirty the tree every
+# time the agent rewrites it, which muddies the diffs it is meant to produce.
+.codex/

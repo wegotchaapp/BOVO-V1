@@ -178,9 +178,13 @@ If a source `.sql` is itself wrong, Codex reports it — it does not silently
 correct it.
 
 **Verified 2026-08-30:** the frozen set is a faithful record of the deployed
-Supabase schema. All columns, 9 CHECK constraints, 3 foreign keys and 21
-indexes match exactly. See `DECISIONS.md` decision 3. Codex may treat these
-files as authoritative and start item 1 immediately.
+Supabase **mobile** schema. All columns, 9 CHECK constraints, 3 foreign keys and
+21 indexes match exactly. See `DECISIONS.md` decision 3.
+
+**Qualified 2026-08-31:** the files are authoritative, but the *sequence* built
+on them was not runnable — no migration creates the platform base the first four
+alter. An initial platform migration has to land first. See the correction at the
+top of `SCHEMA_BASELINE.md`.
 
 #### Conversion hazards — read before writing the migrations
 

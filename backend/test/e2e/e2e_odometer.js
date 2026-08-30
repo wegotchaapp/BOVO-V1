@@ -151,8 +151,7 @@ async function approveVehicle(ownerToken) {
   check('rejected before car video / start', r.status >= 400, `${r.status} ${r.data?.error ?? ''}`);
 
   const path = require('path');
-  process.chdir('/Users/vaishnavi/Desktop/TheBovogo App/backend');
-  require('dotenv').config({ path: path.join(process.cwd(), '.env') });
+  require('dotenv').config({ path: path.resolve(__dirname, '../../.env') });
   const { Client } = require('pg');
   const pg = new Client({ connectionString: process.env.DATABASE_URL, ssl: { rejectUnauthorized: false } });
   await pg.connect();

@@ -181,8 +181,7 @@ const OTHER_VIN = '5YJ3E1EA7HF000337';   // real-format Tesla VIN
 
   // ── SSN is never stored ─────────────────────────────────────────────────────
   const path = require('path');
-  process.chdir('/Users/vaishnavi/Desktop/TheBovogo App/backend');
-  require('dotenv').config({ path: path.join(process.cwd(), '.env') });
+  require('dotenv').config({ path: path.resolve(__dirname, '../../.env') });
   const { Client } = require('pg');
   const pg = new Client({ connectionString: process.env.DATABASE_URL, ssl: { rejectUnauthorized: false } });
   await pg.connect();

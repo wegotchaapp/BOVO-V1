@@ -163,8 +163,7 @@ async function approveVehicle(ownerToken) {
 
   // Cleanup
   const path = require('path');
-  process.chdir('/Users/vaishnavi/Desktop/TheBovogo App/backend');
-  require('dotenv').config({ path: path.join(process.cwd(), '.env') });
+  require('dotenv').config({ path: path.resolve(__dirname, '../../.env') });
   const { Client } = require('pg');
   const pg = new Client({ connectionString: process.env.DATABASE_URL, ssl: { rejectUnauthorized: false } });
   await pg.connect();

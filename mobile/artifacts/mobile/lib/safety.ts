@@ -13,6 +13,9 @@ function mapsUrl(coord: SosCoord): string {
   return `https://www.google.com/maps?q=${coord.latitude},${coord.longitude}`;
 }
 
+/** How long the SOS flow waits for a fresh fix before using the cached one. */
+const FRESH_FIX_TIMEOUT_MS = 5_000;
+
 /**
  * Best-effort current GPS fix. Falls back to the last known position so the
  * SOS flow is never blocked waiting on a fresh fix.
@@ -21,24 +24,33 @@ export async function getSosLocation(): Promise<SosCoord | null> {
   try {
     const { status } = await Location.requestForegroundPermissionsAsync();
     if (status !== "granted") return null;
+
     const last = await Location.getLastKnownPositionAsync();
-    try {
-      const fresh = await Location.getCurrentPositionAsync({
+    const cached: SosCoord | null = last
+      ? { latitude: last.coords.latitude, longitude: last.coords.longitude }
+      : null;
+
+    // getCurrentPositionAsync rejects on error but never on slowness — indoors
+    // or in a tunnel it hunts for a fix indefinitely. Cap the wait so an
+    // emergency is never held up behind it.
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const fresh = await Promise.race([
+      Location.getCurrentPositionAsync({
         accuracy: Location.Accuracy.Balanced,
-      });
+      }).catch(() => null),
+      new Promise<null>((resolve) => {
+        timer = setTimeout(() => resolve(null), FRESH_FIX_TIMEOUT_MS);
+      }),
+    ]);
+    clearTimeout(timer);
+
+    if (fresh) {
       return {
         latitude: fresh.coords.latitude,
         longitude: fresh.coords.longitude,
       };
-    } catch {
-      if (last) {
-        return {
-          latitude: last.coords.latitude,
-          longitude: last.coords.longitude,
-        };
-      }
-      return null;
     }
+    return cached;
   } catch {
     return null;
   }

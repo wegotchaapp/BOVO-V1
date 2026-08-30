@@ -135,6 +135,20 @@ function normalizeUser(raw: any): User {
   };
 }
 
+/**
+ * A 200 response that carries no token (a captive-portal interstitial, a proxy
+ * error page) would otherwise reach AsyncStorage.setItem as undefined and throw
+ * an opaque native error instead of something the user can act on.
+ */
+async function storeToken(token: unknown): Promise<void> {
+  if (typeof token !== "string" || !token) {
+    throw new Error(
+      "The server didn't return a sign-in token. Please try again.",
+    );
+  }
+  await AsyncStorage.setItem(TOKEN_KEY, token);
+}
+
 export async function refreshUserFromServer(): Promise<User | null> {
   try {
     const me = await apiClient.get("/auth/me");
@@ -207,7 +221,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       "/auth/login",
       { email, password },
     );
-    await AsyncStorage.setItem(TOKEN_KEY, res.token);
+    await storeToken(res.token);
     const normalized = normalizeUser(res.user);
     setUser(normalized);
     if (normalized.deletionRequestedAt) {
@@ -233,7 +247,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       "/auth/register",
       { name, email, phone, password },
     );
-    await AsyncStorage.setItem(TOKEN_KEY, res.token);
+    await storeToken(res.token);
     setUser(normalizeUser(res.user));
   }
 
@@ -247,7 +261,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       "/auth/oauth",
       input,
     );
-    await AsyncStorage.setItem(TOKEN_KEY, res.token);
+    await storeToken(res.token);
     const normalized = normalizeUser(res.user);
     setUser(normalized);
     return normalized;

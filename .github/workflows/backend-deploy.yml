@@ -31,6 +31,21 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Require a browser origin allowlist
+        # APP_URL is the API's own origin and no browser client uses it, so it
+        # was never a valid allowlist. main.ts used `origin: true` until CORS was
+        # tightened, which is why nothing noticed. createCorsOptions now throws
+        # in production on an empty list — fail here with a readable message
+        # rather than shipping a container that crash-loops.
+        env:
+          ALLOWED_ORIGINS: ${{ secrets.ALLOWED_ORIGINS }}
+        run: |
+          if [ -z "$ALLOWED_ORIGINS" ]; then
+            echo "::error::ALLOWED_ORIGINS is not set. It must be a comma-separated list of the browser origins that call this API - the admin dashboard's origin, plus the Expo web origin if that build is hosted. It is not APP_URL."
+            exit 1
+          fi
+          echo "Allowlisting $(echo "$ALLOWED_ORIGINS" | tr ',' '\n' | grep -c .) origin(s)."
+
       - name: Load production .env
         run: |
           cp .env.example .env
@@ -42,7 +57,7 @@ jobs:
           sed -i "s|SENTRY_AUTH_TOKEN=.*|SENTRY_AUTH_TOKEN=${{ secrets.SENTRY_AUTH_TOKEN }}|" .env
           sed -i "s|APP_ENV=.*|APP_ENV=production|" .env
           sed -i "s|APP_URL=.*|APP_URL=${{ secrets.APP_URL }}|" .env
-          sed -i "s|ALLOWED_ORIGINS=.*|ALLOWED_ORIGINS=${{ secrets.APP_URL }}|" .env
+          sed -i "s|ALLOWED_ORIGINS=.*|ALLOWED_ORIGINS=${{ secrets.ALLOWED_ORIGINS }}|" .env
           sed -i "s|LOG_LEVEL=.*|LOG_LEVEL=warn|" .env
           sed -i "s|TWILIO_ACCOUNT_SID=.*|TWILIO_ACCOUNT_SID=${{ secrets.TWILIO_ACCOUNT_SID }}|" .env
           sed -i "s|TWILIO_AUTH_TOKEN=.*|TWILIO_AUTH_TOKEN=${{ secrets.TWILIO_AUTH_TOKEN }}|" .env

@@ -233,3 +233,67 @@ Sushant still has to set the secret to a real comma-separated list.
 Every `sed -i "s|KEY=.*|KEY=${{ secrets.X }}|"` line in `backend-deploy.yml`
 breaks if a secret contains a `|`. Roughly twenty lines have it. Pre-existing,
 not urgent, and a single focused commit when you next touch that file.
+
+
+---
+
+# 2026-08-31 (later) — the migration proof, and a bigger finding
+
+## Certified: you found the real blocker
+
+Confirmed independently. **No migration creates the `users` table**, yet four of
+them alter it:
+
+```
+1746284700000-ComplianceColumnsAddition.ts    ALTER TABLE "users"
+1746285000000-SelectedRoleColumnAddition.ts   ALTER TABLE "users"
+1746286000000-PasswordHashNullable.ts         ALTER TABLE "users"
+1746500000000-AddIsVerifiedColumn.ts          ALTER TABLE "users"
+```
+
+The platform schema has only ever existed because `synchronize` built it from
+entities — and `app.module.ts` hard-disables that in production
+(`DATABASE_SYNCHRONIZE === 'true' && NODE_ENV !== 'production'`). So a fresh
+production database cannot be brought up **at all**, and this is strictly worse
+than the mobile gap in `SCHEMA_BASELINE.md`: that was eight missing tables, this
+is the whole platform schema with no origin.
+
+Proving it in a temporary cluster rather than reasoning about it is exactly the
+right method, and it is what item 1 asked for. Good find.
+
+## What "proven" still requires
+
+The blocker is identified, not cleared. Item 1 closes when:
+
+1. An **initial platform migration** creates the base schema the four `ALTER`
+   migrations assume — generated from entities against an empty database, then
+   read by hand before it is trusted.
+2. `migration:run` completes clean on an **empty** database.
+3. A **second** `migration:run` on the same database is a no-op, exit 0.
+4. `migration:run` against a **copy of production** finishes with no data loss,
+   no duplicate-index error and no constraint-already-exists error.
+5. The mobile migrations are re-checked against `SCHEMA_BASELINE.md` §1–§3 once
+   they run in sequence after a real platform base.
+
+Post the console output for 2–4. "It ran" is not evidence.
+
+## The credential is worse than you flagged
+
+You were right to raise it, and right that removing it from HEAD does not remove
+it from history. The scope is larger than "in Git history":
+
+- Introduced in `c8377f9`, the **initial commit**, dated 2026-06-23.
+- Present on **`origin/main`**, not only on feature branches.
+- Reachable from **every local and remote ref**, including `origin/HEAD`.
+- Therefore on GitHub since June — roughly ten weeks.
+
+It is the live Supabase project's `postgres` user. **Rotation is the only
+control that works**; a history rewrite neither undoes the exposure nor is worth
+attempting across every branch including main.
+
+Rotating is Sushant's action. Do not attempt it, and do not rewrite history to
+try to hide it.
+
+The other eight `backend/scripts/*.js` files that still embed a URL are all
+`localhost` with a throwaway password — leave them, or clean them in one
+unrelated commit, but they are not an exposure.

@@ -2,7 +2,6 @@ import { Feather } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import React, { useState } from "react";
 import {
-  Alert,
   Platform,
   SafeAreaView,
   ScrollView,
@@ -16,6 +15,7 @@ import {
 import { useAuth, type NotificationSettings } from "@/context/AuthContext";
 import { useColors } from "@/hooks/useColors";
 import { CARD_SHADOW } from "@/constants/colors";
+import { showAlert } from "@/lib/alert";
 
 const ROWS: {
   key: keyof NotificationSettings;
@@ -68,7 +68,7 @@ export default function NotificationsScreen() {
     try {
       await updateNotificationSettings({ [key]: value });
     } catch (e: any) {
-      Alert.alert("Couldn't save", e?.message ?? "Please try again.");
+      showAlert("Couldn't save", e?.message ?? "Please try again.");
     } finally {
       setSavingKey(null);
     }

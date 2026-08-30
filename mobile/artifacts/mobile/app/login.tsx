@@ -2,7 +2,6 @@ import { Feather } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import React, { useState } from "react";
 import {
-  Alert,
   Keyboard,
   KeyboardAvoidingView,
   Platform,
@@ -18,6 +17,7 @@ import {
 import { SocialAuthButtons } from "@/components/SocialAuthButtons";
 import { useAuth } from "@/context/AuthContext";
 import { useColors } from "@/hooks/useColors";
+import { showAlert } from "@/lib/alert";
 
 export default function Login() {
   const colors = useColors();
@@ -31,7 +31,7 @@ export default function Login() {
   async function handleLogin() {
     Keyboard.dismiss();
     if (!email || !password) {
-      Alert.alert("Missing fields", "Please enter your email and password.");
+      showAlert("Missing fields", "Please enter your email and password.");
       return;
     }
     setLoading(true);
@@ -43,7 +43,7 @@ export default function Login() {
         e?.message && typeof e.message === "string"
           ? e.message
           : "Login failed. Please try again.";
-      Alert.alert("Error", msg);
+      showAlert("Error", msg);
     } finally {
       setLoading(false);
     }

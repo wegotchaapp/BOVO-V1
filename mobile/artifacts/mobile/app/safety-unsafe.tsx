@@ -2,7 +2,6 @@ import { Feather } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import React, { useState } from "react";
 import {
-  Alert,
   Keyboard,
   Platform,
   SafeAreaView,
@@ -16,6 +15,7 @@ import {
 
 import { CARD_SHADOW } from "@/constants/colors";
 import { useColors } from "@/hooks/useColors";
+import { showAlert } from "@/lib/alert";
 import { triggerSos } from "@/lib/safety";
 
 const OPTIONS = [
@@ -63,14 +63,14 @@ export default function SafetyUnsafe() {
     if (id === "911") {
       // Real SOS: emergency-contact SMS via backend + 911 text composer + dialer.
       triggerSos().catch(() => {
-        Alert.alert("SOS", "Couldn't open the dialer automatically. Please call 911 directly.");
+        showAlert("SOS", "Couldn't open the dialer automatically. Please call 911 directly.");
       });
     } else if (id === "record") {
-      Alert.alert("Recording Started", "Silent recording is running. It will stop when you end the trip.", [{ text: "OK" }]);
+      showAlert("Recording Started", "Silent recording is running. It will stop when you end the trip.");
     } else if (id === "share") {
-      Alert.alert("Location Shared", "Your live location has been sent to your emergency contact.", [{ text: "OK" }]);
+      showAlert("Location Shared", "Your live location has been sent to your emergency contact.");
     } else if (id === "contact") {
-      Alert.alert("Calling Contact", "Connecting to your emergency contact now.", [{ text: "OK" }]);
+      showAlert("Calling Contact", "Connecting to your emergency contact now.");
     }
   }
 
@@ -78,7 +78,7 @@ export default function SafetyUnsafe() {
     Keyboard.dismiss();
     if (!safeWord.trim()) return;
     setWordSaved(true);
-    Alert.alert("Safe Word Set", `"${safeWord.trim()}" is your safe word. If you text this to anyone, Bovogo will automatically alert your emergency contacts.`, [{ text: "Got it" }]);
+    showAlert("Safe Word Set", `"${safeWord.trim()}" is your safe word. If you text this to anyone, Bovogo will automatically alert your emergency contacts.`);
   }
 
   return (

@@ -3,7 +3,6 @@ import * as ImagePicker from "expo-image-picker";
 import { useRouter } from "expo-router";
 import React, { useState } from "react";
 import {
-  Alert,
   Image,
   Platform,
   ScrollView,
@@ -17,8 +16,8 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "@/context/AuthContext";
 import { useColors } from "@/hooks/useColors";
 import { CARD_SHADOW } from "@/constants/colors";
-import { openSupportConversation } from "@/lib/conversations";
 import { confirm, showAlert } from "@/lib/alert";
+import { openSupportConversation } from "@/lib/conversations";
 
 interface MenuItem {
   icon: string;
@@ -62,7 +61,7 @@ export default function ProfileTab() {
     try {
       const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (!perm.granted) {
-        Alert.alert(
+        showAlert(
           "Permission needed",
           "Allow photo library access to update your profile picture.",
         );
@@ -83,9 +82,9 @@ export default function ProfileTab() {
         : asset.uri;
       setUploadingPhoto(true);
       await patchMe({ photoUrl });
-      Alert.alert("Photo updated", "Your profile photo has been saved.");
+      showAlert("Photo updated", "Your profile photo has been saved.");
     } catch (e: any) {
-      Alert.alert("Couldn't update photo", e?.message ?? "Please try again.");
+      showAlert("Couldn't update photo", e?.message ?? "Please try again.");
     } finally {
       setUploadingPhoto(false);
     }
@@ -144,7 +143,7 @@ export default function ProfileTab() {
               const conv = await openSupportConversation();
               router.push({ pathname: "/chat/[id]", params: { id: conv.id } });
             } catch (e: any) {
-              Alert.alert(
+              showAlert(
                 "Support unavailable",
                 e?.message ?? "Please try again in a moment.",
               );
@@ -155,7 +154,7 @@ export default function ProfileTab() {
           icon: "file-text",
           label: "Privacy & Data",
           action: () =>
-            Alert.alert(
+            showAlert(
               "Privacy & Data",
               "You can schedule account deletion below (7-day grace period). For a data export, message Bovogo Support from Help & Support.",
             ),

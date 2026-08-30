@@ -3,7 +3,6 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
-  Alert,
   Animated,
   Linking,
   Platform,
@@ -19,6 +18,7 @@ import TrackingMap from "@/components/TrackingMap";
 import { useColors } from "@/hooks/useColors";
 import { useTripLiveTracking } from "@/hooks/useTripLiveTracking";
 import { CARD_SHADOW } from "@/constants/colors";
+import { confirm, showAlert } from "@/lib/alert";
 import { getBooking, type Booking } from "@/lib/bookings";
 import { cityShort, getCityCoord } from "@/lib/city-coords";
 import { triggerSos } from "@/lib/safety";
@@ -159,7 +159,7 @@ export default function TripTracking() {
   async function handleShareLocation() {
     const point = live.myCoord;
     if (!point) {
-      Alert.alert(
+      showAlert(
         "Location unavailable",
         live.locationError ??
           "Enable location access in Settings to share your live position.",
@@ -178,40 +178,34 @@ export default function TripTracking() {
       if (e?.message?.includes("dismiss") || e?.message?.includes("cancel")) {
         return;
       }
-      Alert.alert("Couldn't share", e?.message ?? "Please try again.");
+      showAlert("Couldn't share", e?.message ?? "Please try again.");
     }
   }
 
-  function handleSOS() {
-    Alert.alert(
+  async function handleSOS() {
+    const ok = await confirm(
       "Activate SOS?",
       "This will text your emergency contact with your live location and open a call and text to 911.",
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Activate SOS",
-          style: "destructive",
-          onPress: () => {
-            // Pass the already-live GPS fix so the flow doesn't wait for a new one.
-            triggerSos({
-              coord: live.myCoord
-                ? {
-                    latitude: live.myCoord.latitude,
-                    longitude: live.myCoord.longitude,
-                  }
-                : null,
-              tripId: booking?.tripId,
-            });
-          },
-        },
-      ],
+      { confirmText: "Activate SOS", destructive: true },
     );
+    if (!ok) return;
+
+    // Pass the already-live GPS fix so the flow doesn't wait for a new one.
+    triggerSos({
+      coord: live.myCoord
+        ? {
+            latitude: live.myCoord.latitude,
+            longitude: live.myCoord.longitude,
+          }
+        : null,
+      tripId: booking?.tripId,
+    });
   }
 
   async function handleCallVoyager() {
     const href = phoneToTelHref(driverPhone);
     if (!href) {
-      Alert.alert(
+      showAlert(
         "Phone unavailable",
         "The Voyager has not added a phone number to their profile yet.",
       );
@@ -220,12 +214,12 @@ export default function TripTracking() {
     try {
       const supported = await Linking.canOpenURL(href);
       if (!supported) {
-        Alert.alert("Can't place call", "Calling is not supported on this device.");
+        showAlert("Can't place call", "Calling is not supported on this device.");
         return;
       }
       await Linking.openURL(href);
     } catch {
-      Alert.alert("Can't place call", "Something went wrong opening the phone app.");
+      showAlert("Can't place call", "Something went wrong opening the phone app.");
     }
   }
 
@@ -416,7 +410,7 @@ export default function TripTracking() {
                   });
                   return;
                 }
-                Alert.alert(
+                showAlert(
                   "Group chat",
                   "Private chat opens after booking is confirmed.",
                 );

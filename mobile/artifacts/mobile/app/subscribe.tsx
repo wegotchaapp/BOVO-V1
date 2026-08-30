@@ -1,9 +1,9 @@
+import { showAlert, showSuccess } from "@/lib/alert";
 import { Feather } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
   ActivityIndicator,
-  Alert,
   Platform,
   SafeAreaView,
   ScrollView,
@@ -76,16 +76,16 @@ function SubscribeBody() {
       }
 
       await refreshMe();
-      Alert.alert(
+      await showSuccess(
         "Welcome to Premium",
         isFoundingMember
           ? "Your 1-year free trial has started. You won't be charged until next year."
           : "Your subscription is active.",
-        [{ text: "Done", onPress: () => router.back() }],
+        () => router.back(),
       );
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Subscription failed";
-      Alert.alert("Could not start subscription", msg);
+      showAlert("Could not start subscription", msg);
     } finally {
       setLoading(false);
     }

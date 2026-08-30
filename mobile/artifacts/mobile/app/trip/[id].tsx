@@ -3,7 +3,6 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
   ActivityIndicator,
-  Alert,
   Platform,
   SafeAreaView,
   ScrollView,
@@ -20,6 +19,7 @@ import {
   type Trip,
   type TripDetailMeta,
 } from "@/data/trips";
+import { confirm, showAlert } from "@/lib/alert";
 import { getTrip } from "@/lib/trips";
 import { shareTripSummary } from "@/lib/share";
 import { useColors } from "@/hooks/useColors";
@@ -117,7 +117,7 @@ export default function TripDetails() {
               });
             } catch (e: any) {
               if (String(e?.message ?? "").toLowerCase().includes("dismiss")) return;
-              Alert.alert("Couldn't share", e?.message ?? "Please try again.");
+              showAlert("Couldn't share", e?.message ?? "Please try again.");
             }
           }}
         >
@@ -145,7 +145,7 @@ export default function TripDetails() {
           </View>
           <TouchableOpacity
             style={[styles.msgBtn, { backgroundColor: colors.secondary }]}
-            onPress={() => {
+            onPress={async () => {
               if (meta?.viewerGroupId) {
                 router.push({
                   pathname: "/group/[id]",
@@ -153,21 +153,17 @@ export default function TripDetails() {
                 });
                 return;
               }
-              Alert.alert(
+              const goPay = await confirm(
                 "Book to chat privately",
                 "Pay for your seat first. After booking, you and the Voyager will be added to a private Adventure group.",
-                [
-                  { text: "Not now", style: "cancel" },
-                  {
-                    text: "Continue to payment",
-                    onPress: () =>
-                      router.push({
-                        pathname: "/payment",
-                        params: { tripId: trip.id },
-                      }),
-                  },
-                ],
+                { confirmText: "Continue to payment", cancelText: "Not now" },
               );
+              if (goPay) {
+                router.push({
+                  pathname: "/payment",
+                  params: { tripId: trip.id },
+                });
+              }
             }}
           >
             <Feather name="message-circle" size={18} color={colors.primary} />

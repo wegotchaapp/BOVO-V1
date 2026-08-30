@@ -2,7 +2,6 @@ import { Feather } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import React, { useState } from "react";
 import {
-  Alert,
   Keyboard,
   KeyboardAvoidingView,
   Platform,
@@ -18,6 +17,7 @@ import {
 import { SocialAuthButtons } from "@/components/SocialAuthButtons";
 import { useAuth } from "@/context/AuthContext";
 import { useColors } from "@/hooks/useColors";
+import { confirm, showAlert } from "@/lib/alert";
 
 export default function Register() {
   const colors = useColors();
@@ -32,11 +32,11 @@ export default function Register() {
   async function handleRegister() {
     Keyboard.dismiss();
     if (!name || !email || !phone || !password) {
-      Alert.alert("Missing fields", "Please fill in all fields.");
+      showAlert("Missing fields", "Please fill in all fields.");
       return;
     }
     if (password.length < 8) {
-      Alert.alert(
+      showAlert(
         "Password too short",
         "Password must be at least 8 characters.",
       );
@@ -49,23 +49,18 @@ export default function Register() {
     } catch (e: any) {
       const status = e?.status as number | undefined;
       if (status === 409) {
-        Alert.alert(
+        const goSignIn = await confirm(
           "Account already exists",
           "An account with this email is already registered. Would you like to sign in instead?",
-          [
-            { text: "Cancel", style: "cancel" },
-            {
-              text: "Sign In",
-              onPress: () => router.replace("/login"),
-            },
-          ],
+          { confirmText: "Sign In" },
         );
+        if (goSignIn) router.replace("/login");
       } else {
         const msg =
           e?.message && typeof e.message === "string"
             ? e.message
             : "Registration failed. Please try again.";
-        Alert.alert("Error", msg);
+        showAlert("Error", msg);
       }
     } finally {
       setLoading(false);

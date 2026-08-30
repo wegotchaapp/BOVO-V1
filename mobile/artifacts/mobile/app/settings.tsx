@@ -2,7 +2,6 @@ import { Feather } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import React from "react";
 import {
-  Alert,
   Platform,
   SafeAreaView,
   ScrollView,
@@ -15,6 +14,7 @@ import {
 import { useAuth } from "@/context/AuthContext";
 import { useColors } from "@/hooks/useColors";
 import { CARD_SHADOW } from "@/constants/colors";
+import { showAlert } from "@/lib/alert";
 
 export default function SettingsScreen() {
   const colors = useColors();
@@ -24,9 +24,9 @@ export default function SettingsScreen() {
   async function handleCancelDeletion() {
     try {
       await cancelAccountDeletion();
-      Alert.alert("Deletion cancelled", "Your account will remain active.");
+      showAlert("Deletion cancelled", "Your account will remain active.");
     } catch (e: any) {
-      Alert.alert("Couldn't cancel", e?.message ?? "Please try again.");
+      showAlert("Couldn't cancel", e?.message ?? "Please try again.");
     }
   }
 

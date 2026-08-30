@@ -1,9 +1,9 @@
+import { showAlert } from "@/lib/alert";
 import { Feather } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
   ActivityIndicator,
-  Alert,
   Platform,
   SafeAreaView,
   ScrollView,
@@ -167,7 +167,7 @@ function PaymentBody() {
       }
     } catch (err: any) {
       setPaying(false);
-      Alert.alert(
+      showAlert(
         "Booking failed",
         err?.message || "We couldn't complete your booking. Please try again.",
       );

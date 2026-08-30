@@ -36,9 +36,9 @@ import {
   formatTripTime,
   type Trip,
 } from "@/data/trips";
+import { showAlert } from "@/lib/alert";
 import { listTrips } from "@/lib/trips";
 import { CARD_SHADOW } from "@/constants/colors";
-
 
 // ─── Shared sub-components ────────────────────────────────────────────────────
 
@@ -492,7 +492,7 @@ export default function HomeTab() {
 
   function selectCity(city: CityOption) {
     if (city.status === "coming-soon") {
-      Alert.alert(
+      showAlert(
         `${city.label} — Coming Soon`,
         "We're starting with the Austin ↔ Houston corridor. We'll let you know when this city goes live.",
       );
@@ -511,11 +511,11 @@ export default function HomeTab() {
 
   function search() {
     if (!isMvpCity(from) || !isMvpCity(to)) {
-      Alert.alert("Route not available yet", "Please pick an Austin ↔ Houston route for now.");
+      showAlert("Route not available yet", "Please pick an Austin ↔ Houston route for now.");
       return;
     }
     if (from === to) {
-      Alert.alert("Pick two different cities", "Origin and destination must be different.");
+      showAlert("Pick two different cities", "Origin and destination must be different.");
       return;
     }
     router.push({ pathname: "/search-results", params: { from, to, date: formatSearchDate(date) } });

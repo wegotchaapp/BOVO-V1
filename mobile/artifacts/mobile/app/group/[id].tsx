@@ -3,7 +3,6 @@ import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
-  Alert,
   KeyboardAvoidingView,
   Platform,
   RefreshControl,
@@ -19,6 +18,7 @@ import {
 import { useColors } from "@/hooks/useColors";
 import { CARD_SHADOW } from "@/constants/colors";
 import { useAuth } from "@/context/AuthContext";
+import { confirm, showAlert } from "@/lib/alert";
 import {
   deleteGroup,
   getGroup,
@@ -186,7 +186,7 @@ export default function GroupDetail() {
         d ? { ...d, messages: d.messages.filter((m) => m.id !== tempId) } : d,
       );
       setComposerText(text);
-      Alert.alert("Couldn't send", err?.message || "Please try again.");
+      showAlert("Couldn't send", err?.message || "Please try again.");
     } finally {
       setSending(false);
     }
@@ -233,29 +233,27 @@ export default function GroupDetail() {
   const isMember = !!members.find((m) => m.userId === user?.id);
   const isDriver = !!members.find((m) => m.userId === user?.id && m.role === "driver");
 
-  function onDeleteGroup() {
-    Alert.alert(
+  async function onDeleteGroup() {
+    const ok = await confirm(
       "Delete Adventure Group",
       "This will permanently remove the group, all messages, and all members. This cannot be undone.",
-      [
-        { text: "Don't Delete", style: "cancel" },
-        {
-          text: "Delete Group",
-          style: "destructive",
-          onPress: async () => {
-            setDeleting(true);
-            try {
-              await deleteGroup(id!);
-              router.back();
-            } catch (err: any) {
-              Alert.alert("Couldn't delete group", err?.message || "Please try again.");
-            } finally {
-              setDeleting(false);
-            }
-          },
-        },
-      ],
+      {
+        confirmText: "Delete Group",
+        cancelText: "Don't Delete",
+        destructive: true,
+      },
     );
+    if (!ok) return;
+
+    setDeleting(true);
+    try {
+      await deleteGroup(id!);
+      router.back();
+    } catch (err: any) {
+      showAlert("Couldn't delete group", err?.message || "Please try again.");
+    } finally {
+      setDeleting(false);
+    }
   }
 
   return (

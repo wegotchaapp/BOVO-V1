@@ -2,7 +2,6 @@ import { Feather } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
-  Alert,
   Keyboard,
   KeyboardAvoidingView,
   Modal,
@@ -20,8 +19,8 @@ import { CARD_SHADOW } from "@/constants/colors";
 import { ALL_CITY_OPTIONS, MVP_CITIES, isMvpCity } from "@/data/cities";
 import { filterNeighborhoods, getNeighborhoods } from "@/data/locations";
 import { useColors } from "@/hooks/useColors";
-import { calculateSuggestedPrice, getDistanceMiles } from "@/lib/pricing";
 import { showAlert, showSuccess } from "@/lib/alert";
+import { calculateSuggestedPrice, getDistanceMiles } from "@/lib/pricing";
 import { createTrip } from "@/lib/trips";
 
 const MAX_MESSAGE = 500;
@@ -424,7 +423,7 @@ export default function PostTrip() {
 
   function handleCitySelect(city: string, comingSoon: boolean) {
     if (comingSoon) {
-      Alert.alert(
+      showAlert(
         `${city} — Coming Soon`,
         "We're starting with the Austin ↔ Houston corridor. We'll let you know when this city goes live.",
       );

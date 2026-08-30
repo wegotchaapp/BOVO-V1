@@ -3,7 +3,6 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
   ActivityIndicator,
-  Alert,
   Platform,
   SafeAreaView,
   ScrollView,
@@ -21,6 +20,7 @@ import Animated, {
 
 import { useAuth } from "@/context/AuthContext";
 import { useColors } from "@/hooks/useColors";
+import { showAlert } from "@/lib/alert";
 import { getMyPreferences, saveMyPreferences } from "@/lib/preferences";
 
 interface Question {
@@ -191,7 +191,7 @@ export default function Preferences() {
       await refreshMe();
       router.push({ pathname: "/matching", params: tripId ? { tripId } : {} });
     } catch (e: any) {
-      Alert.alert("Couldn't save preferences", e?.message ?? "Please try again.");
+      showAlert("Couldn't save preferences", e?.message ?? "Please try again.");
     } finally {
       setSaving(false);
     }

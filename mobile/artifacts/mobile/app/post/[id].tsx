@@ -3,7 +3,6 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
-  Alert,
   Keyboard,
   KeyboardAvoidingView,
   Platform,
@@ -25,6 +24,7 @@ import {
   type TripReply,
   type TripDetailMeta,
 } from "@/data/trips";
+import { showAlert } from "@/lib/alert";
 import { getTrip, replyToTrip } from "@/lib/trips";
 import { findPublicReplyPii, publicReplyPiiMessage } from "@/lib/pii-guard";
 import { shareTripSummary } from "@/lib/share";
@@ -137,7 +137,7 @@ export default function PostDetail() {
   async function sendReply() {
     if (!post || !replyText.trim() || sending) return;
     if (voyagerAlreadyReplied) {
-      Alert.alert(
+      showAlert(
         "One reply only",
         "Voyagers can only post one public reply on their adventure.",
       );
@@ -145,7 +145,7 @@ export default function PostDetail() {
     }
     const piiHit = findPublicReplyPii(replyText);
     if (piiHit) {
-      Alert.alert("Keep it public-safe", publicReplyPiiMessage(piiHit));
+      showAlert("Keep it public-safe", publicReplyPiiMessage(piiHit));
       return;
     }
     Keyboard.dismiss();
@@ -155,7 +155,7 @@ export default function PostDetail() {
       setReplies((prev) => [...prev, reply]);
       setReplyText("");
     } catch (err) {
-      Alert.alert("Couldn't send reply", err instanceof Error ? err.message : "Please try again.");
+      showAlert("Couldn't send reply", err instanceof Error ? err.message : "Please try again.");
     } finally {
       setSending(false);
     }
@@ -218,7 +218,7 @@ export default function PostDetail() {
               });
             } catch (e: any) {
               if (String(e?.message ?? "").toLowerCase().includes("dismiss")) return;
-              Alert.alert("Couldn't share", e?.message ?? "Please try again.");
+              showAlert("Couldn't share", e?.message ?? "Please try again.");
             }
           }}
         >

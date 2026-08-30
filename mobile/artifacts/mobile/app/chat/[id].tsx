@@ -3,7 +3,6 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
-  Alert,
   FlatList,
   Keyboard,
   KeyboardAvoidingView,
@@ -18,6 +17,7 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useColors } from "@/hooks/useColors";
+import { showAlert } from "@/lib/alert";
 import {
   getConversation,
   postConversationMessage,
@@ -46,7 +46,7 @@ export default function ChatScreen() {
       setConversation(data.conversation);
       setMessages(data.messages);
     } catch (err: any) {
-      Alert.alert("Couldn't load chat", err?.message ?? "Please try again.");
+      showAlert("Couldn't load chat", err?.message ?? "Please try again.");
     } finally {
       setLoading(false);
     }
@@ -90,7 +90,7 @@ export default function ChatScreen() {
       );
     } catch (err: any) {
       setMessages((prev) => prev.filter((m) => m.id !== tempId));
-      Alert.alert("Couldn't send", err?.message ?? "Please try again.");
+      showAlert("Couldn't send", err?.message ?? "Please try again.");
     } finally {
       setSending(false);
     }

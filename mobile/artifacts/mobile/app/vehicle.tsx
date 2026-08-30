@@ -3,7 +3,6 @@ import { useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
   ActivityIndicator,
-  Alert,
   Keyboard,
   KeyboardAvoidingView,
   Platform,
@@ -18,6 +17,7 @@ import {
 
 import { CARD_SHADOW } from "@/constants/colors";
 import { useColors } from "@/hooks/useColors";
+import { showAlert, showSuccess } from "@/lib/alert";
 import { listMyVehicles, upsertVehicle } from "@/lib/vehicles";
 
 const MAKES = ["Toyota", "Honda", "Ford", "Chevrolet", "Tesla", "Hyundai", "Kia", "Nissan", "Jeep", "Subaru"];
@@ -67,11 +67,11 @@ export default function Vehicle() {
   async function handleSave() {
     Keyboard.dismiss();
     if (!plate.trim()) {
-      Alert.alert("Required", "Please enter your license plate number.");
+      showAlert("Required", "Please enter your license plate number.");
       return;
     }
     if (!model.trim()) {
-      Alert.alert("Required", "Please enter your vehicle model.");
+      showAlert("Required", "Please enter your vehicle model.");
       return;
     }
     setSaving(true);
@@ -86,11 +86,13 @@ export default function Vehicle() {
         vin: vin.trim() || undefined,
       });
       setSaved(true);
-      Alert.alert("Vehicle Saved", "Your vehicle has been registered successfully.", [
-        { text: "Done", onPress: () => router.back() },
-      ]);
+      await showSuccess(
+        "Vehicle Saved",
+        "Your vehicle has been registered successfully.",
+        () => router.back(),
+      );
     } catch (e: any) {
-      Alert.alert("Couldn't save", e?.message ?? "Please try again.");
+      showAlert("Couldn't save", e?.message ?? "Please try again.");
     } finally {
       setSaving(false);
     }
@@ -204,7 +206,7 @@ export default function Vehicle() {
             <TouchableOpacity
               key={doc.label}
               style={[styles.docRow, { borderBottomColor: colors.border }]}
-              onPress={() => Alert.alert(doc.label, "Document upload will be available at launch.")}
+              onPress={() => showAlert(doc.label, "Document upload will be available at launch.")}
               activeOpacity={0.75}
             >
               <View style={[styles.docIcon, { backgroundColor: colors.secondary }]}>

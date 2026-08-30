@@ -4,7 +4,6 @@ import * as Location from "expo-location";
 import { useRouter } from "expo-router";
 import React, { useState } from "react";
 import {
-  Alert,
   Image,
   Keyboard,
   KeyboardAvoidingView,
@@ -21,6 +20,7 @@ import {
 import { useAuth, type UserRole } from "@/context/AuthContext";
 import { useColors } from "@/hooks/useColors";
 import { CARD_SHADOW } from "@/constants/colors";
+import { showAlert } from "@/lib/alert";
 
 const LANGUAGES = ["English", "Spanish", "Hindi", "Mandarin", "Arabic", "French", "Portuguese", "Vietnamese"];
 
@@ -45,7 +45,7 @@ export default function Onboarding() {
     try {
       const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (!perm.granted) {
-        Alert.alert(
+        showAlert(
           "Permission needed",
           "Allow photo library access to set your profile picture.",
         );
@@ -67,7 +67,7 @@ export default function Onboarding() {
         setPhotoUrl(asset.uri);
       }
     } catch (e: any) {
-      Alert.alert("Couldn't add photo", e?.message ?? "Please try again.");
+      showAlert("Couldn't add photo", e?.message ?? "Please try again.");
     }
   }
 
@@ -93,7 +93,7 @@ export default function Onboarding() {
     try {
       const { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== "granted") {
-        Alert.alert(
+        showAlert(
           "Location for SOS",
           "Without location access, SOS alerts can't include your live location. You can enable it anytime in device settings.",
         );
@@ -125,7 +125,7 @@ export default function Onboarding() {
         });
         router.replace("/(tabs)");
       } catch (e: any) {
-        Alert.alert(
+        showAlert(
           "Couldn't finish setup",
           e?.message ?? "Please try again.",
         );

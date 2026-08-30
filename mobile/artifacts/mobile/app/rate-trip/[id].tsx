@@ -3,7 +3,6 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
   ActivityIndicator,
-  Alert,
   Keyboard,
   KeyboardAvoidingView,
   Platform,
@@ -18,6 +17,7 @@ import {
 
 import { CARD_SHADOW } from "@/constants/colors";
 import { useColors } from "@/hooks/useColors";
+import { showAlert, showSuccess } from "@/lib/alert";
 import { getBooking, type Booking } from "@/lib/bookings";
 import { getRatingStatus, submitRating } from "@/lib/ratings";
 
@@ -62,7 +62,7 @@ export default function RateTrip() {
       })
       .catch((e: any) => {
         if (!cancelled) {
-          Alert.alert("Couldn't load adventure", e?.message ?? "Please try again.");
+          showAlert("Couldn't load adventure", e?.message ?? "Please try again.");
         }
       })
       .finally(() => {
@@ -83,7 +83,7 @@ export default function RateTrip() {
     Keyboard.dismiss();
     if (!id || !booking) return;
     if (rating === 0) {
-      Alert.alert("Rate Your Adventure", "Please select a star rating first.");
+      showAlert("Rate Your Adventure", "Please select a star rating first.");
       return;
     }
     if (alreadyRated || submitted) return;
@@ -97,11 +97,13 @@ export default function RateTrip() {
       });
       setSubmitted(true);
       setAlreadyRated(true);
-      Alert.alert("Thank You!", "Your review helps build trust in the Bovogo community.", [
-        { text: "Done", onPress: () => router.replace("/(tabs)/trips") },
-      ]);
+      await showSuccess(
+        "Thank You!",
+        "Your review helps build trust in the Bovogo community.",
+        () => router.replace("/(tabs)/trips"),
+      );
     } catch (e: any) {
-      Alert.alert("Couldn't submit", e?.message ?? "Please try again.");
+      showAlert("Couldn't submit", e?.message ?? "Please try again.");
     } finally {
       setSaving(false);
     }

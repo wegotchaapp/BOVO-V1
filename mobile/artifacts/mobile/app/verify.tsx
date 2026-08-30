@@ -2,7 +2,6 @@ import { Feather } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import React, { useState } from "react";
 import {
-  Alert,
   Platform,
   SafeAreaView,
   ScrollView,
@@ -13,6 +12,7 @@ import {
 } from "react-native";
 
 import { useColors } from "@/hooks/useColors";
+import { showAlert } from "@/lib/alert";
 
 interface VerifyItem {
   icon: string;
@@ -49,7 +49,7 @@ export default function Verify() {
 
   function handleItem(idx: number) {
     if (ITEMS[idx].status === "placeholder") {
-      Alert.alert(
+      showAlert(
         "Coming Soon",
         "Background checks will be enabled before launch. You can continue for now.",
       );

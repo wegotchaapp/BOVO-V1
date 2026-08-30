@@ -3,7 +3,6 @@ import { useFocusEffect, useRouter } from "expo-router";
 import React, { useCallback, useState } from "react";
 import {
   ActivityIndicator,
-  Alert,
   FlatList,
   Platform,
   RefreshControl,
@@ -17,6 +16,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useColors } from "@/hooks/useColors";
 import { CARD_SHADOW } from "@/constants/colors";
 import { useAuth } from "@/context/AuthContext";
+import { confirm, showAlert } from "@/lib/alert";
 import { listMyBookings, type Booking } from "@/lib/bookings";
 import { deleteTrip, listMyTrips } from "@/lib/trips";
 import type { Trip } from "@/data/trips";
@@ -165,41 +165,32 @@ export default function TripsTab() {
     setRefreshing(false);
   }
 
-  function confirmDelete(item: TripItem) {
-    Alert.alert(
+  async function confirmDelete(item: TripItem) {
+    const ok = await confirm(
       "Cancel this Adventure?",
       `Your post from ${item.from} → ${item.to} on ${item.date} will be removed from search results. Existing booking history is preserved.`,
-      [
-        { text: "Don't Cancel", style: "cancel" },
-        {
-          text: "Cancel Adventure",
-          style: "destructive",
-          onPress: async () => {
-            // Optimistic: flip status to cancelled so it moves to "Past"
-            // immediately. Restore prior status on failure.
-            const prevStatus = item.status;
-            setItems((curr) =>
-              curr.map((x) =>
-                x.id === item.id ? { ...x, status: "cancelled" } : x,
-              ),
-            );
-            try {
-              await deleteTrip(item.id);
-            } catch (err: any) {
-              setItems((curr) =>
-                curr.map((x) =>
-                  x.id === item.id ? { ...x, status: prevStatus } : x,
-                ),
-              );
-              Alert.alert(
-                "Couldn't cancel",
-                err?.message || "Please try again.",
-              );
-            }
-          },
-        },
-      ],
+      {
+        confirmText: "Cancel Adventure",
+        cancelText: "Don't Cancel",
+        destructive: true,
+      },
     );
+    if (!ok) return;
+
+    // Optimistic: flip status to cancelled so it moves to "Past"
+    // immediately. Restore prior status on failure.
+    const prevStatus = item.status;
+    setItems((curr) =>
+      curr.map((x) => (x.id === item.id ? { ...x, status: "cancelled" } : x)),
+    );
+    try {
+      await deleteTrip(item.id);
+    } catch (err: any) {
+      setItems((curr) =>
+        curr.map((x) => (x.id === item.id ? { ...x, status: prevStatus } : x)),
+      );
+      showAlert("Couldn't cancel", err?.message || "Please try again.");
+    }
   }
 
   const filtered = items.filter((t) =>

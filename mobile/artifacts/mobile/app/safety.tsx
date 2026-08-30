@@ -2,7 +2,6 @@ import { Feather } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import React, { useEffect, useRef, useState } from "react";
 import {
-  Alert,
   Animated,
   Modal,
   Platform,
@@ -17,6 +16,7 @@ import {
 
 import { useColors } from "@/hooks/useColors";
 import { CARD_SHADOW } from "@/constants/colors";
+import { showAlert } from "@/lib/alert";
 import { triggerSos } from "@/lib/safety";
 
 const HOLD_DURATION = 3000;
@@ -77,7 +77,7 @@ export default function Safety() {
     try {
       await triggerSos();
     } catch {
-      Alert.alert(
+      showAlert(
         "SOS",
         "We couldn't open your phone's dialer automatically. Please call 911 directly.",
       );
@@ -110,7 +110,7 @@ export default function Safety() {
       icon: "share-2",
       title: "Share Live Adventure",
       subtitle: "Send your route + ETA to a contact",
-      onPress: () => Alert.alert("Share Adventure", "Sharing your live adventure link with your emergency contact."),
+      onPress: () => showAlert("Share Adventure", "Sharing your live adventure link with your emergency contact."),
       color: colors.primary,
       bg: colors.secondary,
     },
@@ -118,7 +118,7 @@ export default function Safety() {
       icon: "phone",
       title: "Emergency Contacts",
       subtitle: "3 contacts added and ready",
-      onPress: () => Alert.alert("Emergency Contacts", "Contact management available in Settings."),
+      onPress: () => showAlert("Emergency Contacts", "Contact management available in Settings."),
       color: colors.primary,
       bg: colors.secondary,
     },
@@ -127,7 +127,7 @@ export default function Safety() {
       title: "Safety Tips",
       subtitle: "Best practices for safe carpooling",
       onPress: () =>
-        Alert.alert(
+        showAlert(
           "Safety Tips",
           "1. Verify driver's ID before boarding.\n2. Share your trip with a trusted contact.\n3. Sit in the back seat.\n4. Trust your instincts — cancel if uncomfortable.\n5. Keep your phone charged.",
         ),

@@ -1,6 +1,6 @@
 import { Feather } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import React, { useEffect, useState } from "react";
+import React, { useEffect } from "react";
 import {
   Platform,
   SafeAreaView,
@@ -17,6 +17,7 @@ import Animated, {
   withTiming,
 } from "react-native-reanimated";
 
+import { useAsyncResource } from "@/hooks/useAsyncResource";
 import { useColors } from "@/hooks/useColors";
 import { CARD_SHADOW } from "@/constants/colors";
 import { getTrip } from "@/lib/trips";
@@ -84,47 +85,35 @@ export default function Matching() {
   const colors = useColors();
   const router = useRouter();
   const { tripId } = useLocalSearchParams<{ tripId?: string }>();
-  const [trip, setTrip] = useState<Trip | null>(null);
-  const [points, setPoints] = useState<MatchPoint[] | null>(null);
-  const [loading, setLoading] = useState(true);
+
   /**
-   * Distinguishes "we could not load the adventure" from "you have not set any
-   * preferences". Both used to collapse into `score === null`, so a dropped
-   * request told the Sailor to set preferences they may already have set — and
-   * setting them changed nothing, because the trip was what failed to load.
+   * "Could not load the adventure" and "you have not set any preferences" used
+   * to collapse into one null, so a dropped request told the Sailor to set
+   * preferences they may already have set — and setting them changed nothing,
+   * because the trip was what failed. The hook keeps the two apart by
+   * construction.
    */
-  const [loadFailed, setLoadFailed] = useState(false);
+  const match = useAsyncResource(
+    async () => {
+      const [t, prefs] = await Promise.all([
+        getTrip(tripId!).then((r) => r.trip),
+        // Preferences are a nicety: never having set any is a real, expected
+        // state, and must not read as a failed load.
+        getMyPreferences().then((r) => r.preferences).catch(() => ({})),
+      ]);
+      return { trip: t, points: comparePreferences(t, prefs ?? {}) };
+    },
+    { deps: [tripId], enabled: Boolean(tripId) },
+  );
+
+  const trip = match.data?.trip ?? null;
+  const points = match.data?.points ?? null;
+  const loading = match.phase === "loading";
+  const loadFailed = match.phase === "failed";
 
   const scoreScale = useSharedValue(0.6);
   const opacity = useSharedValue(0);
   const translateY = useSharedValue(24);
-
-  useEffect(() => {
-    let cancelled = false;
-    if (!tripId) {
-      setLoading(false);
-      return;
-    }
-    Promise.all([
-      getTrip(tripId).then((r) => r.trip),
-      getMyPreferences().then((r) => r.preferences).catch(() => ({})),
-    ])
-      .then(([t, prefs]) => {
-        if (cancelled) return;
-        setTrip(t);
-        setLoadFailed(false);
-        setPoints(comparePreferences(t, prefs ?? {}));
-      })
-      .catch(() => {
-        if (!cancelled) setLoadFailed(true);
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [tripId]);
 
   useEffect(() => {
     scoreScale.value = withDelay(300, withSpring(1, { damping: 14, stiffness: 80 }));

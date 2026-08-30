@@ -87,6 +87,13 @@ export default function Matching() {
   const [trip, setTrip] = useState<Trip | null>(null);
   const [points, setPoints] = useState<MatchPoint[] | null>(null);
   const [loading, setLoading] = useState(true);
+  /**
+   * Distinguishes "we could not load the adventure" from "you have not set any
+   * preferences". Both used to collapse into `score === null`, so a dropped
+   * request told the Sailor to set preferences they may already have set — and
+   * setting them changed nothing, because the trip was what failed to load.
+   */
+  const [loadFailed, setLoadFailed] = useState(false);
 
   const scoreScale = useSharedValue(0.6);
   const opacity = useSharedValue(0);
@@ -105,9 +112,12 @@ export default function Matching() {
       .then(([t, prefs]) => {
         if (cancelled) return;
         setTrip(t);
+        setLoadFailed(false);
         setPoints(comparePreferences(t, prefs ?? {}));
       })
-      .catch(() => {})
+      .catch(() => {
+        if (!cancelled) setLoadFailed(true);
+      })
       .finally(() => {
         if (!cancelled) setLoading(false);
       });
@@ -128,6 +138,7 @@ export default function Matching() {
   const voyagerFirstName = trip?.driver?.name?.split(" ")[0] ?? "your Voyager";
 
   function verdict(): string {
+    if (loadFailed) return "Couldn't load this adventure";
     if (score === null) return "Set your preferences";
     if (score === 100) return "Everything lines up";
     if (score >= 60) return "Mostly a good fit";
@@ -135,6 +146,9 @@ export default function Matching() {
   }
 
   function verdictSub(): string {
+    if (loadFailed) {
+      return "Check your connection and pull to try again — your preferences are fine.";
+    }
     if (score === null) {
       return "Answer a few questions about how you like to travel and we'll compare them with each adventure.";
     }

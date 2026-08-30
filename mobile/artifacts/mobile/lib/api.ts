@@ -23,7 +23,7 @@ type SessionExpiredHandler = () => void;
 let onSessionExpired: SessionExpiredHandler | null = null;
 
 /**
- * Registered by AuthContext so a genuine 401/403 signs the user out once,
+ * Registered by AuthContext so a genuine 401 signs the user out once,
  * centrally, instead of every screen inventing its own handling.
  */
 export function setSessionExpiredHandler(fn: SessionExpiredHandler | null) {

@@ -44,8 +44,6 @@
     "@react-email/components": "^1.0.12",
     "@react-email/html": "^0.0.12",
     "@react-email/render": "^2.0.6",
-    "@sentry/node": "^9.0.0",
-    "@sentry/tracing": "^7.114.0",
     "@supabase/supabase-js": "^2.48.1",
     "@types/bad-words": "^3.0.3",
     "aws-sdk": "^2.1692.0",

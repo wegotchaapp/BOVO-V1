@@ -1,6 +1,6 @@
 import { Feather } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useMemo, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
@@ -15,11 +15,11 @@ import {
 } from "react-native";
 
 import TripCard from "@/components/TripCard";
+import { useAsyncResource } from "@/hooks/useAsyncResource";
 import { useColors } from "@/hooks/useColors";
 import { listTrips } from "@/lib/trips";
 import { formatUsd, SEAT_PRICE } from "@/lib/pricing";
 import { EMPTY_SEARCH_RESULTS, pickLine } from "@/constants/voice";
-import type { Trip } from "@/data/trips";
 
 export default function SearchResults() {
   const colors = useColors();
@@ -47,51 +47,13 @@ export default function SearchResults() {
   // departure time are what actually differentiate adventures.
   const [sortBy, setSortBy] = useState<"rating" | "time" | "seats">("time");
 
-  const [allTrips, setAllTrips] = useState<Trip[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const search = useAsyncResource(
+    () => listTrips({ from, to, date: dateISO }),
+    { deps: [from, to, dateISO] },
+  );
 
-  async function loadTrips(opts?: { silent?: boolean }) {
-    if (!opts?.silent) {
-      setLoading(true);
-      setError(null);
-    }
-    try {
-      const rows = await listTrips({ from, to, date: dateISO });
-      setAllTrips(rows);
-      setError(null);
-    } catch (err: any) {
-      setError(err?.message ?? "Couldn't load adventures");
-    } finally {
-      if (!opts?.silent) setLoading(false);
-    }
-  }
-
-  useEffect(() => {
-    let cancelled = false;
-    setLoading(true);
-    setError(null);
-    listTrips({ from, to, date: dateISO })
-      .then((rows) => {
-        if (!cancelled) setAllTrips(rows);
-      })
-      .catch((err: Error) => {
-        if (!cancelled) setError(err.message ?? "Couldn't load adventures");
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [from, to, dateISO]);
-
-  async function onRefresh() {
-    setRefreshing(true);
-    await loadTrips({ silent: true });
-    setRefreshing(false);
-  }
+  const allTrips = search.data ?? [];
+  const error = search.error?.message ?? null;
 
   const trips = useMemo(() => {
     const filtered = allTrips.filter(
@@ -137,9 +99,11 @@ export default function SearchResults() {
           </Text>
           <Text style={[styles.meta, { color: colors.mutedForeground }]} numberOfLines={1}>
             {criteria ? `${criteria} · ` : ""}
-            {loading
+            {search.phase === "loading"
               ? "Loading…"
-              : `${trips.length} adventure${trips.length !== 1 ? "s" : ""} found`}
+              : search.phase === "failed"
+                ? "Couldn't load"
+                : `${trips.length} adventure${trips.length !== 1 ? "s" : ""} found`}
           </Text>
         </View>
         <TouchableOpacity
@@ -175,11 +139,11 @@ export default function SearchResults() {
         ))}
       </View>
 
-      {loading ? (
+      {search.phase === "loading" ? (
         <View style={styles.empty}>
           <ActivityIndicator color={colors.primary} />
         </View>
-      ) : error ? (
+      ) : search.phase === "failed" ? (
         <View style={styles.empty}>
           <View style={[styles.emptyIcon, { backgroundColor: colors.muted }]}>
             <Feather name="alert-circle" size={28} color={colors.mutedForeground} />
@@ -196,11 +160,14 @@ export default function SearchResults() {
           showsVerticalScrollIndicator={false}
           refreshControl={
             <RefreshControl
-              refreshing={refreshing}
-              onRefresh={onRefresh}
+              refreshing={search.refreshing}
+              onRefresh={search.refresh}
               tintColor={colors.primary}
             />
           }
+          // The hook's `empty` phase is deliberately not branched on above:
+          // ListEmptyComponent draws a finer distinction than it can, between
+          // "no Voyager runs this route" and "none has room for your party".
           ListEmptyComponent={
             <View style={styles.empty}>
               <View style={[styles.emptyIcon, { backgroundColor: colors.secondary }]}>

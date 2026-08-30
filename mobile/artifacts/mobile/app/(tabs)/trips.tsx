@@ -1,6 +1,6 @@
 import { Feather } from "@expo/vector-icons";
 import { useFocusEffect, useRouter } from "expo-router";
-import React, { useCallback, useState, useMemo } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
@@ -15,6 +15,7 @@ import {
 import { Alert } from "@/lib/alert";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { useAsyncResource } from "@/hooks/useAsyncResource";
 import { useColors } from "@/hooks/useColors";
 import {
   EMPTY_SAILOR_NO_TRIPS,
@@ -188,20 +189,26 @@ export default function TripsTab() {
   const router = useRouter();
   const { user } = useAuth();
   const [tab, setTab] = useState<"upcoming" | "past" | "cancelled">("upcoming");
-  const [items, setItems] = useState<TripItem[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  /** Whether a finished seat has already been rated, keyed by booking id. */
+  const [ratedById, setRatedById] = useState<Map<string, boolean | undefined>>(
+    () => new Map(),
+  );
+  /**
+   * Optimistic status changes layered over the server's list, so cancelling
+   * moves a post to "Past" immediately. Removed again if the request fails; the
+   * next load reconciles with the server either way.
+   */
+  const [statusOverrides, setStatusOverrides] = useState<
+    Map<string, TripItem["status"]>
+  >(() => new Map());
 
   const isDriver = user?.role === "driver";
   // `role` is only ever written during onboarding, so a Voyager who skipped it
   // carries `role: null` and would be shown no way to post again. Having posted
   // an adventure is proof enough.
-  const canPost = isDriver || items.some((i) => i.role === "driver");
 
-  const load = useCallback(async () => {
-    setError(null);
-    try {
+  const trips = useAsyncResource(
+    async () => {
       // Always fetch the rider's bookings; if the user is a driver, also pull
       // their own posted trips. (The list endpoint already filters to active +
       // MVP cities; we further dedupe by driverId on the client.)
@@ -223,52 +230,61 @@ export default function TripsTab() {
         const bT = new Date(b.departureAt).getTime();
         return aUp ? aT - bT : bT - aT;
       });
-      setItems(merged);
-
-      // Whether a finished seat has already been rated is a per-booking
-      // lookup, so it lands after the list rather than holding it up. Without
-      // it `rated` was never assigned at all: the Rate action showed forever
-      // and the Rated state was unreachable. A failed lookup leaves the Rate
-      // action showing, which is exactly the old behaviour.
-      const finished = merged.filter(
-        (i) => i.status === "completed" && i.role === "rider",
-      );
-      if (finished.length) {
-        const flags = await Promise.all(
-          finished.map((i) =>
-            getRatingStatus(i.id)
-              .then((r) => r.rated)
-              .catch(() => undefined),
-          ),
-        );
-        const byId = new Map(finished.map((i, n) => [i.id, flags[n]]));
-        setItems((curr) =>
-          curr.map((i) => (byId.has(i.id) ? { ...i, rated: byId.get(i.id) } : i)),
-        );
-      }
-    } catch (err: any) {
-      setError(err?.message || "Couldn't load your adventures.");
-    }
-  }, [user]);
-
-  useFocusEffect(
-    useCallback(() => {
-      let cancelled = false;
-      setLoading(true);
-      load().finally(() => {
-        if (!cancelled) setLoading(false);
-      });
-      return () => {
-        cancelled = true;
-      };
-    }, [load]),
+      return merged;
+    },
+    { deps: [user?.id] },
   );
 
-  async function onRefresh() {
-    setRefreshing(true);
-    await load();
-    setRefreshing(false);
-  }
+  // Kept out of the fetch above on purpose: the rating lookup is one request per
+  // finished booking, and holding the whole list behind it would slow the first
+  // paint for everyone. A failed lookup leaves the Rate action showing, which is
+  // the old behaviour.
+  useEffect(() => {
+    const finished = (trips.data ?? []).filter(
+      (i) => i.status === "completed" && i.role === "rider",
+    );
+    if (finished.length === 0) return;
+    let cancelled = false;
+    void Promise.all(
+      finished.map((i) =>
+        getRatingStatus(i.id)
+          .then((r) => r.rated)
+          .catch(() => undefined),
+      ),
+    ).then((flags) => {
+      if (cancelled) return;
+      setRatedById(new Map(finished.map((i, n) => [i.id, flags[n]])));
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [trips.data]);
+
+  const items = useMemo(
+    () =>
+      (trips.data ?? []).map((i) => {
+        const rated = ratedById.has(i.id) ? ratedById.get(i.id) : i.rated;
+        const status = statusOverrides.get(i.id) ?? i.status;
+        return rated === i.rated && status === i.status
+          ? i
+          : { ...i, rated, status };
+      }),
+    [trips.data, ratedById, statusOverrides],
+  );
+
+  // Returning to the tab refreshes rather than reloads, so the list stays on
+  // screen instead of being replaced by a spinner every time. The hook does the
+  // first load itself, so the initial focus is skipped.
+  const firstFocus = useRef(true);
+  useFocusEffect(
+    useCallback(() => {
+      if (firstFocus.current) {
+        firstFocus.current = false;
+        return;
+      }
+      void trips.refresh();
+    }, [trips.refresh]),
+  );
 
   function confirmDelete(item: TripItem) {
     Alert.alert(
@@ -282,20 +298,18 @@ export default function TripsTab() {
           onPress: async () => {
             // Optimistic: flip status to cancelled so it moves to "Past"
             // immediately. Restore prior status on failure.
-            const prevStatus = item.status;
-            setItems((curr) =>
-              curr.map((x) =>
-                x.id === item.id ? { ...x, status: "cancelled" } : x,
-              ),
+            setStatusOverrides((curr) =>
+              new Map(curr).set(item.id, "cancelled"),
             );
             try {
               await deleteTrip(item.id);
             } catch (err: any) {
-              setItems((curr) =>
-                curr.map((x) =>
-                  x.id === item.id ? { ...x, status: prevStatus } : x,
-                ),
-              );
+              // Drop the override so the row falls back to the server's status.
+              setStatusOverrides((curr) => {
+                const next = new Map(curr);
+                next.delete(item.id);
+                return next;
+              });
               Alert.alert(
                 "Couldn't cancel",
                 err?.message || "Please try again.",
@@ -306,6 +320,8 @@ export default function TripsTab() {
       ],
     );
   }
+
+  const canPost = isDriver || items.some((i) => i.role === "driver");
 
   const filtered = items.filter((t) =>
     tab === "upcoming"
@@ -527,7 +543,7 @@ export default function TripsTab() {
         </View>
       </View>
 
-      {loading ? (
+      {trips.phase === "loading" ? (
         <View style={styles.loadingWrap}>
           <ActivityIndicator size="large" color={colors.primary} />
         </View>
@@ -542,7 +558,11 @@ export default function TripsTab() {
           ]}
           showsVerticalScrollIndicator={false}
           refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />
+            <RefreshControl
+              refreshing={trips.refreshing}
+              onRefresh={trips.refresh}
+              tintColor={colors.primary}
+            />
           }
           ListEmptyComponent={
             <View style={styles.empty}>
@@ -550,10 +570,14 @@ export default function TripsTab() {
                 <Feather name="map" size={32} color={colors.primary} />
               </View>
               <Text style={[styles.emptyTitle, { color: colors.foreground }]}>
-                {error ? "Couldn't load your adventures" : emptyVoice.title}
+                {trips.phase === "failed"
+                  ? "Couldn't load your adventures"
+                  : emptyVoice.title}
               </Text>
               <Text style={[styles.emptySub, { color: colors.mutedForeground }]}>
-                {error ? error : emptyVoice.body}
+                {trips.phase === "failed"
+                  ? (trips.error?.message ?? emptyVoice.body)
+                  : emptyVoice.body}
               </Text>
               <TouchableOpacity
                 style={[styles.findBtn, { backgroundColor: colors.primary }]}

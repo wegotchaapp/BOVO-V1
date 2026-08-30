@@ -2,7 +2,7 @@ name: Backend CI
 
 on:
   pull_request:
-    branches: [main]
+    branches: [main, feat/mobile-api-v1]
     paths:
       - 'backend/**'
       - '.github/workflows/backend-ci.yml'

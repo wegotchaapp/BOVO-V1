@@ -63,11 +63,21 @@ export async function prepareBooking(
   return apiClient.post<PrepareBookingResult>("/bookings/prepare", input);
 }
 
-/** Confirm booking after Payment Sheet succeeds. */
+/**
+ * Confirm booking after Payment Sheet succeeds.
+ *
+ * Opted back into retrying, which POSTs no longer do by default. This one runs
+ * *after* the Sailor's money has moved, so a dropped connection here is the
+ * worst moment to give up — and repeating it is safe: the server returns the
+ * existing booking when it is already confirmed rather than reserving seats a
+ * second time.
+ */
 export async function confirmBooking(bookingId: string): Promise<Booking> {
-  const data = await apiClient.post<{ booking: Booking }>("/bookings/confirm", {
-    bookingId,
-  });
+  const data = await apiClient.post<{ booking: Booking }>(
+    "/bookings/confirm",
+    { bookingId },
+    { retry: true },
+  );
   return data.booking;
 }
 

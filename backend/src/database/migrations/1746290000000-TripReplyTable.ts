@@ -9,6 +9,10 @@ export class TripReplyTable1746290000000 implements MigrationInterface {
   name = 'TripReplyTable1746290000000';
 
   public async up(queryRunner: QueryRunner): Promise<void> {
+    if (await queryRunner.hasTable('trip_replies')) {
+      return;
+    }
+
     await queryRunner.createTable(
       new Table({
         name: 'trip_replies',

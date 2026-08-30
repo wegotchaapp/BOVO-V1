@@ -1,7 +1,7 @@
 import { showAlert } from "@/lib/alert";
 import { Feather } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Platform,
@@ -13,6 +13,9 @@ import {
   View,
 } from "react-native";
 import { StripeProvider, useStripe } from "@/lib/stripeNative";
+
+import type { ReceiptPrinterStage } from "@/components/ReceiptPrinter";
+import { TicketPrintOverlay } from "@/components/TicketPrintOverlay";
 
 import { useColors } from "@/hooks/useColors";
 import { CARD_SHADOW } from "@/constants/colors";
@@ -75,6 +78,28 @@ function PaymentBody() {
   const [selected, setSelected] = useState<PaymentMethodId>("card");
   const [paying, setPaying] = useState(false);
 
+  // The printer runs over the top of checkout once the charge is away. It
+  // holds on "processing" for as long as the payment actually takes.
+  const [printStage, setPrintStage] = useState<ReceiptPrinterStage | null>(
+    null,
+  );
+  const bookingIdRef = useRef<string | null>(null);
+  const printTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(
+    () => () => {
+      if (printTimer.current) clearTimeout(printTimer.current);
+    },
+    [],
+  );
+
+  /** Feed the ticket, then settle on complete once it is fully out. */
+  function runPrint(bookingId: string) {
+    bookingIdRef.current = bookingId;
+    setPrintStage("printing");
+    printTimer.current = setTimeout(() => setPrintStage("complete"), 1900);
+  }
+
   useEffect(() => {
     let cancelled = false;
     if (!tripId) {
@@ -110,6 +135,7 @@ function PaymentBody() {
   async function handlePay() {
     if (!trip || paying) return;
     setPaying(true);
+    setPrintStage("processing");
     try {
       try {
         const prepared = await prepareBooking({
@@ -130,16 +156,14 @@ function PaymentBody() {
           if (present.error) {
             if (present.error.code === "Canceled") {
               setPaying(false);
+              setPrintStage(null);
               return;
             }
             throw new Error(present.error.message);
           }
 
           const confirmed = await confirmBooking(prepared.booking.id);
-          router.replace({
-            pathname: "/booking-confirmed",
-            params: { id: confirmed.id },
-          });
+          runPrint(confirmed.id);
           return;
         }
 
@@ -160,13 +184,11 @@ function PaymentBody() {
           seats,
           paymentMethod: selected,
         });
-        router.replace({
-          pathname: "/booking-confirmed",
-          params: { id: booking.id },
-        });
+        runPrint(booking.id);
       }
     } catch (err: any) {
       setPaying(false);
+      setPrintStage(null);
       showAlert(
         "Booking failed",
         err?.message || "We couldn't complete your booking. Please try again.",
@@ -362,6 +384,25 @@ function PaymentBody() {
             </Text>
           </TouchableOpacity>
         </View>
+
+        {printStage ? (
+          <TicketPrintOverlay
+            detail={`${seats} seat · ${formatDate(trip.departureAt)}`}
+            onDone={() => {
+              const id = bookingIdRef.current;
+              if (id) {
+                router.replace({
+                  pathname: "/booking-confirmed",
+                  params: { id },
+                });
+              }
+            }}
+            onHome={() => router.replace("/(tabs)")}
+            route={route}
+            stage={printStage}
+            total={`$${total.toFixed(2)}`}
+          />
+        ) : null}
       </SafeAreaView>
   );
 }

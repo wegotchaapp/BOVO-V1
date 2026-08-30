@@ -1,12 +1,32 @@
-import { Injectable, BadRequestException, ForbiddenException, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  BadRequestException,
+  ForbiddenException,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, In, LessThan, MoreThan } from 'typeorm';
 import { ConfigService } from '@nestjs/config';
-import { Report, ModerationAction, Suspension, Appeal } from '../../database/entities/safety.entities';
+import {
+  Report,
+  ModerationAction,
+  Suspension,
+  Appeal,
+} from '../../database/entities/safety.entities';
 import { User } from '../../database/entities/user.entity';
 import { Booking } from '../../database/entities/booking.entities';
-import { SubmitReportDto, ModerationActionDto, SubmitAppealDto } from '../../common/dto/trust-safety.dto';
-import { ReportCategory, ReportSeverity, ModerationActionType, AppealStatus, UserRole } from '../../common/enums';
+import {
+  SubmitReportDto,
+  ModerationActionDto,
+  SubmitAppealDto,
+} from '../../common/dto/trust-safety.dto';
+import {
+  ReportCategory,
+  ReportSeverity,
+  ModerationActionType,
+  AppealStatus,
+  UserRole,
+} from '../../common/enums';
 import { PinoLogger } from 'nestjs-pino';
 import { NotificationsService } from '../notifications/notifications.service';
 import { AuditService } from '../audit/audit.service';
@@ -51,8 +71,13 @@ export class TrustSafetyService {
     private readonly audit: AuditService,
   ) {}
 
-  async submitReport(reporterId: string, dto: SubmitReportDto): Promise<Report> {
-    const reportedUser = await this.userRepo.findOne({ where: { id: dto.reported_user_id } });
+  async submitReport(
+    reporterId: string,
+    dto: SubmitReportDto,
+  ): Promise<Report> {
+    const reportedUser = await this.userRepo.findOne({
+      where: { id: dto.reported_user_id },
+    });
     if (!reportedUser) throw new NotFoundException('Reported user not found');
 
     if (reporterId === dto.reported_user_id) {
@@ -67,12 +92,16 @@ export class TrustSafetyService {
       if (!booking) throw new NotFoundException('Booking not found');
 
       const isParticipant =
-        booking.rider_id === reporterId || booking.trip?.driver_id === reporterId;
+        booking.rider_id === reporterId ||
+        booking.trip?.driver_id === reporterId;
       const reportedIsParticipant =
-        booking.rider_id === dto.reported_user_id || booking.trip?.driver_id === dto.reported_user_id;
+        booking.rider_id === dto.reported_user_id ||
+        booking.trip?.driver_id === dto.reported_user_id;
 
       if (!isParticipant || !reportedIsParticipant) {
-        throw new BadRequestException('Report must involve users from the same booking');
+        throw new BadRequestException(
+          'Report must involve users from the same booking',
+        );
       }
     }
 
@@ -111,13 +140,21 @@ export class TrustSafetyService {
       await this.placeUnderReview(dto.reported_user_id, saved.id);
     }
 
-    const tsAgents = await this.userRepo.find({ where: { role: UserRole.TS_AGENT } });
+    const tsAgents = await this.userRepo.find({
+      where: { role: UserRole.TS_AGENT },
+    });
     for (const agent of tsAgents) {
       await this.notifications.sendPush(
         agent.id,
-        severity === ReportSeverity.P0 ? 'URGENT: P0 Safety Report' : 'New Safety Report',
+        severity === ReportSeverity.P0
+          ? 'URGENT: P0 Safety Report'
+          : 'New Safety Report',
         `Report #${saved.id.slice(0, 8)} — ${dto.category} — SLA: ${SLA_HOURS[severity]}hr`,
-        { report_id: saved.id, severity, screen: `admin/moderation/${saved.id}` },
+        {
+          report_id: saved.id,
+          severity,
+          screen: `admin/moderation/${saved.id}`,
+        },
       );
     }
 
@@ -129,7 +166,10 @@ export class TrustSafetyService {
     return saved;
   }
 
-  async getModerationQueue(page = 1, limit = 50): Promise<{ reports: Report[]; total: number; sla_breached: number }> {
+  async getModerationQueue(
+    page = 1,
+    limit = 50,
+  ): Promise<{ reports: Report[]; total: number; sla_breached: number }> {
     const [reports, total] = await this.reportRepo.findAndCount({
       where: { status: In(['pending', 'under_review']) },
       order: { severity: 'ASC', sla_deadline: 'ASC' },
@@ -139,7 +179,9 @@ export class TrustSafetyService {
     });
 
     const now = new Date();
-    const slaBreached = reports.filter((r) => new Date(r.sla_deadline) < now).length;
+    const slaBreached = reports.filter(
+      (r) => new Date(r.sla_deadline) < now,
+    ).length;
 
     return { reports, total, sla_breached: slaBreached };
   }
@@ -171,10 +213,20 @@ export class TrustSafetyService {
     };
   }
 
-  async takeModerationAction(agentId: string, dto: ModerationActionDto, reqIp?: string, reqUa?: string): Promise<ModerationAction> {
+  async takeModerationAction(
+    agentId: string,
+    dto: ModerationActionDto,
+    reqIp?: string,
+    reqUa?: string,
+  ): Promise<ModerationAction> {
     const agent = await this.userRepo.findOne({ where: { id: agentId } });
-    if (!agent || (agent.role !== UserRole.TS_AGENT && agent.role !== UserRole.ADMIN)) {
-      throw new ForbiddenException('Only T&S agents or admins can take moderation actions');
+    if (
+      !agent ||
+      (agent.role !== UserRole.TS_AGENT && agent.role !== UserRole.ADMIN)
+    ) {
+      throw new ForbiddenException(
+        'Only T&S agents or admins can take moderation actions',
+      );
     }
 
     const report = await this.reportRepo.findOne({
@@ -190,7 +242,7 @@ export class TrustSafetyService {
     const action = this.actionRepo.create({
       report_id: dto.report_id,
       taken_by: agentId,
-      action_type: dto.action_type as ModerationActionType,
+      action_type: dto.action_type,
       reason: dto.reason,
       evidence_refs: dto.evidence_refs || [],
       suspension_days: dto.suspension_days || null,
@@ -214,17 +266,24 @@ export class TrustSafetyService {
       user_agent: reqUa,
     });
 
-    if (dto.action_type === ModerationActionType.TEMP_SUSPENSION && dto.suspension_days) {
+    if (
+      dto.action_type === ModerationActionType.TEMP_SUSPENSION &&
+      dto.suspension_days
+    ) {
       const suspension = this.suspensionRepo.create({
         user_id: report.reported_user_id,
         starts_at: new Date().toISOString(),
-        ends_at: new Date(Date.now() + dto.suspension_days * 86400000).toISOString(),
+        ends_at: new Date(
+          Date.now() + dto.suspension_days * 86400000,
+        ).toISOString(),
         reason: dto.reason,
         moderation_action_id: saved.id,
       });
       await this.suspensionRepo.save(suspension);
 
-      await this.userRepo.update(report.reported_user_id, { is_suspended: true });
+      await this.userRepo.update(report.reported_user_id, {
+        is_suspended: true,
+      });
 
       await this.audit.log({
         actor_id: agentId,
@@ -255,7 +314,9 @@ export class TrustSafetyService {
     }
 
     if (dto.action_type === ModerationActionType.LAW_ENFORCEMENT_REFERRAL) {
-      const founders = await this.userRepo.find({ where: { role: UserRole.ADMIN } });
+      const founders = await this.userRepo.find({
+        where: { role: UserRole.ADMIN },
+      });
       for (const founder of founders) {
         await this.notifications.sendPush(
           founder.id,
@@ -266,7 +327,10 @@ export class TrustSafetyService {
       }
     }
 
-    report.status = dto.action_type === ModerationActionType.DISMISS ? 'dismissed' : 'resolved';
+    report.status =
+      dto.action_type === ModerationActionType.DISMISS
+        ? 'dismissed'
+        : 'resolved';
     report.resolved_at = new Date().toISOString();
     await this.reportRepo.save(report);
 
@@ -283,7 +347,9 @@ export class TrustSafetyService {
       { report_id: report.id },
     );
 
-    const reporter = await this.userRepo.findOne({ where: { id: report.reporter_id } });
+    const reporter = await this.userRepo.findOne({
+      where: { id: report.reporter_id },
+    });
     if (reporter) {
       await this.notifications.sendPush(
         reporter.id,
@@ -304,7 +370,9 @@ export class TrustSafetyService {
     if (!action) throw new NotFoundException('Moderation action not found');
 
     if (action.report.reported_user_id !== userId) {
-      throw new ForbiddenException('You can only appeal actions against yourself');
+      throw new ForbiddenException(
+        'You can only appeal actions against yourself',
+      );
     }
 
     if (action.action_type === ModerationActionType.PERMANENT_BAN) {
@@ -342,7 +410,9 @@ export class TrustSafetyService {
 
     const originalAgent = action.taken_by;
     const differentAgent = availableAgents.find((a) => a.id !== originalAgent);
-    const assignedAgent = differentAgent || (availableAgents.length > 0 ? availableAgents[0] : null);
+    const assignedAgent =
+      differentAgent ||
+      (availableAgents.length > 0 ? availableAgents[0] : null);
 
     if (assignedAgent) {
       await this.notifications.sendPush(
@@ -356,10 +426,20 @@ export class TrustSafetyService {
     return saved;
   }
 
-  async reviewAppeal(agentId: string, appealId: string, decision: 'granted' | 'denied', decisionReason: string): Promise<Appeal> {
+  async reviewAppeal(
+    agentId: string,
+    appealId: string,
+    decision: 'granted' | 'denied',
+    decisionReason: string,
+  ): Promise<Appeal> {
     const agent = await this.userRepo.findOne({ where: { id: agentId } });
-    if (!agent || (agent.role !== UserRole.TS_AGENT && agent.role !== UserRole.ADMIN)) {
-      throw new ForbiddenException('Only T&S agents or admins can review appeals');
+    if (
+      !agent ||
+      (agent.role !== UserRole.TS_AGENT && agent.role !== UserRole.ADMIN)
+    ) {
+      throw new ForbiddenException(
+        'Only T&S agents or admins can review appeals',
+      );
     }
 
     const appeal = await this.appealRepo.findOne({
@@ -379,7 +459,8 @@ export class TrustSafetyService {
       throw new ForbiddenException('A different agent must review this appeal');
     }
 
-    appeal.status = decision === 'granted' ? AppealStatus.GRANTED : AppealStatus.DENIED;
+    appeal.status =
+      decision === 'granted' ? AppealStatus.GRANTED : AppealStatus.DENIED;
     appeal.reviewed_by = agentId;
     appeal.decision = decisionReason;
     appeal.reviewed_at = new Date().toISOString();
@@ -430,7 +511,9 @@ export class TrustSafetyService {
     });
   }
 
-  async isUserSuspended(userId: string): Promise<{ suspended: boolean; suspension?: Suspension }> {
+  async isUserSuspended(
+    userId: string,
+  ): Promise<{ suspended: boolean; suspension?: Suspension }> {
     const user = await this.userRepo.findOne({ where: { id: userId } });
     if (user?.is_banned) {
       return { suspended: true };
@@ -452,7 +535,10 @@ export class TrustSafetyService {
     return { suspended: false };
   }
 
-  private async placeUnderReview(userId: string, reportId: string): Promise<void> {
+  private async placeUnderReview(
+    userId: string,
+    reportId: string,
+  ): Promise<void> {
     await this.userRepo.update(userId, { is_under_review: true });
 
     await this.audit.log({

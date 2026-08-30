@@ -8,7 +8,8 @@
     "typecheck:libs": "tsc --build",
     "typecheck": "pnpm run typecheck:libs && pnpm -r --filter \"./artifacts/**\" --filter \"./scripts\" --filter \"!@workspace/mockup-sandbox\" --if-present run typecheck",
     "typecheck:sandbox": "pnpm --filter \"@workspace/mockup-sandbox\" run typecheck",
-    "release:check": "pnpm run typecheck && pnpm --filter \"@workspace/mobile\" run export"
+    "release:check": "pnpm run typecheck && pnpm run test && pnpm --filter \"@workspace/mobile\" run export",
+    "test": "pnpm -r --filter \"!@workspace/mockup-sandbox\" --if-present run test"
   },
   "private": true,
   "devDependencies": {

@@ -5,6 +5,7 @@
  * so the print sequence can be judged without standing up a backend and paying
  * for a real trip. Safe to delete once the animation is signed off.
  */
+import { Stack } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
   SafeAreaView,
@@ -35,6 +36,7 @@ export default function PrinterPreview() {
 
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: colors.background }]}>
+      <Stack.Screen options={{ headerShown: false }} />
       <TicketPrintOverlay
         onDone={() => setRun((n) => n + 1)}
         onHome={() => setRun((n) => n + 1)}

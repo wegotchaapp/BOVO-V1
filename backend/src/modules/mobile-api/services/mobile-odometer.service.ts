@@ -10,7 +10,7 @@ import { In, Repository } from 'typeorm';
 import { randomUUID } from 'crypto';
 import * as fs from 'fs';
 import * as path from 'path';
-import * as AWS from 'aws-sdk';
+import { PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
 
 import {
   MobileBooking,
@@ -55,7 +55,7 @@ export interface RecordReadingInput {
 
 @Injectable()
 export class MobileOdometerService {
-  private readonly s3: AWS.S3;
+  private readonly s3: S3Client;
 
   constructor(
     private readonly config: ConfigService,
@@ -70,10 +70,13 @@ export class MobileOdometerService {
     @InjectRepository(MobileDriverTrip)
     private readonly driverTrips: Repository<MobileDriverTrip>,
   ) {
-    this.s3 = new AWS.S3({
-      accessKeyId: this.config.get('AWS_ACCESS_KEY_ID'),
-      secretAccessKey: this.config.get('AWS_SECRET_ACCESS_KEY'),
-      region: this.config.get('AWS_REGION'),
+    const accessKeyId = this.config.get<string>('AWS_ACCESS_KEY_ID');
+    const secretAccessKey = this.config.get<string>('AWS_SECRET_ACCESS_KEY');
+    this.s3 = new S3Client({
+      region: this.config.get<string>('AWS_REGION'),
+      ...(accessKeyId && secretAccessKey
+        ? { credentials: { accessKeyId, secretAccessKey } }
+        : {}),
     });
   }
 
@@ -368,15 +371,15 @@ export class MobileOdometerService {
       !!awsKey && !!awsSecret && /^AKIA[0-9A-Z]{16}$/.test(awsKey);
 
     if (hasRealAwsCreds) {
-      await this.s3
-        .putObject({
+      await this.s3.send(
+        new PutObjectCommand({
           Bucket: ODOMETER_BUCKET,
           Key: key,
           Body: buffer,
           ContentType: mimeType,
           ACL: 'private',
-        })
-        .promise();
+        }),
+      );
       return;
     }
 

@@ -19,7 +19,12 @@ import {
   UpdateVehicleDto,
 } from './dto/profile.dto';
 import { PinoLogger } from 'nestjs-pino';
-import * as AWS from 'aws-sdk';
+import { PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
+import {
+  DetectFacesCommand,
+  DetectModerationLabelsCommand,
+  RekognitionClient,
+} from '@aws-sdk/client-rekognition';
 import { VehicleCategory } from '../../common/enums';
 import { containsProfanity } from '../../common/utils/profanity-filter';
 import {
@@ -53,8 +58,8 @@ const UPLOADS_DIR = path.join(process.cwd(), 'uploads');
 
 @Injectable()
 export class ProfilesService {
-  private rekognition: AWS.Rekognition;
-  private s3: AWS.S3;
+  private readonly rekognition: RekognitionClient;
+  private readonly s3: S3Client;
 
   constructor(
     @InjectRepository(Profile)
@@ -68,16 +73,18 @@ export class ProfilesService {
     private readonly config: ConfigService,
     private readonly logger: PinoLogger,
   ) {
-    this.rekognition = new AWS.Rekognition({
-      accessKeyId: this.config.get('AWS_ACCESS_KEY_ID'),
-      secretAccessKey: this.config.get('AWS_SECRET_ACCESS_KEY'),
-      region: this.config.get('AWS_REGION'),
-    });
-    this.s3 = new AWS.S3({
-      accessKeyId: this.config.get('AWS_ACCESS_KEY_ID'),
-      secretAccessKey: this.config.get('AWS_SECRET_ACCESS_KEY'),
-      region: this.config.get('AWS_REGION'),
-    });
+    const accessKeyId = this.config.get<string>('AWS_ACCESS_KEY_ID');
+    const secretAccessKey = this.config.get<string>('AWS_SECRET_ACCESS_KEY');
+    const credentials =
+      accessKeyId && secretAccessKey && accessKeyId !== 'AKIA_local_mock'
+        ? { accessKeyId, secretAccessKey }
+        : undefined;
+    const clientConfig = {
+      region: this.config.get<string>('AWS_REGION'),
+      ...(credentials ? { credentials } : {}),
+    };
+    this.rekognition = new RekognitionClient(clientConfig);
+    this.s3 = new S3Client(clientConfig);
 
     if (!fs.existsSync(UPLOADS_DIR)) {
       fs.mkdirSync(UPLOADS_DIR, { recursive: true });
@@ -168,18 +175,20 @@ export class ProfilesService {
 
     try {
       moderationResult = await this.rekognition
-        .detectModerationLabels({
-          Image: { S3Object: { Bucket: bucket, Name: imageKey } },
-        })
-        .promise()
+        .send(
+          new DetectModerationLabelsCommand({
+            Image: { S3Object: { Bucket: bucket, Name: imageKey } },
+          }),
+        )
         .catch(() => ({ ModerationLabels: [] }));
 
       faceResult = await this.rekognition
-        .detectFaces({
-          Image: { S3Object: { Bucket: bucket, Name: imageKey } },
-          Attributes: ['ALL'],
-        })
-        .promise()
+        .send(
+          new DetectFacesCommand({
+            Image: { S3Object: { Bucket: bucket, Name: imageKey } },
+            Attributes: ['ALL'],
+          }),
+        )
         .catch(() => ({ FaceDetails: [] }));
     } catch {
       throw new BadRequestException('Unable to analyze image');
@@ -603,12 +612,12 @@ export class ProfilesService {
     mimeType: string,
   ): Promise<{ flagged: boolean; labels: any[] }> {
     try {
-      const result = await this.rekognition
-        .detectModerationLabels({
+      const result = await this.rekognition.send(
+        new DetectModerationLabelsCommand({
           Image: { Bytes: buffer },
           MinConfidence: 50,
-        })
-        .promise();
+        }),
+      );
 
       const flagged = (result.ModerationLabels || []).some(
         (label: { Confidence?: number }) => (label.Confidence || 0) > 80,
@@ -634,14 +643,15 @@ export class ProfilesService {
     const awsSecret = this.config.get('AWS_SECRET_ACCESS_KEY');
 
     if (awsKey && awsSecret && awsKey !== 'AKIA_local_mock') {
-      const s3Params = {
-        Bucket: bucket,
-        Key: key,
-        Body: buffer,
-        ContentType: mimeType,
-        ACL: acl === 'public' ? 'public-read' : 'private',
-      };
-      await this.s3.putObject(s3Params).promise();
+      await this.s3.send(
+        new PutObjectCommand({
+          Bucket: bucket,
+          Key: key,
+          Body: buffer,
+          ContentType: mimeType,
+          ACL: acl === 'public' ? 'public-read' : 'private',
+        }),
+      );
       return;
     }
 

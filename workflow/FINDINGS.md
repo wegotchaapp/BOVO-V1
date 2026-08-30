@@ -9,6 +9,17 @@ the reporter does not edit rows after filing them.
 | Date | From | Artifact | Finding | Suggested action | Status |
 | --- | --- | --- | --- | --- | --- |
 | 2026-08-30 | Claude | `1788047999000-MobileApiRemainingBaseTables.ts` | The five tables it creates default `id` to `gen_random_uuid()`, but the live database defaults all five to `uuid_generate_v4()`: `mobile_vehicles`, `mobile_ratings`, `mobile_conversations`, `mobile_direct_messages`, `mobile_live_locations`. Both emit a v4 UUID, so no data differs — but a freshly migrated database would not be schema-identical to production, which defeats the point of proving the migration on an empty database. | Use `uuid_generate_v4()` for these five to match live. The three newest tables (`mobile_odometer_readings`, `mobile_sos_events`, `mobile_deviation_events`) correctly stay on `gen_random_uuid()`. Evidence: `SCHEMA_BASELINE.md` §4.1. | open |
+| 2026-08-31 | Claude | `.github/workflows/backend-deploy.yml:45` + `70e88ef` | The deploy workflow sets `ALLOWED_ORIGINS=${{ secrets.APP_URL }}` — a single value, the API's own URL. Until now nothing read it: `main.ts` used `origin: true`, so production allowed every origin. `70e88ef` correctly starts enforcing the allowlist, which turns a dormant misconfiguration into a live one. The admin dashboard is served from its own domain and calls the API through `VITE_API_URL`, so its origin is **not** `APP_URL` and it will be blocked by CORS in production the moment this deploys. `.env.example` has always shown a comma-separated list with a second domain, so the single-value wiring was wrong from the initial commit — not from this change. | Set `ALLOWED_ORIGINS` to a real list: the admin dashboard's origin, plus the Expo **web** origin if that build is hosted. Native Expo clients are unaffected — they send no `Origin` header and `createCorsOptions` passes them through, which is the right call. Then add a staging check that the admin dashboard can actually reach the API before this reaches production. | open |
+
+Certified good in `70e88ef` itself, so it does not get re-flagged: native clients
+pass through without an `Origin`, production fails fast when no list is
+configured, and `credentials: true` is correctly paired with an explicit
+allowlist rather than a wildcard. The code is right; the deployment value is not.
+
+Certified good in `a9ffa09`: the mobile workflows call `pnpm run release:check`
+from `./mobile` against the real lockfile path, which matches the scripts as they
+now stand. It runs `typecheck` and then `release:check`, which runs typecheck
+again — harmless, one wasted minute per run.
 
 Confirmed good in the same pass, so it does not get re-flagged: `CREATE EXTENSION`
 is first, all 9 CHECK constraints are present, the 3 foreign keys are on the right

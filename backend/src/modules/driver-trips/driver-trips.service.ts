@@ -8,7 +8,7 @@ import { Trip } from '../../database/entities/trip.entities';
 import { BookingStatus } from '../../common/enums';
 import { PinoLogger } from 'nestjs-pino';
 
-const PLATFORM_FEE_RATE = 0.10;
+const PLATFORM_FEE_RATE = 0.1;
 
 @Injectable()
 export class DriverTripsService {
@@ -29,14 +29,18 @@ export class DriverTripsService {
     });
     if (!booking) throw new NotFoundException('Booking not found');
     if (booking.status !== BookingStatus.COMPLETED) {
-      throw new Error('Booking must be completed before recording a driver trip');
+      throw new Error(
+        'Booking must be completed before recording a driver trip',
+      );
     }
 
     const trip = booking.trip;
     if (!trip) throw new NotFoundException('Trip not found');
 
     const grossAmount = Number(booking.total_price);
-    const platformFee = parseFloat((grossAmount * PLATFORM_FEE_RATE).toFixed(2));
+    const platformFee = parseFloat(
+      (grossAmount * PLATFORM_FEE_RATE).toFixed(2),
+    );
     const netAmount = parseFloat((grossAmount - platformFee).toFixed(2));
 
     const driverTrip = this.driverTripRepo.create({
@@ -54,13 +58,23 @@ export class DriverTripsService {
 
     const saved = await this.driverTripRepo.save(driverTrip);
     this.logger.info(
-      { bookingId, driverId: trip.driver_id, grossAmount, platformFee, netAmount },
+      {
+        bookingId,
+        driverId: trip.driver_id,
+        grossAmount,
+        platformFee,
+        netAmount,
+      },
       'Driver trip recorded from completed booking',
     );
     return saved;
   }
 
-  async getDriverTrips(driverId: string, page: number = 1, limit: number = 20): Promise<{ trips: DriverTrip[]; total: number }> {
+  async getDriverTrips(
+    driverId: string,
+    page: number = 1,
+    limit: number = 20,
+  ): Promise<{ trips: DriverTrip[]; total: number }> {
     const [trips, total] = await this.driverTripRepo.findAndCount({
       where: { driver_id: driverId },
       order: { completed_at: 'DESC' },
@@ -70,7 +84,9 @@ export class DriverTripsService {
     return { trips, total };
   }
 
-  async getDriverEarnings(driverId: string): Promise<{ gross: number; fees: number; net: number }> {
+  async getDriverEarnings(
+    driverId: string,
+  ): Promise<{ gross: number; fees: number; net: number }> {
     const result = await this.driverTripRepo
       .createQueryBuilder('dt')
       .select('COALESCE(SUM(dt.gross_amount), 0)', 'gross')
@@ -86,7 +102,16 @@ export class DriverTripsService {
     };
   }
 
-  async getDriverEarningsByPeriod(driverId: string, startDate: string, endDate: string): Promise<{ trips: DriverTrip[]; gross: number; fees: number; net: number }> {
+  async getDriverEarningsByPeriod(
+    driverId: string,
+    startDate: string,
+    endDate: string,
+  ): Promise<{
+    trips: DriverTrip[];
+    gross: number;
+    fees: number;
+    net: number;
+  }> {
     const trips = await this.driverTripRepo.find({
       where: {
         driver_id: driverId,

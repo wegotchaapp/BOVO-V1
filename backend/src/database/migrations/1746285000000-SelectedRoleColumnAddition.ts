@@ -1,4 +1,4 @@
-import { MigrationInterface, QueryRunner } from "typeorm";
+import { MigrationInterface, QueryRunner } from 'typeorm';
 
 export class SelectedRoleColumnAddition1746285000000 implements MigrationInterface {
   name = 'SelectedRoleColumnAddition1746285000000';

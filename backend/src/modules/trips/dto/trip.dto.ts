@@ -1,7 +1,27 @@
-import { IsString, IsOptional, IsArray, IsEnum, IsNumber, IsDateString, IsBoolean, Min, Max, MinLength, MaxLength, IsEmail } from 'class-validator';
+import {
+  IsString,
+  IsOptional,
+  IsArray,
+  IsEnum,
+  IsNumber,
+  IsDateString,
+  IsBoolean,
+  Min,
+  Max,
+  MinLength,
+  MaxLength,
+  IsEmail,
+} from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
-import { ConversationStyle, MusicPreference, SmokingPreference, PetPreference, LuggageCapacity, TripStatus } from '../../../common/enums';
+import {
+  ConversationStyle,
+  MusicPreference,
+  SmokingPreference,
+  PetPreference,
+  LuggageCapacity,
+  TripStatus,
+} from '../../../common/enums';
 
 export class CreateTripDto {
   @ApiProperty()
@@ -152,7 +172,10 @@ export class SearchTripsDto {
   @Min(1)
   seats_needed?: number;
 
-  @ApiPropertyOptional({ enum: ['best_match', 'earliest', 'lowest_price', 'highest_rated'], default: 'best_match' })
+  @ApiPropertyOptional({
+    enum: ['best_match', 'earliest', 'lowest_price', 'highest_rated'],
+    default: 'best_match',
+  })
   @IsOptional()
   @IsString()
   sort?: 'best_match' | 'earliest' | 'lowest_price' | 'highest_rated';

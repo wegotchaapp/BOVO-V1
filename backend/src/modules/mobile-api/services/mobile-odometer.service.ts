@@ -164,7 +164,9 @@ export class MobileOdometerService {
       );
     }
     if (miles > MAX_ODOMETER_MILES) {
-      throw new BadRequestException('That odometer reading looks too high — please re-check it.');
+      throw new BadRequestException(
+        'That odometer reading looks too high — please re-check it.',
+      );
     }
 
     if (!photo || !photo.buffer?.length) {
@@ -201,7 +203,9 @@ export class MobileOdometerService {
         );
       }
       if (booking.dropoff_miles != null) {
-        throw new BadRequestException('This Sailor has already been dropped off.');
+        throw new BadRequestException(
+          'This Sailor has already been dropped off.',
+        );
       }
       if (miles < booking.pickup_miles) {
         throw new BadRequestException(
@@ -288,7 +292,9 @@ export class MobileOdometerService {
    * also the only place a MobileDriverTrip row is written, so the Voyager's
    * savings record is built from real odometer miles rather than an estimate.
    */
-  private async maybeCompleteTrip(trip: MobileTrip): Promise<{ completed: boolean }> {
+  private async maybeCompleteTrip(
+    trip: MobileTrip,
+  ): Promise<{ completed: boolean }> {
     const active = await this.bookings.find({
       where: { trip_id: trip.id, status: In(['confirmed', 'completed']) },
     });
@@ -303,8 +309,12 @@ export class MobileOdometerService {
     // last dropoff. Per-Sailor legs overlap on a shared route, so summing them
     // would multiply-count the same road.
     const pickups = active.map((b) => b.pickup_miles!).filter((m) => m != null);
-    const dropoffs = active.map((b) => b.dropoff_miles!).filter((m) => m != null);
-    const tripMiles = pickups.length ? Math.max(...dropoffs) - Math.min(...pickups) : 0;
+    const dropoffs = active
+      .map((b) => b.dropoff_miles!)
+      .filter((m) => m != null);
+    const tripMiles = pickups.length
+      ? Math.max(...dropoffs) - Math.min(...pickups)
+      : 0;
 
     const seatsBooked = active.reduce((sum, b) => sum + b.seats, 0);
     // The Voyager receives the seat cost-share plus the luggage surcharge in
@@ -312,7 +322,9 @@ export class MobileOdometerService {
     // on top and belong to Bovogo/the MGA, so they never enter this figure.
     const gross = active.reduce(
       (sum, b) =>
-        sum + Number(b.price_per_seat) * b.seats + Number(b.luggage_surcharge ?? 0),
+        sum +
+        Number(b.price_per_seat) * b.seats +
+        Number(b.luggage_surcharge ?? 0),
       0,
     );
     const fees = active.reduce((sum, b) => sum + Number(b.service_fee), 0);

@@ -2,7 +2,10 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { v4 as uuidv4 } from 'uuid';
-import { TripReply, TripReplyRead } from '../../database/entities/trip-reply.entity';
+import {
+  TripReply,
+  TripReplyRead,
+} from '../../database/entities/trip-reply.entity';
 import { PinoLogger } from 'nestjs-pino';
 
 @Injectable()
@@ -15,7 +18,11 @@ export class TripRepliesService {
     private readonly logger: PinoLogger,
   ) {}
 
-  async createReply(tripId: string, userId: string, text: string): Promise<TripReply> {
+  async createReply(
+    tripId: string,
+    userId: string,
+    text: string,
+  ): Promise<TripReply> {
     const reply = this.replyRepo.create({
       id: uuidv4().replace(/-/g, '').slice(0, 32),
       trip_id: tripId,
@@ -23,7 +30,10 @@ export class TripRepliesService {
       text,
     });
     const saved = await this.replyRepo.save(reply);
-    this.logger.info({ tripId, userId, replyId: saved.id }, 'Trip reply created');
+    this.logger.info(
+      { tripId, userId, replyId: saved.id },
+      'Trip reply created',
+    );
     return saved;
   }
 

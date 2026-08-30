@@ -1,4 +1,8 @@
-import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  BadRequestException,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { ConfigService } from '@nestjs/config';
@@ -29,10 +33,13 @@ export class IdentityService {
     this.stripe = new Stripe(this.config.get<string>('STRIPE_SECRET_KEY')!, {
       apiVersion: '2025-02-24.acacia',
     });
-    this.webhookSecret = this.config.get<string>('STRIPE_IDENTITY_WEBHOOK_SECRET') || '';
+    this.webhookSecret =
+      this.config.get<string>('STRIPE_IDENTITY_WEBHOOK_SECRET') || '';
   }
 
-  async startVerification(userId: string): Promise<{ client_secret: string; session_id: string }> {
+  async startVerification(
+    userId: string,
+  ): Promise<{ client_secret: string; session_id: string }> {
     const user = await this.userRepo.findOne({ where: { id: userId } });
     if (!user) {
       throw new NotFoundException('User not found');
@@ -59,7 +66,10 @@ export class IdentityService {
     });
     await this.verificationRepo.save(verification);
 
-    this.logger.info({ userId, sessionId: session.id }, 'Verification session created');
+    this.logger.info(
+      { userId, sessionId: session.id },
+      'Verification session created',
+    );
 
     return {
       client_secret: session.client_secret as string,
@@ -72,7 +82,10 @@ export class IdentityService {
     const userId = session.metadata?.user_id;
 
     if (!userId) {
-      this.logger.warn({ sessionId: session.id }, 'Webhook missing user_id metadata');
+      this.logger.warn(
+        { sessionId: session.id },
+        'Webhook missing user_id metadata',
+      );
       return;
     }
 
@@ -81,7 +94,10 @@ export class IdentityService {
     });
 
     if (!verification) {
-      this.logger.warn({ sessionId: session.id }, 'Verification record not found for webhook');
+      this.logger.warn(
+        { sessionId: session.id },
+        'Verification record not found for webhook',
+      );
       return;
     }
 
@@ -99,7 +115,10 @@ export class IdentityService {
         break;
 
       default:
-        this.logger.info({ eventType: event.type, sessionId: session.id }, 'Unhandled identity webhook type');
+        this.logger.info(
+          { eventType: event.type, sessionId: session.id },
+          'Unhandled identity webhook type',
+        );
     }
   }
 
@@ -122,7 +141,10 @@ export class IdentityService {
       };
     }
 
-    if (verification.status === VerificationStatus.VERIFIED && this.isExpired(verification)) {
+    if (
+      verification.status === VerificationStatus.VERIFIED &&
+      this.isExpired(verification)
+    ) {
       verification.status = VerificationStatus.EXPIRED;
       await this.verificationRepo.save(verification);
 
@@ -138,7 +160,9 @@ export class IdentityService {
     return {
       status: verification.status,
       is_verified: verification.status === VerificationStatus.VERIFIED,
-      needs_reverification: verification.status === VerificationStatus.VERIFIED && this.isExpiringSoon(verification),
+      needs_reverification:
+        verification.status === VerificationStatus.VERIFIED &&
+        this.isExpiringSoon(verification),
       expires_at: verification.expires_at,
       last_verified_at: verification.completed_at,
     };
@@ -188,11 +212,17 @@ export class IdentityService {
       const mismatch = this.checkNameDobMismatch(user, verification);
       if (mismatch) {
         await this.createMismatchIncident(userId, verification, mismatch);
-        this.logger.warn({ userId, mismatch }, 'ID verification mismatch flagged for review');
+        this.logger.warn(
+          { userId, mismatch },
+          'ID verification mismatch flagged for review',
+        );
       }
     }
 
-    this.logger.info({ userId, sessionId: session.id }, 'User identity verified');
+    this.logger.info(
+      { userId, sessionId: session.id },
+      'User identity verified',
+    );
   }
 
   private async handleRequiresInput(verification: Verification): Promise<void> {
@@ -200,7 +230,10 @@ export class IdentityService {
     await this.verificationRepo.save(verification);
 
     this.logger.info(
-      { userId: verification.user_id, sessionId: verification.provider_reference },
+      {
+        userId: verification.user_id,
+        sessionId: verification.provider_reference,
+      },
       'Verification requires user input',
     );
   }
@@ -211,17 +244,26 @@ export class IdentityService {
     await this.verificationRepo.save(verification);
 
     this.logger.info(
-      { userId: verification.user_id, sessionId: verification.provider_reference },
+      {
+        userId: verification.user_id,
+        sessionId: verification.provider_reference,
+      },
       'Verification canceled by user',
     );
   }
 
-  private checkNameDobMismatch(user: User, verification: Verification): string | null {
+  private checkNameDobMismatch(
+    user: User,
+    verification: Verification,
+  ): string | null {
     if (verification.verified_name && user.name) {
       const userName = user.name.toLowerCase().trim();
       const verifiedName = verification.verified_name.toLowerCase().trim();
 
-      if (userName !== verifiedName && !this.namesSimilar(userName, verifiedName)) {
+      if (
+        userName !== verifiedName &&
+        !this.namesSimilar(userName, verifiedName)
+      ) {
         return `Name mismatch: account="${user.name}" vs verified="${verification.verified_name}"`;
       }
     }
@@ -267,7 +309,9 @@ export class IdentityService {
     await this.incidentRepo.save(incident);
   }
 
-  private async getLatestVerification(userId: string): Promise<Verification | null> {
+  private async getLatestVerification(
+    userId: string,
+  ): Promise<Verification | null> {
     return this.verificationRepo.findOne({
       where: { user_id: userId },
       order: { created_at: 'DESC' },
@@ -282,6 +326,8 @@ export class IdentityService {
   private isExpiringSoon(verification: Verification): boolean {
     if (!verification.expires_at) return false;
     const thirtyDays = 30 * 24 * 60 * 60 * 1000;
-    return new Date(verification.expires_at).getTime() - Date.now() < thirtyDays;
+    return (
+      new Date(verification.expires_at).getTime() - Date.now() < thirtyDays
+    );
   }
 }

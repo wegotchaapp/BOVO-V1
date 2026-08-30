@@ -176,7 +176,12 @@ export class MobileTripsService {
       trip: tripToDto(
         trip,
         driverSummary(
-          driver ?? { id: trip.driver_id, name: 'Voyager', rating: 5, trips: 0 },
+          driver ?? {
+            id: trip.driver_id,
+            name: 'Voyager',
+            rating: 5,
+            trips: 0,
+          },
         ),
         replies.length,
       ),

@@ -73,11 +73,15 @@ export const DEFAULT_NOTIFICATION_SETTINGS = {
 
 export type NotificationSettings = typeof DEFAULT_NOTIFICATION_SETTINGS;
 
-export function notificationSettingsFromUser(u: MobileUser): NotificationSettings {
+export function notificationSettingsFromUser(
+  u: MobileUser,
+): NotificationSettings {
   const defaults = { ...DEFAULT_NOTIFICATION_SETTINGS };
   if (!u.notification_settings) return defaults;
   try {
-    const stored = JSON.parse(u.notification_settings) as Partial<NotificationSettings>;
+    const stored = JSON.parse(
+      u.notification_settings,
+    ) as Partial<NotificationSettings>;
     return {
       pushEnabled: stored.pushEnabled ?? defaults.pushEnabled,
       emailEnabled: stored.emailEnabled ?? defaults.emailEnabled,
@@ -211,7 +215,10 @@ export function replyToDto(
 
 export function bookingToDto(
   b: MobileBooking,
-  trip: Pick<MobileTrip, 'id' | 'from_city' | 'to_city' | 'departure_at' | 'car'>,
+  trip: Pick<
+    MobileTrip,
+    'id' | 'from_city' | 'to_city' | 'departure_at' | 'car'
+  >,
   driverName: string,
   groupId: string | null = null,
 ) {

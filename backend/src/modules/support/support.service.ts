@@ -1,4 +1,9 @@
-import { Injectable, NotFoundException, UnauthorizedException, ConflictException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  UnauthorizedException,
+  ConflictException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, MoreThan } from 'typeorm';
 import { v4 as uuid } from 'uuid';
@@ -23,7 +28,10 @@ export class SupportService {
     private readonly logger: PinoLogger,
   ) {}
 
-  async login(email: string, password: string): Promise<{ agent: SupportAgent; session: SupportSession }> {
+  async login(
+    email: string,
+    password: string,
+  ): Promise<{ agent: SupportAgent; session: SupportSession }> {
     const agent = await this.agentRepo.findOne({ where: { email } });
     if (!agent) {
       throw new UnauthorizedException('Invalid email or password');
@@ -42,7 +50,10 @@ export class SupportService {
 
     const saved = await this.sessionRepo.save(session);
 
-    this.logger.info({ agentId: agent.id, sessionId: saved.id }, 'Support agent logged in');
+    this.logger.info(
+      { agentId: agent.id, sessionId: saved.id },
+      'Support agent logged in',
+    );
 
     return { agent, session: saved };
   }
@@ -129,7 +140,9 @@ export class SupportService {
       trip_id: dto.trip_id || null,
       trip_origin: dto.trip_origin || null,
       trip_destination: dto.trip_destination || null,
-      trip_departure_at: dto.trip_departure_at ? new Date(dto.trip_departure_at) : null,
+      trip_departure_at: dto.trip_departure_at
+        ? new Date(dto.trip_departure_at)
+        : null,
       trip_driver_name: dto.trip_driver_name || null,
       trip_price_cents: dto.trip_price_cents || null,
       status: 'open',
@@ -149,7 +162,10 @@ export class SupportService {
 
     await this.messageRepo.save(systemMessage);
 
-    this.logger.info({ ticketId: saved.id, requester: dto.requester_name }, 'Support ticket created');
+    this.logger.info(
+      { ticketId: saved.id, requester: dto.requester_name },
+      'Support ticket created',
+    );
 
     return saved;
   }
@@ -182,13 +198,19 @@ export class SupportService {
     const saved = await this.messageRepo.save(message);
 
     if (dto.author_type === 'agent' && !ticket.first_agent_response_at) {
-      await this.ticketRepo.update(ticketId, { first_agent_response_at: new Date() });
+      await this.ticketRepo.update(ticketId, {
+        first_agent_response_at: new Date(),
+      });
     }
 
     return saved;
   }
 
-  async updateTicketStatus(ticketId: string, status: string, agentId: string): Promise<SupportTicket> {
+  async updateTicketStatus(
+    ticketId: string,
+    status: string,
+    agentId: string,
+  ): Promise<SupportTicket> {
     const ticket = await this.ticketRepo.findOne({ where: { id: ticketId } });
     if (!ticket) {
       throw new NotFoundException('Ticket not found');
@@ -202,7 +224,10 @@ export class SupportService {
     return saved;
   }
 
-  async assignTicket(ticketId: string, agentId: string): Promise<SupportTicket> {
+  async assignTicket(
+    ticketId: string,
+    agentId: string,
+  ): Promise<SupportTicket> {
     const ticket = await this.ticketRepo.findOne({ where: { id: ticketId } });
     if (!ticket) {
       throw new NotFoundException('Ticket not found');
@@ -220,8 +245,15 @@ export class SupportService {
     return this.agentRepo.find({ order: { name: 'ASC' } });
   }
 
-  async createAgent(dto: { name: string; email: string; password: string; role?: string }): Promise<SupportAgent> {
-    const existing = await this.agentRepo.findOne({ where: { email: dto.email } });
+  async createAgent(dto: {
+    name: string;
+    email: string;
+    password: string;
+    role?: string;
+  }): Promise<SupportAgent> {
+    const existing = await this.agentRepo.findOne({
+      where: { email: dto.email },
+    });
     if (existing) {
       throw new ConflictException('An agent with this email already exists');
     }
@@ -238,7 +270,10 @@ export class SupportService {
 
     const saved = await this.agentRepo.save(agent);
 
-    this.logger.info({ agentId: saved.id, email: saved.email }, 'Support agent created');
+    this.logger.info(
+      { agentId: saved.id, email: saved.email },
+      'Support agent created',
+    );
 
     return saved;
   }
@@ -250,7 +285,9 @@ export class SupportService {
       this.ticketRepo.count({ where: { status: 'resolved' } }),
     ]);
 
-    const unassigned = await this.ticketRepo.count({ where: { assignee_id: '' } });
+    const unassigned = await this.ticketRepo.count({
+      where: { assignee_id: '' },
+    });
 
     const priorityCounts = await this.ticketRepo
       .createQueryBuilder('t')

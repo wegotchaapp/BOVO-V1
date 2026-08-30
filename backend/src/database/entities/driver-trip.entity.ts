@@ -1,4 +1,10 @@
-import { Entity, Column, PrimaryColumn, CreateDateColumn, Index } from 'typeorm';
+import {
+  Entity,
+  Column,
+  PrimaryColumn,
+  CreateDateColumn,
+  Index,
+} from 'typeorm';
 
 @Entity('driver_trips')
 @Index(['driver_id', 'completed_at'])

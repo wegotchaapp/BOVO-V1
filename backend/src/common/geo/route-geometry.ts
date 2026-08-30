@@ -64,7 +64,9 @@ export function haversineMiles(a: LatLng, b: LatLng): number {
   const dLng = toRad(b.longitude - a.longitude);
   const h =
     Math.sin(dLat / 2) ** 2 +
-    Math.cos(toRad(a.latitude)) * Math.cos(toRad(b.latitude)) * Math.sin(dLng / 2) ** 2;
+    Math.cos(toRad(a.latitude)) *
+      Math.cos(toRad(b.latitude)) *
+      Math.sin(dLng / 2) ** 2;
   return EARTH_RADIUS_MILES * 2 * Math.atan2(Math.sqrt(h), Math.sqrt(1 - h));
 }
 
@@ -78,12 +80,16 @@ export function haversineMiles(a: LatLng, b: LatLng): number {
  */
 function distanceToSegmentMiles(p: LatLng, a: LatLng, b: LatLng): number {
   const latRef = toRad((a.latitude + b.latitude) / 2);
-  const x = (q: LatLng) => toRad(q.longitude) * Math.cos(latRef) * EARTH_RADIUS_MILES;
+  const x = (q: LatLng) =>
+    toRad(q.longitude) * Math.cos(latRef) * EARTH_RADIUS_MILES;
   const y = (q: LatLng) => toRad(q.latitude) * EARTH_RADIUS_MILES;
 
-  const px = x(p), py = y(p);
-  const ax = x(a), ay = y(a);
-  const bx = x(b), by = y(b);
+  const px = x(p),
+    py = y(p);
+  const ax = x(a),
+    ay = y(a);
+  const bx = x(b),
+    by = y(b);
 
   const dx = bx - ax;
   const dy = by - ay;
@@ -107,7 +113,10 @@ function distanceToSegmentMiles(p: LatLng, a: LatLng, b: LatLng): number {
  * Returns `null` for an empty route rather than a number, so "we could not tell"
  * is never mistaken for "zero miles off course".
  */
-export function distanceFromRouteMiles(point: LatLng, route: LatLng[]): number | null {
+export function distanceFromRouteMiles(
+  point: LatLng,
+  route: LatLng[],
+): number | null {
   if (route.length === 0) return null;
   if (route.length === 1) return haversineMiles(point, route[0]);
 

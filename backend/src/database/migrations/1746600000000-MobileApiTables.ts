@@ -177,8 +177,12 @@ export class MobileApiTables1746600000000 implements MigrationInterface {
 
   public async down(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.query(`DROP TABLE IF EXISTS "mobile_driver_trips";`);
-    await queryRunner.query(`DROP TABLE IF EXISTS "mobile_trip_group_messages";`);
-    await queryRunner.query(`DROP TABLE IF EXISTS "mobile_trip_group_members";`);
+    await queryRunner.query(
+      `DROP TABLE IF EXISTS "mobile_trip_group_messages";`,
+    );
+    await queryRunner.query(
+      `DROP TABLE IF EXISTS "mobile_trip_group_members";`,
+    );
     await queryRunner.query(`DROP TABLE IF EXISTS "mobile_trip_groups";`);
     await queryRunner.query(`DROP TABLE IF EXISTS "mobile_bookings";`);
     await queryRunner.query(`DROP TABLE IF EXISTS "mobile_trip_reply_reads";`);

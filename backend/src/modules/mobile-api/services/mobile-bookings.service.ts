@@ -224,53 +224,61 @@ export class MobileBookingsService {
       );
     }
 
-    return this.dataSource.transaction(async (tx) => {
-      const tripRepo = tx.getRepository(MobileTrip);
-      const bookingRepo = tx.getRepository(MobileBooking);
-      const userRepo = tx.getRepository(MobileUser);
+    return this.dataSource
+      .transaction(async (tx) => {
+        const tripRepo = tx.getRepository(MobileTrip);
+        const bookingRepo = tx.getRepository(MobileBooking);
+        const userRepo = tx.getRepository(MobileUser);
 
-      const trip = await tripRepo
-        .createQueryBuilder('t')
-        .setLock('pessimistic_write')
-        .where('t.id = :id', { id: booking.trip_id })
-        .getOne();
+        const trip = await tripRepo
+          .createQueryBuilder('t')
+          .setLock('pessimistic_write')
+          .where('t.id = :id', { id: booking.trip_id })
+          .getOne();
 
-      if (!trip) throw new NotFoundException('Trip not found');
-      this.assertTripBookable(trip, riderId, booking.seats);
+        if (!trip) throw new NotFoundException('Trip not found');
+        this.assertTripBookable(trip, riderId, booking.seats);
 
-      trip.seats_available = trip.seats_available - booking.seats;
-      await tripRepo.save(trip);
+        trip.seats_available = trip.seats_available - booking.seats;
+        await tripRepo.save(trip);
 
-      booking.status = 'confirmed';
-      await bookingRepo.save(booking);
+        booking.status = 'confirmed';
+        await bookingRepo.save(booking);
 
-      const driver = await userRepo.findOne({ where: { id: trip.driver_id } });
-      const groupId = await this.ensureGroupForBooking(tx, trip, riderId);
+        const driver = await userRepo.findOne({
+          where: { id: trip.driver_id },
+        });
+        const groupId = await this.ensureGroupForBooking(tx, trip, riderId);
 
-      return {
-        booking: bookingToDto(
-          booking,
-          trip,
-          driver?.name ?? 'Voyager',
-          groupId,
-        ),
-        _tripLabel: `${trip.from_city.replace(/, TX$/i, '')} → ${trip.to_city.replace(/, TX$/i, '')}`,
-        _driverId: trip.driver_id,
-        _riderId: riderId,
-      };
-    }).then(async (result) => {
-      await this.conversations
-        .ensureForBooking(result._driverId, result._riderId, result._tripLabel)
-        .catch(() => undefined);
-      await this.notifyRiderBookingConfirmed(
-        riderId,
-        booking.id,
-        booking.trip_id,
-        result.booking.trip.driverName,
-        String(result.booking.totalAmount),
-      );
-      return { booking: result.booking };
-    });
+        return {
+          booking: bookingToDto(
+            booking,
+            trip,
+            driver?.name ?? 'Voyager',
+            groupId,
+          ),
+          _tripLabel: `${trip.from_city.replace(/, TX$/i, '')} → ${trip.to_city.replace(/, TX$/i, '')}`,
+          _driverId: trip.driver_id,
+          _riderId: riderId,
+        };
+      })
+      .then(async (result) => {
+        await this.conversations
+          .ensureForBooking(
+            result._driverId,
+            result._riderId,
+            result._tripLabel,
+          )
+          .catch(() => undefined);
+        await this.notifyRiderBookingConfirmed(
+          riderId,
+          booking.id,
+          booking.trip_id,
+          result.booking.trip.driverName,
+          String(result.booking.totalAmount),
+        );
+        return { booking: result.booking };
+      });
   }
 
   private async finalizeBooking(
@@ -278,72 +286,80 @@ export class MobileBookingsService {
     dto: CreateBookingBody,
     paymentIntentId: string | null,
   ) {
-    return this.dataSource.transaction(async (tx) => {
-      const tripRepo = tx.getRepository(MobileTrip);
-      const bookingRepo = tx.getRepository(MobileBooking);
-      const userRepo = tx.getRepository(MobileUser);
+    return this.dataSource
+      .transaction(async (tx) => {
+        const tripRepo = tx.getRepository(MobileTrip);
+        const bookingRepo = tx.getRepository(MobileBooking);
+        const userRepo = tx.getRepository(MobileUser);
 
-      const trip = await tripRepo
-        .createQueryBuilder('t')
-        .setLock('pessimistic_write')
-        .where('t.id = :id', { id: dto.tripId })
-        .getOne();
+        const trip = await tripRepo
+          .createQueryBuilder('t')
+          .setLock('pessimistic_write')
+          .where('t.id = :id', { id: dto.tripId })
+          .getOne();
 
-      if (!trip) throw new NotFoundException('Trip not found');
-      this.assertTripBookable(trip, riderId, dto.seats);
+        if (!trip) throw new NotFoundException('Trip not found');
+        this.assertTripBookable(trip, riderId, dto.seats);
 
-      const price = this.priceFor(trip, dto);
+        const price = this.priceFor(trip, dto);
 
-      trip.seats_available = trip.seats_available - dto.seats;
-      await tripRepo.save(trip);
+        trip.seats_available = trip.seats_available - dto.seats;
+        await tripRepo.save(trip);
 
-      const inserted = await bookingRepo.save(
-        bookingRepo.create({
-          trip_id: trip.id,
-          rider_id: riderId,
-          seats: dto.seats,
-          price_per_seat: price.pricePerSeat.toFixed(2),
-          service_fee: price.serviceFee.toFixed(2),
-          total_amount: price.totalAmount.toFixed(2),
-          luggage_tier: price.luggageTier,
-          luggage_surcharge: price.luggageSurcharge.toFixed(2),
-          insurance_opted_in: price.insurancePremium > 0,
-          insurance_premium: price.insurancePremium.toFixed(2),
-          luggage_insurance_opted_in: price.luggageInsurancePremium > 0,
-          luggage_insurance_premium: price.luggageInsurancePremium.toFixed(2),
-          payment_method: dto.paymentMethod,
-          status: 'confirmed',
-          payment_intent_id: paymentIntentId,
-        }),
-      );
+        const inserted = await bookingRepo.save(
+          bookingRepo.create({
+            trip_id: trip.id,
+            rider_id: riderId,
+            seats: dto.seats,
+            price_per_seat: price.pricePerSeat.toFixed(2),
+            service_fee: price.serviceFee.toFixed(2),
+            total_amount: price.totalAmount.toFixed(2),
+            luggage_tier: price.luggageTier,
+            luggage_surcharge: price.luggageSurcharge.toFixed(2),
+            insurance_opted_in: price.insurancePremium > 0,
+            insurance_premium: price.insurancePremium.toFixed(2),
+            luggage_insurance_opted_in: price.luggageInsurancePremium > 0,
+            luggage_insurance_premium: price.luggageInsurancePremium.toFixed(2),
+            payment_method: dto.paymentMethod,
+            status: 'confirmed',
+            payment_intent_id: paymentIntentId,
+          }),
+        );
 
-      const driver = await userRepo.findOne({ where: { id: trip.driver_id } });
-      const groupId = await this.ensureGroupForBooking(tx, trip, riderId);
+        const driver = await userRepo.findOne({
+          where: { id: trip.driver_id },
+        });
+        const groupId = await this.ensureGroupForBooking(tx, trip, riderId);
 
-      return {
-        booking: bookingToDto(
-          inserted,
-          trip,
-          driver?.name ?? 'Voyager',
-          groupId,
-        ),
-        _tripLabel: `${trip.from_city.replace(/, TX$/i, '')} → ${trip.to_city.replace(/, TX$/i, '')}`,
-        _driverId: trip.driver_id,
-        _riderId: riderId,
-      };
-    }).then(async (result) => {
-      await this.conversations
-        .ensureForBooking(result._driverId, result._riderId, result._tripLabel)
-        .catch(() => undefined);
-      await this.notifyRiderBookingConfirmed(
-        riderId,
-        result.booking.id,
-        dto.tripId,
-        result.booking.trip.driverName,
-        String(result.booking.totalAmount),
-      );
-      return { booking: result.booking };
-    });
+        return {
+          booking: bookingToDto(
+            inserted,
+            trip,
+            driver?.name ?? 'Voyager',
+            groupId,
+          ),
+          _tripLabel: `${trip.from_city.replace(/, TX$/i, '')} → ${trip.to_city.replace(/, TX$/i, '')}`,
+          _driverId: trip.driver_id,
+          _riderId: riderId,
+        };
+      })
+      .then(async (result) => {
+        await this.conversations
+          .ensureForBooking(
+            result._driverId,
+            result._riderId,
+            result._tripLabel,
+          )
+          .catch(() => undefined);
+        await this.notifyRiderBookingConfirmed(
+          riderId,
+          result.booking.id,
+          dto.tripId,
+          result.booking.trip.driverName,
+          String(result.booking.totalAmount),
+        );
+        return { booking: result.booking };
+      });
   }
 
   private async notifyRiderBookingConfirmed(
@@ -365,11 +381,7 @@ export class MobileBookingsService {
     });
   }
 
-  private assertTripBookable(
-    trip: MobileTrip,
-    riderId: string,
-    seats: number,
-  ) {
+  private assertTripBookable(trip: MobileTrip, riderId: string, seats: number) {
     if (trip.status !== 'active') {
       throw new BadRequestException('This trip is no longer available.');
     }
@@ -421,12 +433,7 @@ export class MobileBookingsService {
         ? await this.findGroupIdForTrip(booking.trip_id)
         : null;
     return {
-      booking: bookingToDto(
-        booking,
-        trip,
-        driver?.name ?? 'Voyager',
-        groupId,
-      ),
+      booking: bookingToDto(booking, trip, driver?.name ?? 'Voyager', groupId),
     };
   }
 
@@ -451,11 +458,7 @@ export class MobileBookingsService {
   }
 
   /** Publish the caller's live GPS for this adventure. */
-  async postLocation(
-    userId: string,
-    bookingId: string,
-    dto: LiveLocationBody,
-  ) {
+  async postLocation(userId: string, bookingId: string, dto: LiveLocationBody) {
     const { booking, trip, isDriver } = await this.requireBookingParticipant(
       userId,
       bookingId,
@@ -482,7 +485,12 @@ export class MobileBookingsService {
     // Only the driver's position can put the adventure off course; a Sailor's
     // phone reports wherever they happen to be.
     const deviation = isDriver
-      ? await this.checkRouteDeviation(trip, userId, dto.latitude, dto.longitude)
+      ? await this.checkRouteDeviation(
+          trip,
+          userId,
+          dto.latitude,
+          dto.longitude,
+        )
       : null;
 
     return {
@@ -513,7 +521,8 @@ export class MobileBookingsService {
         this.routing.decode(encoded),
       );
       // null means an empty route — "cannot tell", never "on course".
-      if (distance === null || distance <= DEVIATION_THRESHOLD_MILES) return null;
+      if (distance === null || distance <= DEVIATION_THRESHOLD_MILES)
+        return null;
 
       // One record per off-route stretch rather than one per ping: at a ping
       // every few seconds, a single wrong turn would otherwise generate
@@ -539,7 +548,10 @@ export class MobileBookingsService {
         );
       }
 
-      return { distanceMiles: Number(distance.toFixed(2)), recorded: recent === 0 };
+      return {
+        distanceMiles: Number(distance.toFixed(2)),
+        recorded: recent === 0,
+      };
     } catch (err) {
       this.logger.error(
         `Deviation check failed for trip ${trip.id}: ${err instanceof Error ? err.message : err}`,
@@ -558,7 +570,10 @@ export class MobileBookingsService {
     if (trip.route_polyline) return trip.route_polyline;
     if (trip.route_fetched_at) return null;
 
-    const encoded = await this.routing.routeBetweenCities(trip.from_city, trip.to_city);
+    const encoded = await this.routing.routeBetweenCities(
+      trip.from_city,
+      trip.to_city,
+    );
     trip.route_polyline = encoded;
     trip.route_fetched_at = new Date();
     await this.trips.save(trip);
@@ -594,12 +609,7 @@ export class MobileBookingsService {
         : null;
 
     return {
-      booking: bookingToDto(
-        booking,
-        trip,
-        driver?.name ?? 'Voyager',
-        groupId,
-      ),
+      booking: bookingToDto(booking, trip, driver?.name ?? 'Voyager', groupId),
       driver: {
         id: trip.driver_id,
         name: driver?.name ?? 'Voyager',
@@ -612,9 +622,7 @@ export class MobileBookingsService {
         location: toLoc(riderLoc),
       },
       viewerRole:
-        userId === trip.driver_id
-          ? ('driver' as const)
-          : ('rider' as const),
+        userId === trip.driver_id ? ('driver' as const) : ('rider' as const),
     };
   }
 

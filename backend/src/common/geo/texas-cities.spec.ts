@@ -2,12 +2,17 @@ import { cityCoordinates, SUPPORTED_CITIES } from './texas-cities';
 
 describe('cityCoordinates', () => {
   it('resolves the form the app stores', () => {
-    expect(cityCoordinates('Dallas, TX')).toEqual({ latitude: 32.7767, longitude: -96.797 });
+    expect(cityCoordinates('Dallas, TX')).toEqual({
+      latitude: 32.7767,
+      longitude: -96.797,
+    });
   });
 
   it('resolves without the state suffix, and case-insensitively', () => {
     expect(cityCoordinates('dallas')).toEqual(cityCoordinates('Dallas, TX'));
-    expect(cityCoordinates('FORT WORTH')).toEqual(cityCoordinates('Fort Worth, TX'));
+    expect(cityCoordinates('FORT WORTH')).toEqual(
+      cityCoordinates('Fort Worth, TX'),
+    );
   });
 
   it('handles two-word cities', () => {

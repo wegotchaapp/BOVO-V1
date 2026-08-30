@@ -89,7 +89,9 @@ export class CheckrService {
   }
 
   private get isMockMode(): boolean {
-    return !this.apiKey || this.apiKey.includes('mock') || this.apiKey.length < 10;
+    return (
+      !this.apiKey || this.apiKey.includes('mock') || this.apiKey.length < 10
+    );
   }
 
   async initiateBackgroundCheck(
@@ -108,9 +110,7 @@ export class CheckrService {
     }
 
     if (existing && existing.status === 'pending') {
-      throw new ConflictException(
-        'A background check is already in progress',
-      );
+      throw new ConflictException('A background check is already in progress');
     }
 
     const ssnHashSuffix = createHash('sha256')
@@ -310,7 +310,9 @@ export class CheckrService {
 
   async getChecksDueForRecheck(): Promise<BackgroundCheck[]> {
     const thirtyDaysBeforeExpiry = new Date();
-    thirtyDaysBeforeExpiry.setFullYear(thirtyDaysBeforeExpiry.getFullYear() + 1);
+    thirtyDaysBeforeExpiry.setFullYear(
+      thirtyDaysBeforeExpiry.getFullYear() + 1,
+    );
     thirtyDaysBeforeExpiry.setDate(thirtyDaysBeforeExpiry.getDate() - 30);
 
     return this.bgCheckRepo
@@ -409,9 +411,7 @@ export class CheckrService {
       'Background check cleared — driver approved',
     );
 
-    await this.adverseAction.sendClearNotification(
-      bgCheck.user,
-    );
+    await this.adverseAction.sendClearNotification(bgCheck.user);
 
     await this.scheduleRecheck(bgCheck);
   }

@@ -48,7 +48,8 @@ export class StripeConnectService {
     private readonly logger: PinoLogger,
   ) {
     this.apiKey = this.config.get<string>('STRIPE_SECRET_KEY') || '';
-    this.webhookSecret = this.config.get<string>('STRIPE_CONNECT_WEBHOOK_SECRET') || '';
+    this.webhookSecret =
+      this.config.get<string>('STRIPE_CONNECT_WEBHOOK_SECRET') || '';
 
     if (!this.apiKey) {
       this.logger.warn('STRIPE_SECRET_KEY not configured');
@@ -67,8 +68,15 @@ export class StripeConnectService {
       if (status.is_onboarded) {
         throw new BadRequestException('Driver is already fully onboarded');
       }
-      const link = await this.refreshAccountLink(userId, dto.return_url, dto.refresh_url);
-      return { account_id: user.stripe_account_id, account_link_url: link.account_link_url };
+      const link = await this.refreshAccountLink(
+        userId,
+        dto.return_url,
+        dto.refresh_url,
+      );
+      return {
+        account_id: user.stripe_account_id,
+        account_link_url: link.account_link_url,
+      };
     }
 
     const account = await this.createStripeAccount(user);
@@ -124,7 +132,8 @@ export class StripeConnectService {
       await this.userRepo.save(user);
 
       if (!account.details_submitted) requiresAction.push('complete_details');
-      if (!account.external_accounts?.data?.length) requiresAction.push('add_bank_account');
+      if (!account.external_accounts?.data?.length)
+        requiresAction.push('add_bank_account');
       if (!account.tos_acceptance?.date) requiresAction.push('accept_terms');
 
       let accountLinkUrl: string | null = null;
@@ -136,8 +145,7 @@ export class StripeConnectService {
             `${this.config.get('APP_URL', 'https://bovogo.com')}/onboarding/refresh`,
           );
           accountLinkUrl = link.url;
-        } catch {
-        }
+        } catch {}
       }
 
       const isOnboarded =
@@ -155,10 +163,7 @@ export class StripeConnectService {
         account_link_url: accountLinkUrl,
       };
     } catch (error) {
-      this.logger.error(
-        { userId, error },
-        'Failed to retrieve Stripe account',
-      );
+      this.logger.error({ userId, error }, 'Failed to retrieve Stripe account');
       return {
         stripe_account_id: user.stripe_account_id,
         details_submitted: false,
@@ -237,10 +242,7 @@ export class StripeConnectService {
     );
 
     if (data.payouts_enabled && !user.stripe_payouts_enabled) {
-      this.logger.info(
-        { userId: user.id },
-        'Driver payouts now enabled',
-      );
+      this.logger.info({ userId: user.id }, 'Driver payouts now enabled');
     }
   }
 
@@ -295,7 +297,8 @@ export class StripeConnectService {
     const user = await this.userRepo.findOne({ where: { id: driverId } });
     if (user) {
       const ytd = parseFloat(user.ytd_earnings.toString()) + payout.amount;
-      const lifetime = parseFloat(user.lifetime_earnings.toString()) + payout.amount;
+      const lifetime =
+        parseFloat(user.lifetime_earnings.toString()) + payout.amount;
       user.ytd_earnings = parseFloat(ytd.toFixed(2));
       user.lifetime_earnings = parseFloat(lifetime.toFixed(2));
       user.last_payout_at = new Date().toISOString();
@@ -370,13 +373,17 @@ export class StripeConnectService {
         .createQueryBuilder('p')
         .select('COALESCE(SUM(p.amount), 0)', 'total')
         .where('p.driver_id = :userId', { userId })
-        .andWhere('p.created_at >= :start', { start: startOfWeek.toISOString() })
+        .andWhere('p.created_at >= :start', {
+          start: startOfWeek.toISOString(),
+        })
         .getRawOne(),
       this.payoutRepo
         .createQueryBuilder('p')
         .select('COALESCE(SUM(p.amount), 0)', 'total')
         .where('p.driver_id = :userId', { userId })
-        .andWhere('p.created_at >= :start', { start: startOfMonth.toISOString() })
+        .andWhere('p.created_at >= :start', {
+          start: startOfMonth.toISOString(),
+        })
         .getRawOne(),
       this.payoutRepo
         .createQueryBuilder('p')

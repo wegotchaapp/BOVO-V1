@@ -46,9 +46,7 @@ export class RecheckScheduler implements OnModuleInit {
           },
         );
 
-        this.logger.log(
-          `Re-check job queued for user ${check.user_id}`,
-        );
+        this.logger.log(`Re-check job queued for user ${check.user_id}`);
       } catch (error) {
         this.logger.error(
           `Failed to queue re-check for user ${check.user_id}: ${error}`,
@@ -58,7 +56,9 @@ export class RecheckScheduler implements OnModuleInit {
   }
 
   private calculateDelay(userId: string): number {
-    const hash = userId.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+    const hash = userId
+      .split('')
+      .reduce((acc, char) => acc + char.charCodeAt(0), 0);
     const staggerMs = (hash % 7) * 24 * 60 * 60 * 1000;
     return staggerMs;
   }

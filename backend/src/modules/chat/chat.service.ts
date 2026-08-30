@@ -1,8 +1,18 @@
-import { Injectable, BadRequestException, ForbiddenException, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  BadRequestException,
+  ForbiddenException,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, LessThan, MoreThan } from 'typeorm';
 import { ConfigService } from '@nestjs/config';
-import { ChatConversation, ChatMessage, ChatBlock, CallRecord } from '../../database/entities/chat.entities';
+import {
+  ChatConversation,
+  ChatMessage,
+  ChatBlock,
+  CallRecord,
+} from '../../database/entities/chat.entities';
 import { Booking } from '../../database/entities/booking.entities';
 import { User } from '../../database/entities/user.entity';
 import { SendMessageDto } from './chat.dto';
@@ -50,7 +60,11 @@ export class ChatService {
     );
   }
 
-  async ensureConversation(bookingId: string, participantIds: string[], title?: string): Promise<ChatConversation> {
+  async ensureConversation(
+    bookingId: string,
+    participantIds: string[],
+    title?: string,
+  ): Promise<ChatConversation> {
     let conversation = await this.conversationRepo.findOne({
       where: { booking_id: bookingId },
     });
@@ -62,10 +76,16 @@ export class ChatService {
       });
 
       const expiryDate = booking?.trip?.departure_date
-        ? new Date(new Date(booking.trip.departure_date).getTime() + 7 * 86400000)
+        ? new Date(
+            new Date(booking.trip.departure_date).getTime() + 7 * 86400000,
+          )
         : new Date(Date.now() + 7 * 86400000);
 
-      const routeTitle = title || (booking?.trip ? `${booking.trip.origin_metro} \u2192 ${booking.trip.dest_metro}` : 'Adventure Group');
+      const routeTitle =
+        title ||
+        (booking?.trip
+          ? `${booking.trip.origin_metro} \u2192 ${booking.trip.dest_metro}`
+          : 'Adventure Group');
 
       conversation = this.conversationRepo.create({
         booking_id: bookingId,
@@ -101,16 +121,23 @@ export class ChatService {
     });
     if (!booking) throw new NotFoundException('Booking not found');
 
-    if (!['confirmed', 'en_route', 'in_progress', 'completed'].includes(booking.status)) {
+    if (
+      !['confirmed', 'en_route', 'in_progress', 'completed'].includes(
+        booking.status,
+      )
+    ) {
       throw new BadRequestException('Chat is not available for this booking');
     }
 
     if (booking.trip?.departure_date) {
       const departureDate = new Date(booking.trip.departure_date);
       const now = new Date();
-      const daysSinceTrip = (now.getTime() - departureDate.getTime()) / (1000 * 60 * 60 * 24);
+      const daysSinceTrip =
+        (now.getTime() - departureDate.getTime()) / (1000 * 60 * 60 * 24);
       if (daysSinceTrip > 7) {
-        throw new BadRequestException('Chat has expired — 7 days post-trip limit');
+        throw new BadRequestException(
+          'Chat has expired — 7 days post-trip limit',
+        );
       }
     }
 
@@ -118,18 +145,28 @@ export class ChatService {
     const riderId = booking.rider_id;
 
     if (senderId !== driverId && senderId !== riderId) {
-      throw new ForbiddenException('You are not a participant in this conversation');
+      throw new ForbiddenException(
+        'You are not a participant in this conversation',
+      );
     }
 
     const isBlocked = await this.chatBlockRepo.findOne({
       where: [
-        { blocker_id: senderId, blocked_user_id: senderId === driverId ? riderId : driverId },
-        { blocker_id: senderId === driverId ? riderId : driverId, blocked_user_id: senderId },
+        {
+          blocker_id: senderId,
+          blocked_user_id: senderId === driverId ? riderId : driverId,
+        },
+        {
+          blocker_id: senderId === driverId ? riderId : driverId,
+          blocked_user_id: senderId,
+        },
       ],
     });
 
     if (isBlocked) {
-      throw new ForbiddenException('Cannot send messages — you have been blocked or have blocked this user');
+      throw new ForbiddenException(
+        'Cannot send messages — you have been blocked or have blocked this user',
+      );
     }
 
     let conversation = await this.conversationRepo.findOne({
@@ -138,10 +175,14 @@ export class ChatService {
 
     if (!conversation) {
       const expiryDate = booking.trip?.departure_date
-        ? new Date(new Date(booking.trip.departure_date).getTime() + 7 * 86400000)
+        ? new Date(
+            new Date(booking.trip.departure_date).getTime() + 7 * 86400000,
+          )
         : new Date(Date.now() + 7 * 86400000);
 
-      const routeTitle = booking.trip ? `${booking.trip.origin_metro} \u2192 ${booking.trip.dest_metro}` : 'Adventure Group';
+      const routeTitle = booking.trip
+        ? `${booking.trip.origin_metro} \u2192 ${booking.trip.dest_metro}`
+        : 'Adventure Group';
       conversation = this.conversationRepo.create({
         booking_id: bookingId,
         participant_ids: [driverId, riderId],
@@ -177,7 +218,8 @@ export class ChatService {
 
     const saved = await this.messageRepo.save(message);
 
-    const unreadField = senderId === driverId ? 'unread_count_rider' : 'unread_count_driver';
+    const unreadField =
+      senderId === driverId ? 'unread_count_rider' : 'unread_count_driver';
     await this.conversationRepo.update(conversation.id, {
       last_message: dto.content.substring(0, 500),
       last_message_sender_id: senderId,
@@ -226,7 +268,9 @@ export class ChatService {
       created_at: saved.created_at,
     });
 
-    const otherParticipantIds = conversation.participant_ids.filter((id) => id !== senderId);
+    const otherParticipantIds = conversation.participant_ids.filter(
+      (id) => id !== senderId,
+    );
     otherParticipantIds.forEach((userId) => {
       this.realtimeGateway.emitConversationUpdated(userId);
     });
@@ -244,7 +288,11 @@ export class ChatService {
     bookingId: string,
     cursor?: string,
     limit = 50,
-  ): Promise<{ messages: ChatMessage[]; has_more: boolean; next_cursor?: string }> {
+  ): Promise<{
+    messages: ChatMessage[];
+    has_more: boolean;
+    next_cursor?: string;
+  }> {
     const booking = await this.bookingRepo.findOne({
       where: { id: bookingId },
       relations: ['trip'],
@@ -255,7 +303,9 @@ export class ChatService {
     const riderId = booking.rider_id;
 
     if (userId !== driverId && userId !== riderId) {
-      throw new ForbiddenException('You are not a participant in this conversation');
+      throw new ForbiddenException(
+        'You are not a participant in this conversation',
+      );
     }
 
     const conversation = await this.conversationRepo.findOne({
@@ -268,7 +318,9 @@ export class ChatService {
 
     const query: any = { conversation_id: conversation.id };
     if (cursor) {
-      const cursorMessage = await this.messageRepo.findOne({ where: { id: cursor } });
+      const cursorMessage = await this.messageRepo.findOne({
+        where: { id: cursor },
+      });
       if (cursorMessage) {
         query.created_at = LessThan(cursorMessage.created_at);
       }
@@ -283,7 +335,10 @@ export class ChatService {
     const hasMore = messages.length > limit;
     if (hasMore) messages.pop();
 
-    const nextCursor = hasMore && messages.length > 0 ? messages[messages.length - 1].id : undefined;
+    const nextCursor =
+      hasMore && messages.length > 0
+        ? messages[messages.length - 1].id
+        : undefined;
 
     return {
       messages: messages.reverse(),
@@ -320,7 +375,9 @@ export class ChatService {
       if (!otherUser) continue;
 
       const isDriver = booking.trip?.driver_id === userId;
-      const unreadCount = isDriver ? conv.unread_count_driver : conv.unread_count_rider;
+      const unreadCount = isDriver
+        ? conv.unread_count_driver
+        : conv.unread_count_rider;
 
       const isUpcoming = ['confirmed'].includes(booking.status);
       const isActive = ['en_route', 'in_progress'].includes(booking.status);
@@ -363,14 +420,24 @@ export class ChatService {
     const unreadField = isDriver ? 'unread_count_driver' : 'unread_count_rider';
 
     await this.messageRepo.update(
-      { conversation_id: conversation.id, sender_id: userId === conversation.participant_ids[0] ? conversation.participant_ids[1] : conversation.participant_ids[0], is_read: false },
+      {
+        conversation_id: conversation.id,
+        sender_id:
+          userId === conversation.participant_ids[0]
+            ? conversation.participant_ids[1]
+            : conversation.participant_ids[0],
+        is_read: false,
+      },
       { is_read: true, read_at: new Date().toISOString() },
     );
 
     await this.conversationRepo.update(conversation.id, { [unreadField]: 0 });
   }
 
-  async markConversationRead(userId: string, conversationId: string): Promise<void> {
+  async markConversationRead(
+    userId: string,
+    conversationId: string,
+  ): Promise<void> {
     const conversation = await this.conversationRepo.findOne({
       where: { id: conversationId },
     });
@@ -406,15 +473,19 @@ export class ChatService {
       });
 
       const myIndex = conv.participant_ids.indexOf(userId);
-      const unreadCount = myIndex === 0 ? conv.unread_count_driver : conv.unread_count_rider;
+      const unreadCount =
+        myIndex === 0 ? conv.unread_count_driver : conv.unread_count_rider;
 
       results.push({
         id: conv.id,
-        title: conv.title || otherUser?.display_name || otherUser?.name || 'Chat',
+        title:
+          conv.title || otherUser?.display_name || otherUser?.name || 'Chat',
         last_message: conv.last_message,
         last_message_at: conv.last_message_at,
         unread_count: unreadCount,
-        other_user: otherUser ? { id: otherUser.id, name: otherUser.display_name || otherUser.name } : null,
+        other_user: otherUser
+          ? { id: otherUser.id, name: otherUser.display_name || otherUser.name }
+          : null,
         created_at: conv.created_at,
       });
     }
@@ -443,8 +514,14 @@ export class ChatService {
     return { id: saved.id, title: 'Bovogo Support', is_support: true };
   }
 
-  async blockUser(blockerId: string, bookingId: string, blockedUserId: string): Promise<void> {
-    const booking = await this.bookingRepo.findOne({ where: { id: bookingId } });
+  async blockUser(
+    blockerId: string,
+    bookingId: string,
+    blockedUserId: string,
+  ): Promise<void> {
+    const booking = await this.bookingRepo.findOne({
+      where: { id: bookingId },
+    });
     if (!booking) throw new NotFoundException('Booking not found');
 
     const existing = await this.chatBlockRepo.findOne({
@@ -477,7 +554,11 @@ export class ChatService {
   async initiateMaskedCall(
     callerId: string,
     bookingId: string,
-  ): Promise<{ proxy_number: string; call_sid: string; receiver_first_name: string }> {
+  ): Promise<{
+    proxy_number: string;
+    call_sid: string;
+    receiver_first_name: string;
+  }> {
     const booking = await this.bookingRepo.findOne({
       where: { id: bookingId },
       relations: ['trip', 'trip.driver', 'rider'],
@@ -497,13 +578,21 @@ export class ChatService {
 
     const isBlocked = await this.chatBlockRepo.findOne({
       where: [
-        { blocker_id: callerId, blocked_user_id: callerId === driverId ? riderId : driverId },
-        { blocker_id: callerId === driverId ? riderId : driverId, blocked_user_id: callerId },
+        {
+          blocker_id: callerId,
+          blocked_user_id: callerId === driverId ? riderId : driverId,
+        },
+        {
+          blocker_id: callerId === driverId ? riderId : driverId,
+          blocked_user_id: callerId,
+        },
       ],
     });
 
     if (isBlocked) {
-      throw new ForbiddenException('Cannot call — you have been blocked or have blocked this user');
+      throw new ForbiddenException(
+        'Cannot call — you have been blocked or have blocked this user',
+      );
     }
 
     const caller = await this.userRepo.findOne({ where: { id: callerId } });
@@ -512,10 +601,14 @@ export class ChatService {
     });
 
     if (!caller?.phone || !receiver?.phone) {
-      throw new BadRequestException('Phone numbers not available for masked calling');
+      throw new BadRequestException(
+        'Phone numbers not available for masked calling',
+      );
     }
 
-    const proxyNumber = this.config.get('TWILIO_PROXY_NUMBER') || this.config.get('TWILIO_PHONE_NUMBER');
+    const proxyNumber =
+      this.config.get('TWILIO_PROXY_NUMBER') ||
+      this.config.get('TWILIO_PHONE_NUMBER');
     if (!proxyNumber) {
       throw new BadRequestException('Twilio proxy number not configured');
     }
@@ -545,7 +638,11 @@ export class ChatService {
         entity_type: 'call_record',
         entity_id: callRecord.id,
         event_type: 't&s_action',
-        payload: { booking_id: bookingId, receiver_id: receiver.id, call_sid: call.sid },
+        payload: {
+          booking_id: bookingId,
+          receiver_id: receiver.id,
+          call_sid: call.sid,
+        },
       });
 
       this.logger.info(
@@ -560,7 +657,9 @@ export class ChatService {
       };
     } catch (err) {
       this.logger.error({ err, bookingId }, 'Failed to initiate masked call');
-      throw new BadRequestException('Failed to initiate call. Please try again.');
+      throw new BadRequestException(
+        'Failed to initiate call. Please try again.',
+      );
     }
   }
 
@@ -584,7 +683,11 @@ export class ChatService {
         entity_type: 'call_record',
         entity_id: callRecord.id,
         event_type: 't&s_action',
-        payload: { booking_id: bookingId, status: CallStatus, duration: CallDuration },
+        payload: {
+          booking_id: bookingId,
+          status: CallStatus,
+          duration: CallDuration,
+        },
       });
     }
   }
@@ -594,18 +697,26 @@ export class ChatService {
     conversationId: string,
     cursor?: string,
     limit = 50,
-  ): Promise<{ messages: ChatMessage[]; has_more: boolean; next_cursor?: string }> {
+  ): Promise<{
+    messages: ChatMessage[];
+    has_more: boolean;
+    next_cursor?: string;
+  }> {
     const conversation = await this.conversationRepo.findOne({
       where: { id: conversationId },
     });
     if (!conversation) throw new NotFoundException('Conversation not found');
     if (!conversation.participant_ids.includes(userId)) {
-      throw new ForbiddenException('You are not a participant in this conversation');
+      throw new ForbiddenException(
+        'You are not a participant in this conversation',
+      );
     }
 
     const query: any = { conversation_id: conversationId };
     if (cursor) {
-      const cursorMessage = await this.messageRepo.findOne({ where: { id: cursor } });
+      const cursorMessage = await this.messageRepo.findOne({
+        where: { id: cursor },
+      });
       if (cursorMessage) {
         query.created_at = LessThan(cursorMessage.created_at);
       }
@@ -620,7 +731,10 @@ export class ChatService {
     const hasMore = messages.length > limit;
     if (hasMore) messages.pop();
 
-    const nextCursor = hasMore && messages.length > 0 ? messages[messages.length - 1].id : undefined;
+    const nextCursor =
+      hasMore && messages.length > 0
+        ? messages[messages.length - 1].id
+        : undefined;
 
     return {
       messages: messages.reverse(),
@@ -645,11 +759,15 @@ export class ChatService {
     if (!conversation) throw new NotFoundException('Conversation not found');
 
     if (conversation.type !== 'dm') {
-      throw new BadRequestException('This endpoint is for DM conversations only');
+      throw new BadRequestException(
+        'This endpoint is for DM conversations only',
+      );
     }
 
     if (!conversation.participant_ids.includes(senderId)) {
-      throw new ForbiddenException('You are not a participant in this conversation');
+      throw new ForbiddenException(
+        'You are not a participant in this conversation',
+      );
     }
 
     const analysis = this.analyzeMessage(dto.content);
@@ -678,7 +796,8 @@ export class ChatService {
     const saved = await this.messageRepo.save(message);
 
     const myIndex = conversation.participant_ids.indexOf(senderId);
-    const unreadField = myIndex === 0 ? 'unread_count_rider' : 'unread_count_driver';
+    const unreadField =
+      myIndex === 0 ? 'unread_count_rider' : 'unread_count_driver';
     await this.conversationRepo.update(conversation.id, {
       last_message: dto.content.substring(0, 500),
       last_message_sender_id: senderId,
@@ -686,7 +805,9 @@ export class ChatService {
       [unreadField]: () => `"${unreadField}" + 1`,
     });
 
-    const otherParticipantIds = conversation.participant_ids.filter((id) => id !== senderId);
+    const otherParticipantIds = conversation.participant_ids.filter(
+      (id) => id !== senderId,
+    );
     otherParticipantIds.forEach((userId) => {
       this.realtimeGateway.emitConversationUpdated(userId);
     });
@@ -700,7 +821,11 @@ export class ChatService {
   }
 
   async userHasPaidBookings(userId: string): Promise<boolean> {
-    const paidStatuses = [BookingStatus.CONFIRMED, BookingStatus.EN_ROUTE, BookingStatus.COMPLETED];
+    const paidStatuses = [
+      BookingStatus.CONFIRMED,
+      BookingStatus.EN_ROUTE,
+      BookingStatus.COMPLETED,
+    ];
     const count = await this.bookingRepo.count({
       where: [
         { rider_id: userId, status: paidStatuses[0] },
@@ -727,7 +852,8 @@ export class ChatService {
     const conversation = await this.conversationRepo.findOne({
       where: { booking_id: bookingId },
     });
-    if (!conversation) throw new NotFoundException('Group conversation not found');
+    if (!conversation)
+      throw new NotFoundException('Group conversation not found');
 
     if (!conversation.participant_ids.includes(userId)) {
       throw new ForbiddenException('You are not a participant in this group');
@@ -752,7 +878,9 @@ export class ChatService {
 
     const query: any = { conversation_id: conversation.id };
     if (cursor) {
-      const cursorMessage = await this.messageRepo.findOne({ where: { id: cursor } });
+      const cursorMessage = await this.messageRepo.findOne({
+        where: { id: cursor },
+      });
       if (cursorMessage) {
         query.created_at = LessThan(cursorMessage.created_at);
       }
@@ -766,7 +894,10 @@ export class ChatService {
 
     const hasMore = messages.length > limit;
     if (hasMore) messages.pop();
-    const nextCursor = hasMore && messages.length > 0 ? messages[messages.length - 1].id : undefined;
+    const nextCursor =
+      hasMore && messages.length > 0
+        ? messages[messages.length - 1].id
+        : undefined;
 
     const tripDate = booking?.trip?.departure_date;
     const now = new Date();
@@ -806,7 +937,8 @@ export class ChatService {
     const conversation = await this.conversationRepo.findOne({
       where: { booking_id: bookingId },
     });
-    if (!conversation) throw new NotFoundException('Group conversation not found');
+    if (!conversation)
+      throw new NotFoundException('Group conversation not found');
 
     const booking = await this.bookingRepo.findOne({
       where: { id: bookingId },
@@ -866,5 +998,4 @@ export class ChatService {
 
     return { flags, requiresReview, warning };
   }
-
 }

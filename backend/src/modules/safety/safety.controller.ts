@@ -244,7 +244,8 @@ export class SafetyController {
   @ApiOperation({ summary: 'Receive GPS location ping during trip' })
   async receivePing(
     @Request() req: any,
-    @Body() body: {
+    @Body()
+    body: {
       booking_id: string;
       latitude: number;
       longitude: number;
@@ -299,7 +300,11 @@ export class SafetyController {
     @Request() req: any,
     @Body() body: { sos_id: string; safe_word: string },
   ) {
-    return this.safetyService.cancelSOS(req.user.id, body.sos_id, body.safe_word);
+    return this.safetyService.cancelSOS(
+      req.user.id,
+      body.sos_id,
+      body.safe_word,
+    );
   }
 
   @Post('sos/unsafe-feeling')
@@ -308,7 +313,13 @@ export class SafetyController {
   @ApiOperation({ summary: 'Report feeling unsafe (no 911, T&S only)' })
   async submitUnsafeFeeling(
     @Request() req: any,
-    @Body() body: { booking_id: string; latitude: number; longitude: number; description?: string },
+    @Body()
+    body: {
+      booking_id: string;
+      latitude: number;
+      longitude: number;
+      description?: string;
+    },
   ) {
     return this.safetyService.submitUnsafeFeeling(
       req.user.id,
@@ -349,8 +360,7 @@ export class SafetyController {
     const apiUrl = process.env.APP_URL || 'https://bovogo.com';
     const mapboxToken = process.env.MAPBOX_ACCESS_TOKEN || '';
 
-    const html = TRACKING_PAGE_HTML
-      .replace('{{TOKEN}}', token)
+    const html = TRACKING_PAGE_HTML.replace('{{TOKEN}}', token)
       .replace('{{API_URL}}', apiUrl)
       .replace('{{MAPBOX_TOKEN}}', mapboxToken);
 

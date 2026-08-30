@@ -1,7 +1,20 @@
-import { Controller, Get, Post, Body, UseGuards, Request, Ip, Headers } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  UseGuards,
+  Request,
+  Ip,
+  Headers,
+} from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { AuthGuard } from '@nestjs/passport';
-import { CheckrService, FcraConsentDto, BackgroundCheckInitDto } from './checkr.service';
+import {
+  CheckrService,
+  FcraConsentDto,
+  BackgroundCheckInitDto,
+} from './checkr.service';
 
 @ApiTags('drivers')
 @Controller('drivers/background-check')

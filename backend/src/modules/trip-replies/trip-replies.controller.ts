@@ -1,4 +1,12 @@
-import { Controller, Get, Post, Body, Param, UseGuards, Request } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Param,
+  UseGuards,
+  Request,
+} from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { AuthGuard } from '@nestjs/passport';
 import { TripRepliesService } from './trip-replies.service';
@@ -12,7 +20,11 @@ export class TripRepliesController {
   @UseGuards(AuthGuard('jwt'))
   @ApiBearerAuth('JWT')
   @ApiOperation({ summary: 'Create a reply to a trip' })
-  async createReply(@Request() req: any, @Param('tripId') tripId: string, @Body('text') text: string) {
+  async createReply(
+    @Request() req: any,
+    @Param('tripId') tripId: string,
+    @Body('text') text: string,
+  ) {
     return this.tripRepliesService.createReply(tripId, req.user.sub, text);
   }
 

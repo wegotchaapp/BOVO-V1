@@ -114,7 +114,9 @@ export class ProfilesController {
   @Patch('vehicles/:id')
   @UseGuards(AuthGuard('jwt'))
   @ApiBearerAuth('JWT')
-  @ApiOperation({ summary: 'Update vehicle info (including manual category override)' })
+  @ApiOperation({
+    summary: 'Update vehicle info (including manual category override)',
+  })
   async updateVehicle(
     @Request() req: any,
     @Param('id') id: string,

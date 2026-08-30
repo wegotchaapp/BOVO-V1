@@ -78,13 +78,18 @@ describe('distanceFromRouteMiles', () => {
   ];
 
   it('is ~zero for a point sitting on the line', () => {
-    expect(distanceFromRouteMiles({ latitude: 31.5, longitude: -97.0 }, route)!).toBeLessThan(0.01);
+    expect(
+      distanceFromRouteMiles({ latitude: 31.5, longitude: -97.0 }, route)!,
+    ).toBeLessThan(0.01);
   });
 
   it('measures perpendicular offset, not distance to the nearest vertex', () => {
     // Level with the middle vertex but a degree of longitude to the east. The
     // old snap-to-road approach could not have produced this number at all.
-    const d = distanceFromRouteMiles({ latitude: 31.5, longitude: -96.0 }, route)!;
+    const d = distanceFromRouteMiles(
+      { latitude: 31.5, longitude: -96.0 },
+      route,
+    )!;
     expect(d).toBeGreaterThan(55);
     expect(d).toBeLessThan(65);
   });
@@ -102,11 +107,16 @@ describe('distanceFromRouteMiles', () => {
   });
 
   it('handles a single-point route', () => {
-    expect(distanceFromRouteMiles(DALLAS, [AUSTIN])!).toBeCloseTo(haversineMiles(DALLAS, AUSTIN), 6);
+    expect(distanceFromRouteMiles(DALLAS, [AUSTIN])!).toBeCloseTo(
+      haversineMiles(DALLAS, AUSTIN),
+      6,
+    );
   });
 
   it('tolerates duplicate consecutive points, which real polylines contain', () => {
     const dupes = [route[0], route[0], route[1], route[1], route[2]];
-    expect(distanceFromRouteMiles({ latitude: 31.5, longitude: -97.0 }, dupes)!).toBeLessThan(0.01);
+    expect(
+      distanceFromRouteMiles({ latitude: 31.5, longitude: -97.0 }, dupes)!,
+    ).toBeLessThan(0.01);
   });
 });

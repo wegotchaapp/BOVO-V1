@@ -10,7 +10,12 @@ import { SupportAuthGuard } from './support-auth.guard';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([SupportAgent, SupportTicket, SupportTicketMessage, SupportSession]),
+    TypeOrmModule.forFeature([
+      SupportAgent,
+      SupportTicket,
+      SupportTicketMessage,
+      SupportSession,
+    ]),
   ],
   controllers: [SupportController],
   providers: [SupportService, SupportAuthGuard],

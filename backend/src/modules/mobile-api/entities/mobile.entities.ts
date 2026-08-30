@@ -214,7 +214,11 @@ export class MobileVehicle {
    * `pending_review` until a human approves it.
    */
   @Column({ type: 'varchar', length: 16, default: 'incomplete' })
-  verification_status!: 'incomplete' | 'pending_review' | 'approved' | 'rejected';
+  verification_status!:
+    | 'incomplete'
+    | 'pending_review'
+    | 'approved'
+    | 'rejected';
 
   @Column({ type: 'text', nullable: true })
   verification_note!: string | null;
@@ -746,7 +750,6 @@ export class MobileSosEvent {
   @CreateDateColumn({ type: 'timestamptz' })
   created_at!: Date;
 }
-
 
 /**
  * A mobile adventure straying from its own route.

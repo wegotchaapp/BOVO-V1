@@ -1,4 +1,15 @@
-import { Controller, Get, Post, Patch, Param, Query, Body, UseGuards, Req, UnauthorizedException } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Patch,
+  Param,
+  Query,
+  Body,
+  UseGuards,
+  Req,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { ApiTags, ApiOperation } from '@nestjs/swagger';
 import { SupportService } from './support.service';
 import { SupportAuthGuard } from './support-auth.guard';
@@ -9,14 +20,21 @@ export class SupportController {
   constructor(private readonly supportService: SupportService) {}
 
   @Post('auth/login')
-  @ApiOperation({ summary: 'Authenticate a support agent and create a session' })
-  async login(@Body('email') email: string, @Body('password') password: string) {
+  @ApiOperation({
+    summary: 'Authenticate a support agent and create a session',
+  })
+  async login(
+    @Body('email') email: string,
+    @Body('password') password: string,
+  ) {
     return this.supportService.login(email, password);
   }
 
   @Get('tickets')
   @UseGuards(SupportAuthGuard)
-  @ApiOperation({ summary: 'List support tickets with optional filters and pagination' })
+  @ApiOperation({
+    summary: 'List support tickets with optional filters and pagination',
+  })
   async listTickets(
     @Query('status') status?: string,
     @Query('priority') priority?: string,
@@ -24,7 +42,13 @@ export class SupportController {
     @Query('page') page?: number,
     @Query('limit') limit?: number,
   ) {
-    return this.supportService.listTickets({ status, priority, assignee_id, page, limit });
+    return this.supportService.listTickets({
+      status,
+      priority,
+      assignee_id,
+      page,
+      limit,
+    });
   }
 
   @Get('tickets/:id')
@@ -35,7 +59,9 @@ export class SupportController {
   }
 
   @Post('tickets')
-  @ApiOperation({ summary: 'Create a support ticket (no auth required for customers)' })
+  @ApiOperation({
+    summary: 'Create a support ticket (no auth required for customers)',
+  })
   async createTicket(
     @Body('subject') subject: string,
     @Body('requester_name') requester_name: string,
@@ -74,7 +100,13 @@ export class SupportController {
     @Body('author_agent_id') author_agent_id?: string,
     @Body('internal') internal?: boolean,
   ) {
-    return this.supportService.addMessage(id, { body, author_type, author_name, author_agent_id, internal });
+    return this.supportService.addMessage(id, {
+      body,
+      author_type,
+      author_name,
+      author_agent_id,
+      internal,
+    });
   }
 
   @Patch('tickets/:id/status')
@@ -107,7 +139,9 @@ export class SupportController {
 
   @Post('agents')
   @UseGuards(SupportAuthGuard)
-  @ApiOperation({ summary: 'Create a support agent (auth required, admin only)' })
+  @ApiOperation({
+    summary: 'Create a support agent (auth required, admin only)',
+  })
   async createAgent(
     @Body('name') name: string,
     @Body('email') email: string,

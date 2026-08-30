@@ -17,7 +17,11 @@ export class NotificationsProcessor extends WorkerHost {
 
     if (job.name === 'deliver') {
       this.logger.info(
-        { jobId: job.id, channel: job.data.channel, category: job.data.category },
+        {
+          jobId: job.id,
+          channel: job.data.channel,
+          category: job.data.category,
+        },
         'Processing notification delivery',
       );
       await this.notificationsService.processNotificationJob(job);

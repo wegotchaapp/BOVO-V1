@@ -31,7 +31,13 @@ const ALLOWED_DOC_MIME: Record<string, string> = {
   'application/pdf': 'pdf',
 };
 
-export const PHOTO_SLOTS = ['front', 'rear', 'left', 'right', 'interior'] as const;
+export const PHOTO_SLOTS = [
+  'front',
+  'rear',
+  'left',
+  'right',
+  'interior',
+] as const;
 export type PhotoSlot = (typeof PHOTO_SLOTS)[number];
 
 export const DOC_KINDS = ['insurance', 'registration'] as const;
@@ -91,7 +97,9 @@ export class MobileVehiclesService {
       where: { user_id: userId },
       order: { updated_at: 'DESC' },
     });
-    return { vehicles: rows.map((v) => vehicleToDto(v, missingRequirements(v))) };
+    return {
+      vehicles: rows.map((v) => vehicleToDto(v, missingRequirements(v))),
+    };
   }
 
   /** Upsert the Voyager's single primary vehicle. */
@@ -153,7 +161,8 @@ export class MobileVehiclesService {
 
     const key = `vehicles/${row.id}/${slot}-${randomUUID()}.${ext}`;
     await this.store(key, file!.buffer, file!.mimetype);
-    (row as unknown as Record<string, unknown>)[PHOTO_COLUMN[slot]] = this.publicUrl(key);
+    (row as unknown as Record<string, unknown>)[PHOTO_COLUMN[slot]] =
+      this.publicUrl(key);
 
     const saved = await this.save(row);
     return {
@@ -344,10 +353,12 @@ export function missingRequirements(v: MobileVehicle): string[] {
   }
 
   if (!v.insurance_doc_url) missing.push('insurance certificate');
-  else if (isExpired(v.insurance_expires_at)) missing.push('valid (unexpired) insurance');
+  else if (isExpired(v.insurance_expires_at))
+    missing.push('valid (unexpired) insurance');
 
   if (!v.registration_doc_url) missing.push('vehicle registration');
-  else if (isExpired(v.registration_expires_at)) missing.push('valid (unexpired) registration');
+  else if (isExpired(v.registration_expires_at))
+    missing.push('valid (unexpired) registration');
 
   return missing;
 }

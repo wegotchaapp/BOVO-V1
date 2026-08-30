@@ -1,4 +1,13 @@
-import { IsString, IsOptional, IsArray, IsBoolean, IsEnum, IsNumber, Min, ValidateNested } from 'class-validator';
+import {
+  IsString,
+  IsOptional,
+  IsArray,
+  IsBoolean,
+  IsEnum,
+  IsNumber,
+  Min,
+  ValidateNested,
+} from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import { LuggageType } from '../../../common/enums';

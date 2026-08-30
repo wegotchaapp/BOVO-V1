@@ -1,8 +1,17 @@
-import { Injectable, BadRequestException, NotFoundException, ForbiddenException } from '@nestjs/common';
+import {
+  Injectable,
+  BadRequestException,
+  NotFoundException,
+  ForbiddenException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { ConfigService } from '@nestjs/config';
-import { Booking, BookingLuggage, BookingStatusLog } from '../../database/entities/booking.entities';
+import {
+  Booking,
+  BookingLuggage,
+  BookingStatusLog,
+} from '../../database/entities/booking.entities';
 import { Trip } from '../../database/entities/trip.entities';
 import { User } from '../../database/entities/user.entity';
 import { CreateBookingDto, CancelBookingDto } from './dto/booking.dto';
@@ -19,7 +28,9 @@ import { PRICING, platformFeeForSubtotal } from '../pricing/pricing.config';
 const luggageContributionCents = (type: string): number =>
   Math.round((PRICING.LUGGAGE_SURCHARGE[type] || 0) * 100);
 
-const luggageInsurancePremiumCents = (luggage: { type: string; qty: number }[]): number =>
+const luggageInsurancePremiumCents = (
+  luggage: { type: string; qty: number }[],
+): number =>
   luggage.reduce((sum, item) => {
     const premium = PRICING.LUGGAGE_INSURANCE_PREMIUMS[item.type] || 0;
     return sum + Math.round(premium * 100) * item.qty;
@@ -63,14 +74,19 @@ export class BookingsService {
     private readonly notificationsService: NotificationsService,
   ) {}
 
-  async createBooking(riderId: string, dto: CreateBookingDto): Promise<{ client_secret: string; booking_id: string }> {
+  async createBooking(
+    riderId: string,
+    dto: CreateBookingDto,
+  ): Promise<{ client_secret: string; booking_id: string }> {
     const trip = await this.tripRepo.findOne({
       where: { id: dto.trip_id },
       relations: ['vehicle'],
     });
     if (!trip) throw new NotFoundException('Trip not found');
-    if (trip.status !== TripStatus.POSTED) throw new BadRequestException('Trip no longer available');
-    if (trip.seats_available < dto.seats) throw new BadRequestException('Not enough seats available');
+    if (trip.status !== TripStatus.POSTED)
+      throw new BadRequestException('Trip no longer available');
+    if (trip.seats_available < dto.seats)
+      throw new BadRequestException('Not enough seats available');
 
     this.validateLuggageCompatibility(dto.luggage, trip.vehicle?.category);
 
@@ -78,26 +94,34 @@ export class BookingsService {
       return sum + luggageContributionCents(item.type) * item.qty;
     }, 0);
 
-    const insuranceCostCents = dto.insurance_opted_in ? INSURANCE_PREMIUM_CENTS : 0;
+    const insuranceCostCents = dto.insurance_opted_in
+      ? INSURANCE_PREMIUM_CENTS
+      : 0;
     const luggageInsuranceCents = dto.luggage_insurance_opted_in
       ? luggageInsurancePremiumCents(dto.luggage)
       : 0;
-    const perSeatCents = Math.round(this.pricingService.calculateSeatPrice(
-      Number(trip.distance_miles) || 165,
-    ) * 100);
+    const perSeatCents = Math.round(
+      this.pricingService.calculateSeatPrice(
+        Number(trip.distance_miles) || 165,
+      ) * 100,
+    );
     const rideCostCents = perSeatCents * dto.seats;
     // The fee scales with everything else in the booking, because Stripe's
     // percentage applies to the whole captured amount.
     const subtotalCents =
-      rideCostCents + luggageTotalCents + insuranceCostCents + luggageInsuranceCents;
+      rideCostCents +
+      luggageTotalCents +
+      insuranceCostCents +
+      luggageInsuranceCents;
     const feeCents = platformFeeCents(subtotalCents);
     const totalCents = subtotalCents + feeCents;
 
-    const { client_secret, payment_intent_id } = await this.paymentsService.createPaymentIntent(totalCents, {
-      booking_type: 'carpool',
-      rider_id: riderId,
-      trip_id: trip.id,
-    });
+    const { client_secret, payment_intent_id } =
+      await this.paymentsService.createPaymentIntent(totalCents, {
+        booking_type: 'carpool',
+        rider_id: riderId,
+        trip_id: trip.id,
+      });
 
     const booking = this.bookingRepo.create({
       trip_id: trip.id,
@@ -140,9 +164,20 @@ export class BookingsService {
       await this.luggageRepo.save(luggage);
     }
 
-    await this.logStatusChange(saved.id, null, BookingStatus.PENDING, riderId, 'booking_created');
+    await this.logStatusChange(
+      saved.id,
+      null,
+      BookingStatus.PENDING,
+      riderId,
+      'booking_created',
+    );
 
-    await this.paymentsService.recordPayment(saved.id, payment_intent_id, totalCents, 'pending');
+    await this.paymentsService.recordPayment(
+      saved.id,
+      payment_intent_id,
+      totalCents,
+      'pending',
+    );
 
     this.logger.info(
       { bookingId: saved.id, riderId, tripId: trip.id, totalCents },
@@ -161,7 +196,8 @@ export class BookingsService {
       relations: ['trip'],
     });
     if (!booking) throw new NotFoundException('Booking not found');
-    if (!booking.payment_intent_id) throw new BadRequestException('No payment intent found');
+    if (!booking.payment_intent_id)
+      throw new BadRequestException('No payment intent found');
 
     const trip = booking.trip;
     if (!trip) throw new NotFoundException('Trip not found');
@@ -169,9 +205,18 @@ export class BookingsService {
     booking.status = BookingStatus.CONFIRMED;
     await this.bookingRepo.save(booking);
 
-    await this.logStatusChange(bookingId, BookingStatus.PENDING, BookingStatus.CONFIRMED, booking.rider_id, 'payment_confirmed');
+    await this.logStatusChange(
+      bookingId,
+      BookingStatus.PENDING,
+      BookingStatus.CONFIRMED,
+      booking.rider_id,
+      'payment_confirmed',
+    );
 
-    await this.chatService.ensureConversation(bookingId, [trip.driver_id, booking.rider_id]);
+    await this.chatService.ensureConversation(bookingId, [
+      trip.driver_id,
+      booking.rider_id,
+    ]);
 
     await this.notificationsService.send(
       trip.driver_id,
@@ -187,7 +232,10 @@ export class BookingsService {
     return { message: 'Payment confirmed and booking created' };
   }
 
-  async driverAccept(bookingId: string, driverId: string): Promise<{ message: string }> {
+  async driverAccept(
+    bookingId: string,
+    driverId: string,
+  ): Promise<{ message: string }> {
     const booking = await this.bookingRepo.findOne({
       where: { id: bookingId },
       relations: ['trip'],
@@ -196,14 +244,24 @@ export class BookingsService {
 
     const trip = booking.trip;
     if (!trip) throw new NotFoundException('Trip not found');
-    if (trip.driver_id !== driverId) throw new ForbiddenException('Only the trip driver can accept bookings');
+    if (trip.driver_id !== driverId)
+      throw new ForbiddenException('Only the trip driver can accept bookings');
 
     booking.status = BookingStatus.CONFIRMED;
     await this.bookingRepo.save(booking);
 
-    await this.logStatusChange(bookingId, BookingStatus.PENDING, BookingStatus.CONFIRMED, driverId, 'driver_accepted');
+    await this.logStatusChange(
+      bookingId,
+      BookingStatus.PENDING,
+      BookingStatus.CONFIRMED,
+      driverId,
+      'driver_accepted',
+    );
 
-    await this.chatService.ensureConversation(bookingId, [trip.driver_id, booking.rider_id]);
+    await this.chatService.ensureConversation(bookingId, [
+      trip.driver_id,
+      booking.rider_id,
+    ]);
 
     await this.notificationsService.send(
       booking.rider_id,
@@ -219,7 +277,10 @@ export class BookingsService {
     return { message: 'Booking accepted' };
   }
 
-  async driverDecline(bookingId: string, driverId: string): Promise<{ message: string; refund_amount: number }> {
+  async driverDecline(
+    bookingId: string,
+    driverId: string,
+  ): Promise<{ message: string; refund_amount: number }> {
     const booking = await this.bookingRepo.findOne({
       where: { id: bookingId },
       relations: ['trip'],
@@ -228,7 +289,8 @@ export class BookingsService {
 
     const trip = booking.trip;
     if (!trip) throw new NotFoundException('Trip not found');
-    if (trip.driver_id !== driverId) throw new ForbiddenException('Only the trip driver can decline bookings');
+    if (trip.driver_id !== driverId)
+      throw new ForbiddenException('Only the trip driver can decline bookings');
 
     if (booking.payment_intent_id) {
       await this.paymentsService.cancelPaymentIntent(booking.payment_intent_id);
@@ -240,14 +302,26 @@ export class BookingsService {
     trip.seats_available += booking.seats;
     await this.tripRepo.save(trip);
 
-    await this.logStatusChange(bookingId, BookingStatus.PENDING, BookingStatus.DECLINED, driverId, 'driver_declined');
+    await this.logStatusChange(
+      bookingId,
+      BookingStatus.PENDING,
+      BookingStatus.DECLINED,
+      driverId,
+      'driver_declined',
+    );
 
-    this.logger.info({ bookingId, driverId }, 'Driver declined booking, payment cancelled');
+    this.logger.info(
+      { bookingId, driverId },
+      'Driver declined booking, payment cancelled',
+    );
 
     return { message: 'Booking declined', refund_amount: booking.total_price };
   }
 
-  async capturePayment(bookingId: string, driverId: string): Promise<{ message: string }> {
+  async capturePayment(
+    bookingId: string,
+    driverId: string,
+  ): Promise<{ message: string }> {
     const booking = await this.bookingRepo.findOne({
       where: { id: bookingId },
       relations: ['trip'],
@@ -256,7 +330,8 @@ export class BookingsService {
 
     const trip = booking.trip;
     if (!trip) throw new NotFoundException('Trip not found');
-    if (trip.driver_id !== driverId) throw new ForbiddenException('Only the trip driver can capture payment');
+    if (trip.driver_id !== driverId)
+      throw new ForbiddenException('Only the trip driver can capture payment');
 
     if (booking.payment_intent_id) {
       await this.paymentsService.capturePayment(booking.payment_intent_id);
@@ -269,30 +344,55 @@ export class BookingsService {
     booking.status = BookingStatus.EN_ROUTE;
     await this.bookingRepo.save(booking);
 
-    await this.logStatusChange(bookingId, BookingStatus.CONFIRMED, BookingStatus.EN_ROUTE, driverId, 'departing_captured');
+    await this.logStatusChange(
+      bookingId,
+      BookingStatus.CONFIRMED,
+      BookingStatus.EN_ROUTE,
+      driverId,
+      'departing_captured',
+    );
 
-    this.logger.info({ bookingId, driverId }, 'Payment captured, insurance activated, booking en_route');
+    this.logger.info(
+      { bookingId, driverId },
+      'Payment captured, insurance activated, booking en_route',
+    );
 
     return { message: 'Payment captured, trip departing' };
   }
 
-  async cancelBooking(riderId: string, bookingId: string, dto: CancelBookingDto): Promise<{ message: string; refund_amount: number; refund_percentage: number }> {
+  async cancelBooking(
+    riderId: string,
+    bookingId: string,
+    dto: CancelBookingDto,
+  ): Promise<{
+    message: string;
+    refund_amount: number;
+    refund_percentage: number;
+  }> {
     const booking = await this.bookingRepo.findOne({
       where: { id: bookingId },
       relations: ['trip', 'rider'],
     });
     if (!booking) throw new NotFoundException('Booking not found');
-    if (booking.rider_id !== riderId) throw new ForbiddenException('Only the rider can cancel this booking');
+    if (booking.rider_id !== riderId)
+      throw new ForbiddenException('Only the rider can cancel this booking');
 
     const trip = booking.trip;
     if (!trip) throw new NotFoundException('Trip not found');
 
-    const departureDate = new Date(`${trip.departure_date}T${trip.departure_time}`);
-    const hoursUntilDeparture = (departureDate.getTime() - Date.now()) / (1000 * 60 * 60);
+    const departureDate = new Date(
+      `${trip.departure_date}T${trip.departure_time}`,
+    );
+    const hoursUntilDeparture =
+      (departureDate.getTime() - Date.now()) / (1000 * 60 * 60);
 
-    const isCaptured = booking.status === BookingStatus.EN_ROUTE || booking.status === BookingStatus.COMPLETED;
+    const isCaptured =
+      booking.status === BookingStatus.EN_ROUTE ||
+      booking.status === BookingStatus.COMPLETED;
 
-    const driverCancellationCount = await this.getUserCancellationCount(trip.driver_id);
+    const driverCancellationCount = await this.getUserCancellationCount(
+      trip.driver_id,
+    );
 
     const refundResult = calculateRefund({
       totalPaidCents: Math.round(booking.total_price * 100),
@@ -306,7 +406,11 @@ export class BookingsService {
 
     const cancellerId = dto.cancelled_by_driver ? trip.driver_id : riderId;
 
-    if (isCaptured && refundResult.requiresRefund && refundResult.refundAmountCents > 0) {
+    if (
+      isCaptured &&
+      refundResult.requiresRefund &&
+      refundResult.refundAmountCents > 0
+    ) {
       const payment = await this.paymentsService.getPaymentByBooking(bookingId);
 
       if (payment) {
@@ -322,11 +426,19 @@ export class BookingsService {
           refund_id,
         );
       }
-    } else if (!isCaptured && refundResult.requiresRefund && booking.payment_intent_id) {
+    } else if (
+      !isCaptured &&
+      refundResult.requiresRefund &&
+      booking.payment_intent_id
+    ) {
       if (refundResult.refundPercentage === 100) {
-        await this.paymentsService.cancelPaymentIntent(booking.payment_intent_id);
+        await this.paymentsService.cancelPaymentIntent(
+          booking.payment_intent_id,
+        );
       } else {
-        await this.paymentsService.cancelPaymentIntent(booking.payment_intent_id);
+        await this.paymentsService.cancelPaymentIntent(
+          booking.payment_intent_id,
+        );
       }
     }
 
@@ -336,14 +448,24 @@ export class BookingsService {
     trip.seats_available += booking.seats;
     await this.tripRepo.save(trip);
 
-    await this.logStatusChange(bookingId, booking.status, BookingStatus.CANCELLED, cancellerId, dto.reason);
+    await this.logStatusChange(
+      bookingId,
+      booking.status,
+      BookingStatus.CANCELLED,
+      cancellerId,
+      dto.reason,
+    );
 
     if (dto.cancelled_by_driver) {
       await this.incrementDriverCancellationCount(trip.driver_id);
     }
 
     this.logger.info(
-      { bookingId, refundAmount: refundResult.refundAmountCents, reason: refundResult.reason },
+      {
+        bookingId,
+        refundAmount: refundResult.refundAmountCents,
+        reason: refundResult.reason,
+      },
       'Booking cancelled with refund calculation',
     );
 
@@ -354,7 +476,10 @@ export class BookingsService {
     };
   }
 
-  async completeBooking(bookingId: string, driverId: string): Promise<{ message: string }> {
+  async completeBooking(
+    bookingId: string,
+    driverId: string,
+  ): Promise<{ message: string }> {
     const booking = await this.bookingRepo.findOne({
       where: { id: bookingId },
       relations: ['trip', 'trip.vehicle'],
@@ -363,12 +488,21 @@ export class BookingsService {
 
     const trip = booking.trip;
     if (!trip) throw new NotFoundException('Trip not found');
-    if (trip.driver_id !== driverId) throw new ForbiddenException('Only the trip driver can complete this booking');
+    if (trip.driver_id !== driverId)
+      throw new ForbiddenException(
+        'Only the trip driver can complete this booking',
+      );
 
     booking.status = BookingStatus.COMPLETED;
     await this.bookingRepo.save(booking);
 
-    await this.logStatusChange(bookingId, BookingStatus.EN_ROUTE, BookingStatus.COMPLETED, driverId, 'trip_completed');
+    await this.logStatusChange(
+      bookingId,
+      BookingStatus.EN_ROUTE,
+      BookingStatus.COMPLETED,
+      driverId,
+      'trip_completed',
+    );
 
     if (booking.insurance_opted_in) {
       const premiumCents = Math.round(PRICING.INSURANCE_PREMIUM * 100);
@@ -376,20 +510,29 @@ export class BookingsService {
     }
 
     if (booking.luggage_insurance_opted_in) {
-      const luggageItems = await this.luggageRepo.find({ where: { booking_id: bookingId } });
+      const luggageItems = await this.luggageRepo.find({
+        where: { booking_id: bookingId },
+      });
       const totalLuggagePremiumCents = luggageInsurancePremiumCents(
         luggageItems.map((i) => ({ type: i.type, qty: i.quantity })),
       );
-      await this.paymentsService.remitToMGA(bookingId, totalLuggagePremiumCents, 'luggage_insurance');
+      await this.paymentsService.remitToMGA(
+        bookingId,
+        totalLuggagePremiumCents,
+        'luggage_insurance',
+      );
     }
 
-    const luggageItems = await this.luggageRepo.find({ where: { booking_id: bookingId } });
+    const luggageItems = await this.luggageRepo.find({
+      where: { booking_id: bookingId },
+    });
     const luggageTotalCents = luggageItems.reduce(
       (sum, item) => sum + luggageContributionCents(item.type) * item.quantity,
       0,
     );
     const perSeatCents = Number(trip.per_seat_price) * 100;
-    const payoutAmountCents = Math.round(perSeatCents * booking.seats) + luggageTotalCents;
+    const payoutAmountCents =
+      Math.round(perSeatCents * booking.seats) + luggageTotalCents;
     const payoutScheduledFor = new Date(Date.now() + 24 * 60 * 60 * 1000);
 
     await this.paymentsService.schedulePayout(
@@ -428,7 +571,12 @@ export class BookingsService {
     });
   }
 
-  async uploadVideoCheck(bookingId: string, driverId: string, base64Video: string, mimeType: string): Promise<{ message: string }> {
+  async uploadVideoCheck(
+    bookingId: string,
+    driverId: string,
+    base64Video: string,
+    mimeType: string,
+  ): Promise<{ message: string }> {
     const booking = await this.bookingRepo.findOne({
       where: { id: bookingId },
       relations: ['trip'],
@@ -437,15 +585,23 @@ export class BookingsService {
 
     const trip = booking.trip;
     if (!trip) throw new NotFoundException('Trip not found');
-    if (trip.driver_id !== driverId) throw new ForbiddenException('Only the trip driver can upload video check');
+    if (trip.driver_id !== driverId)
+      throw new ForbiddenException(
+        'Only the trip driver can upload video check',
+      );
 
     const buffer = Buffer.from(base64Video, 'base64');
     const MAX_VIDEO_BYTES = 2097152;
     if (buffer.length > MAX_VIDEO_BYTES) {
-      throw new BadRequestException(`Video exceeds maximum size of 2MB (${(buffer.length / (1024 * 1024)).toFixed(1)}MB uploaded)`);
+      throw new BadRequestException(
+        `Video exceeds maximum size of 2MB (${(buffer.length / (1024 * 1024)).toFixed(1)}MB uploaded)`,
+      );
     }
 
-    this.logger.info({ bookingId, driverId, sizeBytes: buffer.length }, '360° vehicle check-in video received');
+    this.logger.info(
+      { bookingId, driverId, sizeBytes: buffer.length },
+      '360° vehicle check-in video received',
+    );
 
     return { message: 'Video check-in recorded' };
   }
@@ -465,12 +621,17 @@ export class BookingsService {
     });
   }
 
-  private validateLuggageCompatibility(luggage: { type: string; qty: number }[], vehicleCategory?: string): void {
+  private validateLuggageCompatibility(
+    luggage: { type: string; qty: number }[],
+    vehicleCategory?: string,
+  ): void {
     if (!vehicleCategory) return;
 
-    const maxCapacity = VEHICLE_LUGGAGE_CAPACITY[vehicleCategory as VehicleCategory] || 5;
+    const maxCapacity =
+      VEHICLE_LUGGAGE_CAPACITY[vehicleCategory as VehicleCategory] || 5;
     const weightedTotal = luggage.reduce((sum, item) => {
-      const weight = item.type === 'large' ? 2 : item.type === 'oversized' ? 3 : 1;
+      const weight =
+        item.type === 'large' ? 2 : item.type === 'oversized' ? 3 : 1;
       return sum + item.qty * weight;
     }, 0);
 
@@ -509,7 +670,9 @@ export class BookingsService {
     return result?.count ? parseInt(result.count, 10) : 0;
   }
 
-  private async incrementDriverCancellationCount(driverId: string): Promise<void> {
+  private async incrementDriverCancellationCount(
+    driverId: string,
+  ): Promise<void> {
     this.logger.info({ driverId }, 'Driver cancellation count incremented');
   }
 }

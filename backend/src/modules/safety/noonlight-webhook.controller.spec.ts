@@ -42,10 +42,15 @@ describe('NoonlightWebhookController', () => {
   it('accepts a hex signature and forwards the alarm', async () => {
     const { controller, handleNoonlightEvent } = build();
     const r = req(payload);
-    const res = await controller.handle(r, { 'x-noonlight-signature': sign(r, 'hex') });
+    const res = await controller.handle(r, {
+      'x-noonlight-signature': sign(r, 'hex'),
+    });
     expect(res).toEqual({ received: true, events: 1, applied: 1 });
     expect(handleNoonlightEvent).toHaveBeenCalledWith(
-      expect.objectContaining({ event_type: 'alarm.closed', meta: { alarm_id: 'alarm-1' } }),
+      expect.objectContaining({
+        event_type: 'alarm.closed',
+        meta: { alarm_id: 'alarm-1' },
+      }),
     );
   });
 
@@ -75,9 +80,13 @@ describe('NoonlightWebhookController', () => {
   it('rejects a body that was altered after signing', async () => {
     const { controller } = build();
     const original = req(payload);
-    const tampered = req([{ event_type: 'alarm.dispatched', meta: { alarm_id: 'alarm-1' } }]);
+    const tampered = req([
+      { event_type: 'alarm.dispatched', meta: { alarm_id: 'alarm-1' } },
+    ]);
     await expect(
-      controller.handle(tampered, { 'x-noonlight-signature': sign(original, 'hex') }),
+      controller.handle(tampered, {
+        'x-noonlight-signature': sign(original, 'hex'),
+      }),
     ).rejects.toBeInstanceOf(UnauthorizedException);
   });
 
@@ -117,7 +126,9 @@ describe('NoonlightWebhookController', () => {
       { event_type: 'alarm.dispatched', meta: { alarm_id: 'a' } },
       { event_type: 'alarm.closed', meta: { alarm_id: 'b' } },
     ]);
-    const res = await controller.handle(r, { 'x-noonlight-signature': sign(r, 'hex') });
+    const res = await controller.handle(r, {
+      'x-noonlight-signature': sign(r, 'hex'),
+    });
     expect(res).toEqual({ received: true, events: 2, applied: 2 });
     expect(handleNoonlightEvent).toHaveBeenCalledTimes(2);
   });
@@ -125,7 +136,9 @@ describe('NoonlightWebhookController', () => {
   it('accepts a bare object as a single event', async () => {
     const { controller, handleNoonlightEvent } = build();
     const r = req({ event_type: 'alarm.closed', meta: { alarm_id: 'a' } });
-    const res = await controller.handle(r, { 'x-noonlight-signature': sign(r, 'hex') });
+    const res = await controller.handle(r, {
+      'x-noonlight-signature': sign(r, 'hex'),
+    });
     expect(res).toEqual({ received: true, events: 1, applied: 1 });
     expect(handleNoonlightEvent).toHaveBeenCalledTimes(1);
   });
@@ -133,13 +146,17 @@ describe('NoonlightWebhookController', () => {
   it('ignores an empty array', async () => {
     const { controller, handleNoonlightEvent } = build();
     const r = req([]);
-    const res = await controller.handle(r, { 'x-noonlight-signature': sign(r, 'hex') });
+    const res = await controller.handle(r, {
+      'x-noonlight-signature': sign(r, 'hex'),
+    });
     expect(res).toEqual({ received: true, applied: 0, events: 0 });
     expect(handleNoonlightEvent).not.toHaveBeenCalled();
   });
 
   it('honours a custom signature header name', async () => {
-    const { controller } = build({ NOONLIGHT_WEBHOOK_SIGNATURE_HEADER: 'X-Signature' });
+    const { controller } = build({
+      NOONLIGHT_WEBHOOK_SIGNATURE_HEADER: 'X-Signature',
+    });
     const r = req(payload);
     await expect(
       controller.handle(r, { 'x-signature': sign(r, 'hex') }),

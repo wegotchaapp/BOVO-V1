@@ -19,8 +19,11 @@ const INSURANCE_CENTS = Math.round(PRICING.INSURANCE_PREMIUM * 100);
 
 function feeFor(totalPaidCents: number): number {
   const total = totalPaidCents / 100;
-  const subtotal = (total - PRICING.PLATFORM_FEE_FIXED) / (1 + PRICING.PLATFORM_FEE_RATE);
-  const fee = PRICING.PLATFORM_FEE_FIXED + PRICING.PLATFORM_FEE_RATE * Math.max(0, subtotal);
+  const subtotal =
+    (total - PRICING.PLATFORM_FEE_FIXED) / (1 + PRICING.PLATFORM_FEE_RATE);
+  const fee =
+    PRICING.PLATFORM_FEE_FIXED +
+    PRICING.PLATFORM_FEE_RATE * Math.max(0, subtotal);
   return Math.round(fee * 100);
 }
 
@@ -124,7 +127,9 @@ describe('calculateRefund', () => {
       const rideCost = 5500 - feeFor(5500) - INSURANCE_CENTS;
       const expectedRefund = Math.floor(rideCost * 0.5) + INSURANCE_CENTS;
       expect(result.refundAmountCents).toBe(expectedRefund);
-      expect(result.refundPercentage).toBe(Math.round((expectedRefund / 5500) * 100));
+      expect(result.refundPercentage).toBe(
+        Math.round((expectedRefund / 5500) * 100),
+      );
       expect(result.requiresRefund).toBe(true);
     });
 
@@ -208,7 +213,9 @@ describe('calculateRefund', () => {
       });
       const rideCost = 5500 - feeFor(5500) - INSURANCE_CENTS;
       const expectedRefund = Math.floor(rideCost * 0.5) + INSURANCE_CENTS;
-      expect(result.refundPercentage).toBe(Math.round((expectedRefund / 5500) * 100));
+      expect(result.refundPercentage).toBe(
+        Math.round((expectedRefund / 5500) * 100),
+      );
     });
 
     it('percentage is 100 for full refund', () => {

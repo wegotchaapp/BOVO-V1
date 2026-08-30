@@ -39,10 +39,7 @@ export class MobileBookingsController {
 
   @Post('confirm')
   @HttpCode(HttpStatus.OK)
-  confirm(
-    @MobileAuthUser() user: MobileUser,
-    @Body() dto: ConfirmBookingBody,
-  ) {
+  confirm(@MobileAuthUser() user: MobileUser, @Body() dto: ConfirmBookingBody) {
     return this.bookings.confirm(user.id, dto.bookingId);
   }
 

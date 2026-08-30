@@ -34,14 +34,10 @@ export class RecheckJobProcessor extends WorkerHost {
     this.apiKey = this.config.get<string>('CHECKR_API_KEY') || '';
   }
 
-  async process(
-    job: Job<RecheckJobData, any, string>,
-  ): Promise<any> {
+  async process(job: Job<RecheckJobData, any, string>): Promise<any> {
     const { userId, bgCheckId, candidateId } = job.data;
 
-    this.logger.log(
-      `Processing re-check job ${job.id} for user ${userId}`,
-    );
+    this.logger.log(`Processing re-check job ${job.id} for user ${userId}`);
 
     try {
       const invitation = await this.createRecheckInvitation(candidateId);

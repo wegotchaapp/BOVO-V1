@@ -87,7 +87,8 @@ export const PRICING = {
   },
   get PLATFORM_FEE_FIXED() {
     return (
-      (this.STRIPE_FIXED + this.PLATFORM_TARGET_MARGIN) / (1 - this.STRIPE_PERCENT)
+      (this.STRIPE_FIXED + this.PLATFORM_TARGET_MARGIN) /
+      (1 - this.STRIPE_PERCENT)
     );
   },
 
@@ -127,7 +128,8 @@ export const PRICING = {
  */
 export function ratePerMilePerSeat(): number {
   return (
-    (PRICING.IRS_RATE * PRICING.SAFETY_FACTOR) / PRICING.STANDARD_OCCUPANCY_SEDAN
+    (PRICING.IRS_RATE * PRICING.SAFETY_FACTOR) /
+    PRICING.STANDARD_OCCUPANCY_SEDAN
   );
 }
 
@@ -160,6 +162,7 @@ export function breachesCostShareCeiling(miles: number): boolean {
 /** Bovogo's fee for a booking subtotal (seats + insurance + surcharges). */
 export function platformFeeForSubtotal(subtotal: number): number {
   const raw =
-    PRICING.PLATFORM_FEE_FIXED + PRICING.PLATFORM_FEE_RATE * Math.max(0, subtotal);
+    PRICING.PLATFORM_FEE_FIXED +
+    PRICING.PLATFORM_FEE_RATE * Math.max(0, subtotal);
   return Math.round(raw * 100) / 100;
 }

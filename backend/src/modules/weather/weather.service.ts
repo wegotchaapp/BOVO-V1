@@ -65,9 +65,18 @@ export class WeatherService {
       this.cache = { data, timestamp: Date.now() };
       return data;
     } catch (err) {
-      this.logger.warn('Weather fetch failed, returning cached or fallback', err);
+      this.logger.warn(
+        'Weather fetch failed, returning cached or fallback',
+        err,
+      );
       if (this.cache) return this.cache.data;
-      return { temperature: 72, condition: 'clear', weather_code: 0, is_day: true, location: 'Austin, TX' };
+      return {
+        temperature: 72,
+        condition: 'clear',
+        weather_code: 0,
+        is_day: true,
+        location: 'Austin, TX',
+      };
     }
   }
 }

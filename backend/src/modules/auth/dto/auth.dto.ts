@@ -1,4 +1,12 @@
-import { IsEmail, IsString, MinLength, IsDateString, IsOptional, IsPhoneNumber, IsEnum } from 'class-validator';
+import {
+  IsEmail,
+  IsString,
+  MinLength,
+  IsDateString,
+  IsOptional,
+  IsPhoneNumber,
+  IsEnum,
+} from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { UserRole } from '../../../common/enums';
 
@@ -25,7 +33,10 @@ export class RegisterDto {
   @MinLength(8)
   password!: string;
 
-  @ApiPropertyOptional({ enum: ['rider', 'driver', 'both'], description: 'User role preference' })
+  @ApiPropertyOptional({
+    enum: ['rider', 'driver', 'both'],
+    description: 'User role preference',
+  })
   @IsEnum(['rider', 'driver', 'both'])
   @IsOptional()
   selected_role?: 'rider' | 'driver' | 'both';

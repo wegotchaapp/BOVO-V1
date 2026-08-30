@@ -27,9 +27,14 @@ const TEXAS_CITIES: Record<string, LatLng> = {
  * Looks up a city by the name the app stores, which may or may not carry the
  * ", TX" suffix and may differ in case.
  */
-export function cityCoordinates(city: string | null | undefined): LatLng | null {
+export function cityCoordinates(
+  city: string | null | undefined,
+): LatLng | null {
   if (!city) return null;
-  const key = city.replace(/,\s*[A-Z]{2}\s*$/i, '').trim().toLowerCase();
+  const key = city
+    .replace(/,\s*[A-Z]{2}\s*$/i, '')
+    .trim()
+    .toLowerCase();
   return TEXAS_CITIES[key] ?? null;
 }
 

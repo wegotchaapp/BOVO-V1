@@ -166,3 +166,70 @@ way it is stays with Claude.**
 - **Storage URLs and CORS** — still joint. Send the proposed server shape before
   writing it; a wrong allow-list breaks the app silently in staging.
 - **EAS and store release values** — reported, never invented.
+
+
+---
+
+# Outstanding for Codex — snapshot 2026-08-31
+
+Taken against `origin/codex/prod-readiness` at `18f332b`. **The branch is moving
+as this is written**, so treat it as a checklist, not a census.
+
+## Landed and certified
+
+`a9ffa09` mobile workflows · `c215c93` deploy lint policy · `70e88ef` CORS
+enforcement · `420b032` Prettier as its own commit · `5c75c60` `prettier --check`
+in CI · `3c47c78` backend lint · `d5ac8d3` + `25ac35d` dependency patches ·
+`5ea8182` Sentry removal · `b67a747` AWS SDK v3 · `70a3ba3` CI for mobile-API PRs
+· `18f332b` migration command fix. The UUID divergence in `FINDINGS.md` is
+**fixed** — `uuid_generate_v4()` on all five base tables.
+
+Good work, and it followed the directives: rebased, kept the reformat separate,
+and added the formatting gate.
+
+## Still to do
+
+1. **Prove the migrations.** This is the gate on item 1 and there is no evidence
+   it has run. Empty database → `migration:run` → clean; second run → no-op;
+   copy of production → no data loss and no duplicate-index error. Post the
+   output. Until then the migrations are written, not verified.
+
+2. **Admin route contract gaps** (item 4). `GET /admin/compliance-logs`,
+   `/admin/driver-trips/summary`, `/admin/driver-earnings/:id` still 404. No
+   commit touches them.
+
+3. **Storage URLs** (item 6, **joint — coordinate first**). CORS was one half;
+   this is the other. Vehicle and odometer evidence is written to private S3
+   while the API returns local `/uploads/...` paths. Send Claude the proposed
+   response shape before writing it — `lib/odometer.ts` and `lib/vehicles.ts`
+   consume those fields and the client half must land in the same unit.
+
+4. **Health readiness** (item 7). `/health` still checks only Postgres. Redis and
+   BullMQ are required for startup. Not testable locally — Redis is absent — so
+   staging is the first real check.
+
+5. **Noonlight webhook hardening** (handed to you 2026-08-31). Same pattern you
+   applied to Checkr. Two constraints: the existing specs are mutation-tested and
+   the behaviour was proven on real hardware, so no existing test may be weakened
+   or deleted, and the terminal-status guard — a late `alarm.psap_contacted` must
+   not reopen a closed emergency — must keep its tests passing.
+
+6. **Redundant index cleanup.** Correctly still waiting: do it after item 1 is
+   proven, as its own migration. `SCHEMA_BASELINE.md` §2.3.
+
+## Do not revert
+
+`9a0c63e` changes `backend-deploy.yml` to read `secrets.ALLOWED_ORIGINS` instead
+of `secrets.APP_URL`, and adds a pre-flight step that fails the deploy when it is
+unset. This is in your lane and was made at Sushant's request, on a different
+hunk from your lint-policy change, so the two merge cleanly.
+
+Your CORS code is right. The deploy was feeding it the API's own origin, which no
+browser sends — the admin dashboard would have been blocked on the next deploy.
+Sushant still has to set the secret to a real comma-separated list.
+
+## One for the pile, not for now
+
+Every `sed -i "s|KEY=.*|KEY=${{ secrets.X }}|"` line in `backend-deploy.yml`
+breaks if a secret contains a `|`. Roughly twenty lines have it. Pre-existing,
+not urgent, and a single focused commit when you next touch that file.

@@ -93,7 +93,10 @@ const DELETION_GRACE_DAYS = 7;
  * of the "logged out every time I open the app" behaviour.
  */
 function isAuthRejection(err: unknown): boolean {
-  return err instanceof ApiError && (err.status === 401 || err.status === 403);
+  // 401 only. The mobile auth guard throws UnauthorizedException for every
+  // session failure and never 403, so a 403 is a business rule the user is not
+  // entitled to — not a reason to throw away their token.
+  return err instanceof ApiError && err.status === 401;
 }
 
 function normalizeUser(raw: any): User {
@@ -168,8 +171,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   // One place decides what a rejected session means. Any request that comes
-  // back 401/403 clears the stored token and drops the user to signed-out,
-  // rather than each screen guessing.
+  // back 401 clears the stored token and drops the user to signed-out, rather
+  // than each screen guessing.
   useEffect(() => {
     setSessionExpiredHandler(() => {
       AsyncStorage.multiRemove([TOKEN_KEY, CACHED_USER_KEY, ACTIVE_RIDE_KEY]).catch(

@@ -20,6 +20,7 @@ import Animated, {
   withTiming,
 } from "react-native-reanimated";
 
+import { useAsyncResource } from "@/hooks/useAsyncResource";
 import { useColors } from "@/hooks/useColors";
 import { CARD_SHADOW } from "@/constants/colors";
 import { useAuth } from "@/context/AuthContext";
@@ -77,9 +78,20 @@ export default function BookingConfirmed() {
   const { width } = useWindowDimensions();
   const { id } = useLocalSearchParams<{ id?: string }>();
 
-  const [booking, setBooking] = useState<Booking | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  // A booking is a single object with no empty state of its own, so this is
+  // here for the guarantees rather than the phases: a superseded request can no
+  // longer land after a newer one, and a missing id fails loudly instead of
+  // sitting on a spinner.
+  const bookingRes = useAsyncResource(
+    async () => {
+      if (!id) throw new Error("Missing booking id");
+      return getBooking(id);
+    },
+    { deps: [id], isEmpty: () => false },
+  );
+
+  const booking = bookingRes.data;
+  const error = bookingRes.error?.message ?? null;
 
   const [stage, setStage] = useState<PrinterStage>("processing");
 
@@ -93,7 +105,7 @@ export default function BookingConfirmed() {
 
   // The printer only starts feeding once there is a real booking to print.
   useEffect(() => {
-    if (loading || error || !booking) return;
+    if (bookingRes.phase !== "ready") return;
     setStage("printing");
     if (Platform.OS !== "web") {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
@@ -107,32 +119,7 @@ export default function BookingConfirmed() {
       }
     }, PRINT_DURATION_MS);
     return () => clearTimeout(timer);
-  }, [loading, error, booking]);
-
-  useEffect(() => {
-    let cancelled = false;
-    if (!id) {
-      setLoading(false);
-      setError("Missing booking id");
-      return;
-    }
-    getBooking(id)
-      .then((b) => {
-        if (!cancelled) {
-          setBooking(b);
-          setLoading(false);
-        }
-      })
-      .catch((err) => {
-        if (!cancelled) {
-          setError(err?.message || "Couldn't load booking");
-          setLoading(false);
-        }
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [id]);
+  }, [bookingRes.phase]);
 
   const contentStyle = useAnimatedStyle(() => ({
     opacity: opacity.value,
@@ -149,10 +136,10 @@ export default function BookingConfirmed() {
           contentContainerStyle={styles.content}
           showsVerticalScrollIndicator={false}
         >
-          {error && !booking ? (
+          {bookingRes.phase === "failed" ? (
             <View style={[styles.summaryCard, CARD_SHADOW]}>
               <Text style={[styles.errorText, { color: colors.mutedForeground }]}>
-                {error || "Booking details unavailable."}
+                {error ?? "Booking details unavailable."}
               </Text>
             </View>
           ) : (

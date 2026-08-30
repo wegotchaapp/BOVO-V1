@@ -10,6 +10,43 @@ Three sources compared:
 - **entities** — `backend/src/modules/mobile-api/entities/mobile.entities.ts`
   (18 `@Entity` classes)
 
+## Correction, 2026-08-31
+
+Two things in this document were wrong when first written. Both are fixed below;
+they are recorded rather than quietly edited.
+
+**1. The sequence in §5.2 could not have run.** It presupposes a platform base
+that no migration creates. `1746284700000-ComplianceColumnsAddition` sorts first
+and alters nine platform tables — `users`, `profiles`, `trips`, `bookings`,
+`sos_events`, `deviation_events`, `appeals`, `audit_events`,
+`data_deletion_requests` — and **nothing creates any of them**. The platform
+schema has only ever existed because `synchronize` built it from entities, which
+`app.module.ts` hard-disables in production. So `migration:run` on an empty
+database fails long before it reaches anything here. Found by Codex, by running
+it against a throwaway cluster.
+
+**The error was mine and it was a method error, not a knowledge gap.** §5.4 step
+one of this very document is "empty database → `migration:run`". I wrote that
+step, then certified the plan without executing it. Verifying the comparison
+against the live database and then asserting the *plan* on inspection alone is
+the gap — a plan is a claim about what will happen, and only running it settles
+that.
+
+**2. The scope was narrower than the prose implied.** This audits the 18
+`mobile_*` tables. The database has **69 tables: 51 platform, 18 mobile.** Read
+"the frozen set is a faithful record of the deployed schema" as being about the
+mobile schema only — it says nothing about the other 51.
+
+What still stands, because it was checked against the live database rather than
+reasoned about: every column, all 9 CHECK constraints, all 3 foreign keys and all
+21 indexes in §1–§3. Mobile foreign keys are mobile→mobile only, so the mobile
+sequence is internally consistent — it simply cannot start until a platform base
+exists.
+
+**Also moving:** Codex has since added `1788047999500-MobileApiEntityColumns` and
+`1788048005000-MobileCheckrWebhookEvents`, the latter creating
+`mobile_checkr_webhook_events` — a 19th mobile table not covered below.
+
 ## Result in one line
 
 Live matches **sql** exactly and matches **entities** exactly on every column.
@@ -131,6 +168,11 @@ tables are deliberately isolated from the platform schema.
 
 ## 4. Ordering and dependency risks
 
+0. **The platform base does not exist.** Nothing creates `users` and the eight
+   other platform tables the first four migrations alter. This blocks every
+   later step and must be solved before anything in §5 is attempted. See the
+   correction at the top. *(Added 2026-08-31; missing from the original.)*
+
 1. **Two different UUID defaults.** Tables from the TypeORM migration use
    `uuid_generate_v4()` (needs `uuid-ossp`); tables from hand SQL use
    `gen_random_uuid()` (needs `pgcrypto`, or PG13+ core). Both extensions are
@@ -189,6 +231,13 @@ FKs, because entities cannot express them.
 Write the `up()` bodies as explicit SQL taken from the frozen files.
 
 ### 5.2 The sequence
+
+> [!important] This presupposes a platform base that does not yet exist.
+> An initial migration creating `users`, `profiles`, `trips`, `bookings`,
+> `sos_events`, `deviation_events`, `appeals`, `audit_events` and
+> `data_deletion_requests` has to sort before all of it. Nothing below runs
+> until that exists.
+
 
 | # | Timestamp | Migration | Contents |
 | --- | --- | --- | --- |

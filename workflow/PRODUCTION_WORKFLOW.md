@@ -408,11 +408,37 @@ callers; it becomes one the day it gets one.
 
 ## Phase 5 — Infrastructure, CI and observability
 
-### P5-1. Health readiness · owner: **Codex**
+### P5-1. Health readiness · owner: **Codex** · **written 2026-09-01, certified by reading, not yet integrated**
 
-`/health` checks Postgres only, though Redis/BullMQ are required for startup.
-Add both. Not testable locally (no Redis on this machine) — staging is the first
-real check.
+Delivered as `16c2501` on `codex/prod-readiness`: a `BullmqHealthIndicator` with
+a Redis `ping` and a `getJobCounts` probe across both queues, each wrapped in a
+5-second timeout that clears its own timer, both wired into `/health`.
+
+Certified by reading — the parts that could silently pass while broken:
+
+- The queue names are the real ones. `notifications` and `safety-jobs` match
+  `notifications.module.ts:26` and `safety.module.ts:37`; a wrong name would have
+  registered a *new* empty queue and reported healthy forever.
+- `HealthIndicatorService` is a genuine export of the installed
+  `@nestjs/terminus` 11.1.1, not a hallucinated API.
+
+Full gates run at integration, per agreement §10 — not run yet, because Codex is
+still mid-batch.
+
+Two consequences to act on, neither a defect in the code:
+
+> [!warning] Redis must exist on Railway **before** the next deploy
+> `/health` now returns 503 when Redis is unreachable — which is the point, and
+> is what "required for startup" should mean. But it also means that if Redis is
+> not provisioned in the production environment, the first deploy after this
+> integrates will fail its post-deploy health check and look broken when the API
+> itself is fine. **Owner: Sushant.** Confirm Redis is provisioned and
+> `REDIS_URL` is set, or expect a red deploy.
+
+- Minor, optional: a third queue exists — `background-check-recheck`
+  (`src/jobs/recheck.processor.ts:11`) — and is not probed. It shares the same
+  Redis as the other two, so it cannot realistically fail alone. Worth adding for
+  completeness; not worth a round trip on its own.
 
 ### P5-2. Jest open-handle leak · owner: **Codex**
 

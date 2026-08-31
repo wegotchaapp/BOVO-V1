@@ -4,12 +4,14 @@ import {
   HealthCheckService,
   TypeOrmHealthIndicator,
 } from '@nestjs/terminus';
+import { BullmqHealthIndicator } from './bullmq-health.indicator';
 
 @Controller('health')
 export class HealthController {
   constructor(
     private readonly health: HealthCheckService,
     private readonly db: TypeOrmHealthIndicator,
+    private readonly bullmq: BullmqHealthIndicator,
   ) {}
 
   @Get()
@@ -17,6 +19,8 @@ export class HealthController {
   async check() {
     return this.health.check([
       () => this.db.pingCheck('database', { timeout: 10000 }),
+      () => this.bullmq.redisCheck('redis'),
+      () => this.bullmq.bullmqCheck('bullmq'),
     ]);
   }
 

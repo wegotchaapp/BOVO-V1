@@ -188,12 +188,25 @@ Supabase gives automatic backups and PITR. **Untested is not a backup.** Restore
 into a scratch project and confirm the app boots against it. Record who owns
 restore and the RTO.
 
-### P1-5. Orphan table decision · owner: **Claude**
+### P1-5. Orphan table decision · owner: **Claude** · **investigated 2026-09-01 — answer: drop, but not yet**
 
-`data_deletion_requests` exists in the schema with **no entity anywhere in the
-codebase** — it appears only in `1746284700000-ComplianceColumnsAddition.ts`.
-Either wire it to the privacy module or drop it. A deletion-request table nothing
-writes to is a compliance liability if anyone believes it is being used.
+`data_deletion_requests` is created by `1746284700000-ComplianceColumnsAddition.ts:61`
+and the name appears nowhere else in `backend/src`, `admin/src` or the mobile
+app. Confirmed orphan.
+
+**It should be dropped, not wired**, because neither working deletion path wants
+it. Account deletion is recorded on `mobile_users.deletion_requested_at`, and
+the compliance record is a `compliance_logs` row. A third table would be a
+fourth version of the truth, and the pull-request that "connects" it later would
+be connecting it to nothing.
+
+**Do not write that migration yet.** Codex is proving the migration chain right
+now (P1-1); changing the schema underneath a proof run invalidates it. The drop
+belongs with the redundant-index cleanup in **P1-2**, which is already correctly
+queued for after the proof passes. One migration, two cleanups, run once against
+a chain that has been demonstrated.
+
+Investigating it turned up something worse, which is P4-5.
 
 ---
 
@@ -345,6 +358,51 @@ Neither half merges alone. A row in `CONTRACTS.md` is required.
 
 End-to-end by hand: auth, search, booking, checkout, confirmation, ticket, trip
 start, odometer, earnings, rating, SOS. Fix client-side defects with tests.
+
+---
+
+### P4-5. The CCPA deletion API promises 30 days and does nothing · owner: **Claude** · found 2026-09-01
+
+Found while investigating P1-5. There are **two** account-deletion
+implementations with **two different grace periods**, and the one with the
+stronger promise is the broken one.
+
+| | Mobile path | Platform path |
+| --- | --- | --- |
+| Route | `POST account/delete` → `mobile-auth.service.ts:225` | `POST /privacy/delete` → `privacy.service.ts:326` |
+| Grace | **7 days** (`DELETION_GRACE_DAYS`) | **30 days**, per its own response text |
+| Records the request | `mobile_users.deletion_requested_at` — a real column | `(user as any).deletion_scheduled_at` — **not a column** |
+| Compliance log | none | `compliance_logs`, `CCPA_TEXAS_DELETION` |
+| Actually works | **yes** | **no** |
+
+The mobile app is fine and honest: `profile.tsx:191` tells the user "permanently
+deleted in 7 days", which is what its backend does.
+
+The platform path is not. `deletion_scheduled_at` and `deletion_reason` exist in
+**no entity, no migration, not in the new baseline, and not in the frozen
+production record** — they are written through `as any` casts, and TypeORM drops
+properties that are not mapped columns. So:
+
+1. `requestDeletion` answers *"You have 30 days to cancel before data is
+   permanently deleted"* and **persists nothing** but the compliance log.
+2. `cancelDeletion` reads the same phantom property, so it always answers
+   *"No pending deletion request found."*
+3. `processScheduledDeletions` — run nightly by
+   `retention.processor.ts:16` — filters on `u.deletion_scheduled_at IS NOT NULL`
+   in a query builder. That column does not exist in the database, so the query
+   **throws every night**, into a `try/catch` that logs and moves on. Silent.
+
+Nothing calls `/privacy/delete` today — no client in this repo does — so no
+user has been told the false thing yet. That is the same shape as the fake
+`kyc/*` routes and the insurance service: a complete-looking implementation,
+reachable from Swagger, that would start lying the moment someone wired it up.
+
+**Do:** delete the platform deletion path and let the mobile one be the only
+one, or give it the two columns and make the cron work. Deleting is preferable —
+one deletion path, one grace period, one promise — but the 30-day text may
+already be in a draft privacy policy, which makes it a **Phase 6 question**
+before it is an engineering one. It is not a launch blocker while it has no
+callers; it becomes one the day it gets one.
 
 ---
 

@@ -167,7 +167,7 @@ export default function TripTracking() {
       return;
     }
     const link = mapsUrl(point.latitude, point.longitude);
-    const message = `I'm on a Bovogo adventure (${fromCity} → ${toCity}). My live location: ${link}`;
+    const message = `I'm on a Bovogo adventure (${fromCity} → ${toCity}). Where I am right now: ${link}`;
     try {
       await Share.share(
         Platform.OS === "ios"

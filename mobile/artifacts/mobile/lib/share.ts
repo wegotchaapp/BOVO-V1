@@ -42,15 +42,17 @@ export async function shareLiveLocation(input: LiveShareInput = {}): Promise<boo
   const { coord } = await getSosLocation();
   if (!coord) return false;
 
-  const parts = ["I'm sharing my live Bovogo adventure with you."];
+  const parts = ["I'm sharing my Bovogo adventure with you."];
   if (input.fromCity && input.toCity) {
     parts.push(`Route: ${cityShort(input.fromCity)} → ${cityShort(input.toCity)}`);
   }
   if (input.etaAt) {
     parts.push(`ETA: ${formatShareDate(input.etaAt)}`);
   }
+  // Labelled as a moment, not a feed: the pin never updates, and a contact who
+  // reads "live location" may sit watching it instead of checking in.
   parts.push(
-    `My live location: https://www.google.com/maps?q=${coord.latitude},${coord.longitude}`,
+    `Where I am right now: https://www.google.com/maps?q=${coord.latitude},${coord.longitude}`,
   );
 
   const message = parts.join("\n");

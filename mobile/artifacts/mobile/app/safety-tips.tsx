@@ -21,7 +21,7 @@ const BEFORE: Tip[] = [
   {
     icon: "share-2",
     title: "Share your adventure",
-    body: "Send your live route and ETA to someone you trust from the Safety Center. They'll be able to follow your position for the whole adventure.",
+    body: "Send your route, ETA and current position to someone you trust from the Safety Center. It's a snapshot of where you are, not a feed they can watch — send a fresh one if anything changes.",
   },
   {
     icon: "battery-charging",
@@ -39,12 +39,12 @@ const DURING: Tip[] = [
   {
     icon: "message-circle",
     title: "Keep it in the app",
-    body: "Messages and calls through Bovogo stay logged and are never shared with your personal number. Keep conversations here so we can help if something goes wrong.",
+    body: "Messages sent in Bovogo stay logged, so we can help if something goes wrong. Calls are placed by your own phone and show your real number to the other person — keep it to messages if you'd rather not share it.",
   },
   {
     icon: "alert-triangle",
     title: "Trust your instincts",
-    body: "You can end an adventure at any point, for any reason, without explaining yourself. Use 'I Feel Unsafe' for discreet options including silent recording.",
+    body: "You can end an adventure at any point, for any reason, without explaining yourself. Use 'I Feel Unsafe' to send your live location or call for help without saying a word.",
   },
 ];
 

@@ -73,7 +73,11 @@ export class User {
   @Column({ type: 'timestamptz', nullable: true })
   last_payout_at!: string | null;
 
-  @Column({ type: 'enum', enum: SubscriptionTier, default: SubscriptionTier.FREE })
+  @Column({
+    type: 'enum',
+    enum: SubscriptionTier,
+    default: SubscriptionTier.FREE,
+  })
   subscription_tier!: SubscriptionTier;
 
   @Column({ type: 'varchar', length: 50, nullable: true })
@@ -82,7 +86,13 @@ export class User {
   @Column({ type: 'uuid', nullable: true })
   referred_by!: string | null;
 
-  @Column({ type: 'decimal', precision: 3, scale: 2, default: 0, nullable: true })
+  @Column({
+    type: 'decimal',
+    precision: 3,
+    scale: 2,
+    default: 0,
+    nullable: true,
+  })
   avg_rating!: number | null;
 
   @Column({ default: 0 })

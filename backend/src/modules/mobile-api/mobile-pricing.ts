@@ -19,11 +19,76 @@ import {
  * mobile app's lib/pricing.ts; the server value is the authoritative one.
  */
 const DISTANCE_TABLE: Record<string, Record<string, number>> = {
-  'Dallas, TX': { 'Austin, TX': 195, 'Houston, TX': 239, 'San Antonio, TX': 272, 'Fort Worth, TX': 35, 'El Paso, TX': 635, 'Waco, TX': 99, 'Plano, TX': 20, 'Lubbock, TX': 318, 'Corpus Christi, TX': 388, 'Arlington, TX': 21, 'Amarillo, TX': 362, 'Bentonville, AR': 330 },
-  'Austin, TX': { 'Dallas, TX': 195, 'Houston, TX': 162, 'San Antonio, TX': 79, 'Fort Worth, TX': 190, 'El Paso, TX': 575, 'Waco, TX': 102, 'Plano, TX': 215, 'Lubbock, TX': 380, 'Corpus Christi, TX': 217, 'Arlington, TX': 195, 'Amarillo, TX': 487, 'Bentonville, AR': 525 },
-  'Houston, TX': { 'Dallas, TX': 239, 'Austin, TX': 162, 'San Antonio, TX': 197, 'Fort Worth, TX': 263, 'El Paso, TX': 745, 'Waco, TX': 184, 'Plano, TX': 261, 'Lubbock, TX': 506, 'Corpus Christi, TX': 211, 'Arlington, TX': 257, 'Amarillo, TX': 596, 'Bentonville, AR': 570 },
-  'San Antonio, TX': { 'Dallas, TX': 272, 'Austin, TX': 79, 'Houston, TX': 197, 'Fort Worth, TX': 264, 'El Paso, TX': 553, 'Waco, TX': 178, 'Plano, TX': 287, 'Lubbock, TX': 410, 'Corpus Christi, TX': 145, 'Arlington, TX': 263, 'Amarillo, TX': 510, 'Bentonville, AR': 600 },
-  'Fort Worth, TX': { 'Dallas, TX': 35, 'Austin, TX': 190, 'Houston, TX': 263, 'San Antonio, TX': 264, 'El Paso, TX': 600, 'Waco, TX': 90, 'Plano, TX': 41, 'Lubbock, TX': 320, 'Corpus Christi, TX': 410, 'Arlington, TX': 12, 'Amarillo, TX': 345, 'Bentonville, AR': 350 },
+  'Dallas, TX': {
+    'Austin, TX': 195,
+    'Houston, TX': 239,
+    'San Antonio, TX': 272,
+    'Fort Worth, TX': 35,
+    'El Paso, TX': 635,
+    'Waco, TX': 99,
+    'Plano, TX': 20,
+    'Lubbock, TX': 318,
+    'Corpus Christi, TX': 388,
+    'Arlington, TX': 21,
+    'Amarillo, TX': 362,
+    'Bentonville, AR': 330,
+  },
+  'Austin, TX': {
+    'Dallas, TX': 195,
+    'Houston, TX': 162,
+    'San Antonio, TX': 79,
+    'Fort Worth, TX': 190,
+    'El Paso, TX': 575,
+    'Waco, TX': 102,
+    'Plano, TX': 215,
+    'Lubbock, TX': 380,
+    'Corpus Christi, TX': 217,
+    'Arlington, TX': 195,
+    'Amarillo, TX': 487,
+    'Bentonville, AR': 525,
+  },
+  'Houston, TX': {
+    'Dallas, TX': 239,
+    'Austin, TX': 162,
+    'San Antonio, TX': 197,
+    'Fort Worth, TX': 263,
+    'El Paso, TX': 745,
+    'Waco, TX': 184,
+    'Plano, TX': 261,
+    'Lubbock, TX': 506,
+    'Corpus Christi, TX': 211,
+    'Arlington, TX': 257,
+    'Amarillo, TX': 596,
+    'Bentonville, AR': 570,
+  },
+  'San Antonio, TX': {
+    'Dallas, TX': 272,
+    'Austin, TX': 79,
+    'Houston, TX': 197,
+    'Fort Worth, TX': 264,
+    'El Paso, TX': 553,
+    'Waco, TX': 178,
+    'Plano, TX': 287,
+    'Lubbock, TX': 410,
+    'Corpus Christi, TX': 145,
+    'Arlington, TX': 263,
+    'Amarillo, TX': 510,
+    'Bentonville, AR': 600,
+  },
+  'Fort Worth, TX': {
+    'Dallas, TX': 35,
+    'Austin, TX': 190,
+    'Houston, TX': 263,
+    'San Antonio, TX': 264,
+    'El Paso, TX': 600,
+    'Waco, TX': 90,
+    'Plano, TX': 41,
+    'Lubbock, TX': 320,
+    'Corpus Christi, TX': 410,
+    'Arlington, TX': 12,
+    'Amarillo, TX': 345,
+    'Bentonville, AR': 350,
+  },
 };
 
 /** Used when a route isn't tabulated — deliberately conservative. */
@@ -48,11 +113,18 @@ export function feeForSubtotal(subtotal: number): number {
   return platformFeeForSubtotal(subtotal);
 }
 
-export const LUGGAGE_TIERS = ['carry_on', 'standard', 'large', 'oversized'] as const;
+export const LUGGAGE_TIERS = [
+  'carry_on',
+  'standard',
+  'large',
+  'oversized',
+] as const;
 export type LuggageTier = (typeof LUGGAGE_TIERS)[number];
 
 export function isLuggageTier(v: unknown): v is LuggageTier {
-  return typeof v === 'string' && (LUGGAGE_TIERS as readonly string[]).includes(v);
+  return (
+    typeof v === 'string' && (LUGGAGE_TIERS as readonly string[]).includes(v)
+  );
 }
 
 /**
@@ -111,7 +183,9 @@ export function priceBooking(input: BookingPriceInput): BookingPriceBreakdown {
     ? luggageInsurancePremium(input.luggageTier)
     : 0;
 
-  const subtotal = round2(seatSubtotal + surcharge + insurance + luggageInsurance);
+  const subtotal = round2(
+    seatSubtotal + surcharge + insurance + luggageInsurance,
+  );
   const serviceFee = platformFeeForSubtotal(subtotal);
   const totalAmount = round2(subtotal + serviceFee);
 

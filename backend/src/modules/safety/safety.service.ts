@@ -2,12 +2,23 @@ import { Injectable, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, In } from 'typeorm';
 import { ConfigService } from '@nestjs/config';
-import { TripPing, SosEvent, Incident, DeviationEvent } from '../../database/entities/safety.entities';
+import {
+  TripPing,
+  SosEvent,
+  Incident,
+  DeviationEvent,
+} from '../../database/entities/safety.entities';
 import { Booking } from '../../database/entities/booking.entities';
 import { Trip } from '../../database/entities/trip.entities';
 import { User } from '../../database/entities/user.entity';
 import { EmergencyContact } from '../../database/entities/communication.entities';
-import { SosTriggerType, SosStatus, DeviationStatus, BookingStatus, UserRole } from '../../common/enums';
+import {
+  SosTriggerType,
+  SosStatus,
+  DeviationStatus,
+  BookingStatus,
+  UserRole,
+} from '../../common/enums';
 import { PinoLogger } from 'nestjs-pino';
 import axios from 'axios';
 import { RealtimeGateway } from '../../common/gateways/realtime.gateway';
@@ -102,19 +113,41 @@ export class SafetyService {
       last_ping_at: new Date().toISOString(),
     });
 
-    const deviationResult = await this.detectRouteDeviation(booking, latitude, longitude);
+    const deviationResult = await this.detectRouteDeviation(
+      booking,
+      latitude,
+      longitude,
+    );
 
     const trip = booking.trip;
     let eta: number | null = null;
     let progress: number | null = null;
     if (trip.dest_lat && trip.dest_lng) {
-      const distToDest = this.haversineDistance(latitude, longitude, trip.dest_lat, trip.dest_lng);
-      eta = Math.round(distToDest / 30 * 60);
+      const distToDest = this.haversineDistance(
+        latitude,
+        longitude,
+        trip.dest_lat,
+        trip.dest_lng,
+      );
+      eta = Math.round((distToDest / 30) * 60);
     }
     if (trip.origin_lat && trip.origin_lng && trip.dest_lat && trip.dest_lng) {
-      const totalDist = this.haversineDistance(trip.origin_lat, trip.origin_lng, trip.dest_lat, trip.dest_lng);
-      const distTraveled = this.haversineDistance(trip.origin_lat, trip.origin_lng, latitude, longitude);
-      progress = totalDist > 0 ? Math.min(100, Math.round(distTraveled / totalDist * 100)) : 0;
+      const totalDist = this.haversineDistance(
+        trip.origin_lat,
+        trip.origin_lng,
+        trip.dest_lat,
+        trip.dest_lng,
+      );
+      const distTraveled = this.haversineDistance(
+        trip.origin_lat,
+        trip.origin_lng,
+        latitude,
+        longitude,
+      );
+      progress =
+        totalDist > 0
+          ? Math.min(100, Math.round((distTraveled / totalDist) * 100))
+          : 0;
     }
 
     this.realtime.emitTripPing(bookingId, {
@@ -137,7 +170,10 @@ export class SafetyService {
   ): Promise<boolean> {
     const trip = booking.trip;
     if (!trip.mapbox_route_polyline) {
-      this.logger.info({ bookingId: booking.id }, 'No route polyline stored, skipping deviation check');
+      this.logger.info(
+        { bookingId: booking.id },
+        'No route polyline stored, skipping deviation check',
+      );
       return false;
     }
 
@@ -150,10 +186,16 @@ export class SafetyService {
       // read. It also sent a single coordinate to Map Matching, which requires
       // at least two, so every call 422'd and the feature never once fired.
       const route = this.routing.decode(trip.mapbox_route_polyline);
-      const distanceFromRoute = distanceFromRouteMiles({ latitude: lat, longitude: lng }, route);
+      const distanceFromRoute = distanceFromRouteMiles(
+        { latitude: lat, longitude: lng },
+        route,
+      );
 
       if (distanceFromRoute === null) {
-        this.logger.warn({ bookingId: booking.id }, 'Stored route decoded to nothing — cannot check deviation');
+        this.logger.warn(
+          { bookingId: booking.id },
+          'Stored route decoded to nothing — cannot check deviation',
+        );
         return false;
       }
 
@@ -169,12 +211,20 @@ export class SafetyService {
 
       return false;
     } catch (err) {
-      this.logger.warn({ err, bookingId: booking.id }, 'Deviation detection failed');
+      this.logger.warn(
+        { err, bookingId: booking.id },
+        'Deviation detection failed',
+      );
       return false;
     }
   }
 
-  private haversineDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
+  private haversineDistance(
+    lat1: number,
+    lon1: number,
+    lat2: number,
+    lon2: number,
+  ): number {
     const R = 3959;
     const dLat = this.toRad(lat2 - lat1);
     const dLon = this.toRad(lon2 - lon1);
@@ -216,7 +266,11 @@ export class SafetyService {
       'safety',
       'Route Deviation Detected',
       `Your trip with ${driverName} has deviated from the expected route. Are you ok?`,
-      { booking_id: booking.id, deviation_id: deviation.id, screen: `booking/${booking.id}` },
+      {
+        booking_id: booking.id,
+        deviation_id: deviation.id,
+        screen: `booking/${booking.id}`,
+      },
     );
 
     await this.notifications.send(
@@ -227,16 +281,26 @@ export class SafetyService {
       { booking_id: booking.id, deviation_id: deviation.id },
     );
 
-    setTimeout(async () => {
-      const fresh = await this.deviationRepo.findOne({ where: { id: deviation.id } });
-      if (fresh && fresh.status === DeviationStatus.PENDING) {
-        await this.escalateDeviation(deviation.id, booking);
-      }
-    }, 5 * 60 * 1000);
+    setTimeout(
+      async () => {
+        const fresh = await this.deviationRepo.findOne({
+          where: { id: deviation.id },
+        });
+        if (fresh && fresh.status === DeviationStatus.PENDING) {
+          await this.escalateDeviation(deviation.id, booking);
+        }
+      },
+      5 * 60 * 1000,
+    );
   }
 
-  private async escalateDeviation(deviationId: string, booking: Booking): Promise<void> {
-    const deviation = await this.deviationRepo.findOne({ where: { id: deviationId } });
+  private async escalateDeviation(
+    deviationId: string,
+    booking: Booking,
+  ): Promise<void> {
+    const deviation = await this.deviationRepo.findOne({
+      where: { id: deviationId },
+    });
     if (!deviation || deviation.status !== DeviationStatus.PENDING) return;
 
     deviation.status = DeviationStatus.ESCALATED;
@@ -251,7 +315,10 @@ export class SafetyService {
     );
   }
 
-  private async pageTeamAndEscalate(booking: Booking, description?: string): Promise<void> {
+  private async pageTeamAndEscalate(
+    booking: Booking,
+    description?: string,
+  ): Promise<void> {
     const tsAgents = await this.userRepo.find({
       where: { role: UserRole.TS_AGENT },
     });
@@ -266,13 +333,21 @@ export class SafetyService {
     }
   }
 
-  async respondToDeviation(deviationId: string, response: string): Promise<void> {
-    const deviation = await this.deviationRepo.findOne({ where: { id: deviationId } });
+  async respondToDeviation(
+    deviationId: string,
+    response: string,
+  ): Promise<void> {
+    const deviation = await this.deviationRepo.findOne({
+      where: { id: deviationId },
+    });
     if (!deviation) throw new BadRequestException('Deviation event not found');
 
     deviation.response = response;
     deviation.responded_at = new Date().toISOString();
-    deviation.status = response === 'ok' ? DeviationStatus.RESPONDED_OK : DeviationStatus.FALSE_ALARM;
+    deviation.status =
+      response === 'ok'
+        ? DeviationStatus.RESPONDED_OK
+        : DeviationStatus.FALSE_ALARM;
     await this.deviationRepo.save(deviation);
   }
 
@@ -301,7 +376,6 @@ export class SafetyService {
       }
     }
 
-
     // Dispatch to Noonlight first so professional responders are engaged as
     // early as possible; the call is non-throwing and returns null on failure.
     const noonlightAlarmId = await this.noonlight.createAlarm({
@@ -310,7 +384,8 @@ export class SafetyService {
       lat,
       lng,
       accuracyMeters,
-      instructions: `Bovogo SOS activated via ${triggerType}. ${tripContext}`.trim(),
+      instructions:
+        `Bovogo SOS activated via ${triggerType}. ${tripContext}`.trim(),
     });
 
     const sosEvent = this.sosRepo.create({
@@ -391,7 +466,10 @@ export class SafetyService {
 
     const user = await this.userRepo.findOne({ where: { id: userId } });
 
-    if (user?.safe_word && safeWord.toLowerCase() === user.safe_word.toLowerCase()) {
+    if (
+      user?.safe_word &&
+      safeWord.toLowerCase() === user.safe_word.toLowerCase()
+    ) {
       sosEvent.status = SosStatus.FALSE_ALARM;
       await this.sosRepo.save(sosEvent);
 
@@ -518,13 +596,20 @@ export class SafetyService {
     meta?: { alarm_id?: string };
   }): Promise<{
     applied: boolean;
-    reason?: 'unknown_alarm' | 'no_change' | 'unmapped_event' | 'already_terminal';
+    reason?:
+      | 'unknown_alarm'
+      | 'no_change'
+      | 'unmapped_event'
+      | 'already_terminal';
   }> {
     const alarmId = event.meta?.alarm_id;
     const eventType = event.event_type ?? '';
 
     if (!alarmId) {
-      this.logger.warn({ eventType }, 'Noonlight event carried no meta.alarm_id');
+      this.logger.warn(
+        { eventType },
+        'Noonlight event carried no meta.alarm_id',
+      );
       return { applied: false, reason: 'unknown_alarm' };
     }
 
@@ -540,7 +625,10 @@ export class SafetyService {
         where: { noonlight_alarm_id: alarmId },
       });
       if (!mobileSos) {
-        this.logger.warn({ alarmId, eventType }, 'Noonlight event for unknown alarm');
+        this.logger.warn(
+          { alarmId, eventType },
+          'Noonlight event for unknown alarm',
+        );
         return { applied: false, reason: 'unknown_alarm' };
       }
       return this.applyMobileEvent(mobileSos, eventType, alarmId);
@@ -569,7 +657,13 @@ export class SafetyService {
 
     if (this.isTerminal(sosEvent.status)) {
       this.logger.warn(
-        { sosId: sosEvent.id, alarmId, eventType, status: sosEvent.status, next },
+        {
+          sosId: sosEvent.id,
+          alarmId,
+          eventType,
+          status: sosEvent.status,
+          next,
+        },
         'Noonlight event arrived after the SOS closed — status left terminal',
       );
       return { applied: false, reason: 'already_terminal' };
@@ -633,14 +727,18 @@ export class SafetyService {
     return { incident_id: savedIncident.id };
   }
 
-  async getTrackToken(bookingId: string): Promise<{ share_token: string; url: string }> {
+  async getTrackToken(
+    bookingId: string,
+  ): Promise<{ share_token: string; url: string }> {
     const booking = await this.bookingRepo.findOne({
       where: { id: bookingId },
       relations: ['trip'],
     });
     if (!booking) throw new BadRequestException('Booking not found');
     if (!['en_route', 'in_progress', 'completed'].includes(booking.status)) {
-      throw new BadRequestException('Tracking not available until ride has started');
+      throw new BadRequestException(
+        'Tracking not available until ride has started',
+      );
     }
 
     if (!booking.share_token) {
@@ -673,7 +771,9 @@ export class SafetyService {
         throw new BadRequestException('Tracking link expired');
       }
     } else if (!['en_route', 'in_progress'].includes(booking.status)) {
-      throw new BadRequestException('Tracking not available until ride has started');
+      throw new BadRequestException(
+        'Tracking not available until ride has started',
+      );
     }
 
     const latestPing = await this.pingRepo.findOne({
@@ -694,8 +794,14 @@ export class SafetyService {
     let eta: number | null = null;
     if (currentLat && currentLng && trip.dest_lat && trip.dest_lng) {
       eta = Math.round(
-        this.haversineDistance(currentLat, currentLng, trip.dest_lat, trip.dest_lng) /
-          30 * 60,
+        (this.haversineDistance(
+          currentLat,
+          currentLng,
+          trip.dest_lat,
+          trip.dest_lng,
+        ) /
+          30) *
+          60,
       );
     }
 
@@ -785,12 +891,17 @@ export class SafetyService {
             { booking_id: booking.id, deviation_id: deviation.id },
           );
 
-          setTimeout(async () => {
-            const fresh = await this.deviationRepo.findOne({ where: { id: deviation.id } });
-            if (fresh && fresh.status === DeviationStatus.PENDING) {
-              await this.escalateDeviation(deviation.id, booking);
-            }
-          }, 5 * 60 * 1000);
+          setTimeout(
+            async () => {
+              const fresh = await this.deviationRepo.findOne({
+                where: { id: deviation.id },
+              });
+              if (fresh && fresh.status === DeviationStatus.PENDING) {
+                await this.escalateDeviation(deviation.id, booking);
+              }
+            },
+            5 * 60 * 1000,
+          );
         }
       }
     }

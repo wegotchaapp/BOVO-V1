@@ -3,7 +3,11 @@ import { Cron, CronExpression } from '@nestjs/schedule';
 import { InjectRepository } from '@nestjs/typeorm';
 import { LessThan, Repository } from 'typeorm';
 import { TripPing } from '../database/entities/safety.entities';
-import { ChatConversation, ChatMessage, CallRecord } from '../database/entities/chat.entities';
+import {
+  ChatConversation,
+  ChatMessage,
+  CallRecord,
+} from '../database/entities/chat.entities';
 import { NotificationLog } from '../database/entities/communication.entities';
 
 @Injectable()
@@ -17,10 +21,14 @@ export class DataRetentionJob implements OnModuleInit {
 
   constructor(
     @InjectRepository(TripPing) private readonly pingRepo: Repository<TripPing>,
-    @InjectRepository(ChatConversation) private readonly chatConvRepo: Repository<ChatConversation>,
-    @InjectRepository(ChatMessage) private readonly chatMsgRepo: Repository<ChatMessage>,
-    @InjectRepository(CallRecord) private readonly callRecordRepo: Repository<CallRecord>,
-    @InjectRepository(NotificationLog) private readonly notifLogRepo: Repository<NotificationLog>,
+    @InjectRepository(ChatConversation)
+    private readonly chatConvRepo: Repository<ChatConversation>,
+    @InjectRepository(ChatMessage)
+    private readonly chatMsgRepo: Repository<ChatMessage>,
+    @InjectRepository(CallRecord)
+    private readonly callRecordRepo: Repository<CallRecord>,
+    @InjectRepository(NotificationLog)
+    private readonly notifLogRepo: Repository<NotificationLog>,
   ) {}
 
   onModuleInit() {
@@ -48,7 +56,9 @@ export class DataRetentionJob implements OnModuleInit {
       .execute();
 
     if (result.affected && result.affected > 0) {
-      this.logger.log(`Deleted ${result.affected} trip pings older than ${this.PING_RETENTION_DAYS} days`);
+      this.logger.log(
+        `Deleted ${result.affected} trip pings older than ${this.PING_RETENTION_DAYS} days`,
+      );
     }
   }
 
@@ -91,7 +101,9 @@ export class DataRetentionJob implements OnModuleInit {
       .execute();
 
     if (result.affected && result.affected > 0) {
-      this.logger.log(`Deleted ${result.affected} notifications older than ${this.NOTIF_RETENTION_DAYS} days`);
+      this.logger.log(
+        `Deleted ${result.affected} notifications older than ${this.NOTIF_RETENTION_DAYS} days`,
+      );
     }
   }
 
@@ -106,7 +118,9 @@ export class DataRetentionJob implements OnModuleInit {
       .execute();
 
     if (result.affected && result.affected > 0) {
-      this.logger.log(`Deleted ${result.affected} call records older than ${this.CALL_RECORD_RETENTION_DAYS} days`);
+      this.logger.log(
+        `Deleted ${result.affected} call records older than ${this.CALL_RECORD_RETENTION_DAYS} days`,
+      );
     }
   }
 }

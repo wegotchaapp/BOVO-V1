@@ -35,9 +35,7 @@ export class TwilioWebhookController {
   @ApiOperation({ summary: 'Handle Twilio delivery status callbacks' })
   async handleStatus(@Body() body: Record<string, string>) {
     const { MessageSid, MessageStatus, To } = body;
-    this.logger.log(
-      `SMS ${MessageSid} to ${To} status: ${MessageStatus}`,
-    );
+    this.logger.log(`SMS ${MessageSid} to ${To} status: ${MessageStatus}`);
     return { message: 'OK' };
   }
 }

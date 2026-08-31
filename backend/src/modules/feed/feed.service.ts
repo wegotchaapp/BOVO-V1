@@ -21,7 +21,7 @@ export class FeedService {
 
   async getDriverPosts(): Promise<any[]> {
     const trips = await this.tripRepo.find({
-      where: { status: TripStatus.POSTED, seats_available: MoreThan(0) } as any,
+      where: { status: TripStatus.POSTED, seats_available: MoreThan(0) },
       relations: ['driver'],
       order: { created_at: 'DESC' },
       take: 50,
@@ -38,7 +38,9 @@ export class FeedService {
           driverRating: Number(driver?.avg_rating) || 5.0,
           tripCount: Number(driver?.total_trips) || 0,
           topDriver: (Number(driver?.avg_rating) || 0) >= 4.8,
-          body: trip.notes || `Trip from ${trip.origin_metro} to ${trip.dest_metro}`,
+          body:
+            trip.notes ||
+            `Trip from ${trip.origin_metro} to ${trip.dest_metro}`,
           originMetro: trip.origin_metro,
           destMetro: trip.dest_metro,
           departureDate: trip.departure_date,
@@ -54,14 +56,16 @@ export class FeedService {
 
   async getDriverPost(id: string): Promise<any | null> {
     const trip = await this.tripRepo.findOne({
-      where: { id } as any,
+      where: { id },
       relations: ['driver', 'vehicle'],
     });
     if (!trip) throw new NotFoundException('Post not found');
 
     const driver = trip.driver;
     const prefs = await this.preferenceRepo.findOne({ where: { trip_id: id } });
-    const bookingCount = await this.bookingRepo.count({ where: { trip_id: id } });
+    const bookingCount = await this.bookingRepo.count({
+      where: { trip_id: id },
+    });
 
     const prefList: string[] = [];
     if (prefs) {
@@ -78,7 +82,8 @@ export class FeedService {
       driverRating: Number(driver?.avg_rating) || 5.0,
       tripCount: Number(driver?.total_trips) || 0,
       topDriver: (Number(driver?.avg_rating) || 0) >= 4.8,
-      body: trip.notes || `Trip from ${trip.origin_metro} to ${trip.dest_metro}`,
+      body:
+        trip.notes || `Trip from ${trip.origin_metro} to ${trip.dest_metro}`,
       originMetro: trip.origin_metro,
       destMetro: trip.dest_metro,
       departureDate: trip.departure_date,
@@ -87,7 +92,13 @@ export class FeedService {
       pricePerSeat: Number(trip.per_seat_price),
       preferences: prefList,
       replies: [],
-      active: ['posted', 'booked', 'confirmed', 'en_route', 'in_progress'].includes(trip.status),
+      active: [
+        'posted',
+        'booked',
+        'confirmed',
+        'en_route',
+        'in_progress',
+      ].includes(trip.status),
     };
   }
 }

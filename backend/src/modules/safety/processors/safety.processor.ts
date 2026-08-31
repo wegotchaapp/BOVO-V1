@@ -15,7 +15,10 @@ export class SafetyJobProcessor extends WorkerHost {
   }
 
   async process(job: Job<any, any, string>): Promise<any> {
-    this.logger.info({ jobName: job.name, jobId: job.id }, 'Processing safety job');
+    this.logger.info(
+      { jobName: job.name, jobId: job.id },
+      'Processing safety job',
+    );
 
     switch (job.name) {
       case 'check-trip-overruns':

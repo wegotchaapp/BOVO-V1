@@ -79,7 +79,10 @@ export class MobileConversationsService {
       : [];
     const nameById = new Map(others.map((u) => [u.id, u.name]));
 
-    const unreadCounts = await this.unreadCounts(userId, rows.map((r) => r.id));
+    const unreadCounts = await this.unreadCounts(
+      userId,
+      rows.map((r) => r.id),
+    );
 
     return {
       conversations: rows.map((c) => {

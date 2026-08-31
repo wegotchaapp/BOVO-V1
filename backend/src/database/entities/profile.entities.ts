@@ -105,7 +105,10 @@ export class Vehicle {
   photo_urls!: Record<string, string>;
 
   @Column('jsonb', { default: {} })
-  documents!: Record<string, { storage_path: string; expires_at: string | null }>;
+  documents!: Record<
+    string,
+    { storage_path: string; expires_at: string | null }
+  >;
 
   @Column({ type: 'text', nullable: true })
   category_assignment_reason!: string | null;

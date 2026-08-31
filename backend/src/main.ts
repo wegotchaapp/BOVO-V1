@@ -11,6 +11,12 @@ import helmet from 'helmet';
 import compression from 'compression';
 import * as express from 'express';
 import * as path from 'path';
+import {
+  createCorsOptions,
+  isProductionEnvironment,
+} from './common/http/cors.config';
+
+type RawBodyRequest = express.Request & { rawBody?: Buffer };
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, {
@@ -21,12 +27,7 @@ async function bootstrap() {
   app.useLogger(app.get(Logger));
 
   app.enableShutdownHooks();
-  app.enableCors({
-    origin: true,
-    methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
-    credentials: true,
-    maxAge: 3600,
-  });
+  app.enableCors(createCorsOptions());
 
   app.use(helmet());
   app.use(compression());
@@ -38,7 +39,7 @@ async function bootstrap() {
     express.json({
       type: 'application/json',
       limit: '1mb',
-      verify: (req: any, _res, buf) => {
+      verify: (req: RawBodyRequest, _res, buf) => {
         req.rawBody = buf;
       },
     }),
@@ -49,7 +50,7 @@ async function bootstrap() {
     express.json({
       type: 'application/json',
       limit: '5mb',
-      verify: (req: any, _res, buf) => {
+      verify: (req: RawBodyRequest, _res, buf) => {
         req.rawBody = buf;
       },
     }),
@@ -60,7 +61,7 @@ async function bootstrap() {
     express.json({
       type: 'application/json',
       limit: '1mb',
-      verify: (req: any, _res, buf) => {
+      verify: (req: RawBodyRequest, _res, buf) => {
         req.rawBody = buf;
       },
     }),
@@ -71,7 +72,7 @@ async function bootstrap() {
     express.json({
       type: 'application/json',
       limit: '1mb',
-      verify: (req: any, _res, buf) => {
+      verify: (req: RawBodyRequest, _res, buf) => {
         req.rawBody = buf;
       },
     }),
@@ -99,7 +100,7 @@ async function bootstrap() {
   );
   app.useGlobalInterceptors(auditInterceptor);
 
-  if (process.env.APP_ENV !== 'production') {
+  if (!isProductionEnvironment()) {
     const config = new DocumentBuilder()
       .setTitle('Bovogo API')
       .setDescription('Peer-to-peer carpooling platform API')
@@ -133,4 +134,4 @@ async function bootstrap() {
   const logger = app.get(Logger);
   logger.log(`Bovogo backend running on port ${port}`);
 }
-bootstrap();
+void bootstrap();

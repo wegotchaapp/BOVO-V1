@@ -66,8 +66,16 @@ export function decodeVehicleCategory(decoded: VinDecodeResult[]): {
     };
   }
 
-  if (vehicleType.includes('multipurpose') || bodyClass.includes('mpv') || bodyClass.includes('suv')) {
-    if (seatingRows >= 3 || bodyClass.includes('large') || bodyClass.includes('suburban')) {
+  if (
+    vehicleType.includes('multipurpose') ||
+    bodyClass.includes('mpv') ||
+    bodyClass.includes('suv')
+  ) {
+    if (
+      seatingRows >= 3 ||
+      bodyClass.includes('large') ||
+      bodyClass.includes('suburban')
+    ) {
       return {
         category: 'large_suv',
         luggage_class: 'large',

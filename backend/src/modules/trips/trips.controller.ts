@@ -1,8 +1,30 @@
-import { Controller, Get, Post, Patch, Delete, Body, Param, UseGuards, Request, Query } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
+import {
+  Controller,
+  Get,
+  Post,
+  Patch,
+  Delete,
+  Body,
+  Param,
+  UseGuards,
+  Request,
+  Query,
+} from '@nestjs/common';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiBearerAuth,
+  ApiQuery,
+} from '@nestjs/swagger';
 import { AuthGuard } from '@nestjs/passport';
 import { TripsService } from './trips.service';
-import { CreateTripDto, UpdateTripDto, SearchTripsDto, SaveSearchDto, CreateReplyDto } from './dto/trip.dto';
+import {
+  CreateTripDto,
+  UpdateTripDto,
+  SearchTripsDto,
+  SaveSearchDto,
+  CreateReplyDto,
+} from './dto/trip.dto';
 
 @ApiTags('trips')
 @Controller('trips')
@@ -70,7 +92,11 @@ export class TripsController {
   @UseGuards(AuthGuard('jwt'))
   @ApiBearerAuth('JWT')
   @ApiOperation({ summary: 'Update a trip' })
-  async updateTrip(@Request() req: any, @Param('id') id: string, @Body() dto: UpdateTripDto) {
+  async updateTrip(
+    @Request() req: any,
+    @Param('id') id: string,
+    @Body() dto: UpdateTripDto,
+  ) {
     return this.tripsService.updateTrip(req.user.id, id, dto);
   }
 
@@ -93,7 +119,11 @@ export class TripsController {
   @UseGuards(AuthGuard('jwt'))
   @ApiBearerAuth('JWT')
   @ApiOperation({ summary: 'Reply to a trip post' })
-  async createReply(@Request() req: any, @Param('id') id: string, @Body() dto: CreateReplyDto) {
+  async createReply(
+    @Request() req: any,
+    @Param('id') id: string,
+    @Body() dto: CreateReplyDto,
+  ) {
     return this.tripsService.createReply(req.user.id, id, dto);
   }
 

@@ -80,8 +80,8 @@ export class NoonlightWebhookController {
     const events: any[] = Array.isArray(payload)
       ? payload
       : payload && typeof payload === 'object'
-      ? [payload]
-      : [];
+        ? [payload]
+        : [];
 
     if (events.length === 0) {
       this.logger.warn('Noonlight webhook body held no events — ignoring');
@@ -98,7 +98,10 @@ export class NoonlightWebhookController {
   }
 
   /** HMAC-SHA256 over the exact bytes received, hex or base64. */
-  private verify(raw: Buffer | undefined, headers: Record<string, string>): void {
+  private verify(
+    raw: Buffer | undefined,
+    headers: Record<string, string>,
+  ): void {
     if (!raw || !Buffer.isBuffer(raw)) {
       // Without the raw bytes any signature check is meaningless, so refuse
       // rather than wave the request through.
@@ -111,13 +114,19 @@ export class NoonlightWebhookController {
     const provided = headers[this.signatureHeader];
     if (!provided) {
       this.logger.error(
-        { expectedHeader: this.signatureHeader, received: Object.keys(headers) },
+        {
+          expectedHeader: this.signatureHeader,
+          received: Object.keys(headers),
+        },
         'Noonlight webhook rejected: signature header absent',
       );
       throw new UnauthorizedException('Invalid signature');
     }
 
-    const digest = crypto.createHmac('sha256', this.secret).update(raw).digest();
+    const digest = crypto
+      .createHmac('sha256', this.secret)
+      .update(raw)
+      .digest();
     const candidates = [digest.toString('hex'), digest.toString('base64')];
 
     const ok = candidates.some((expected) => {

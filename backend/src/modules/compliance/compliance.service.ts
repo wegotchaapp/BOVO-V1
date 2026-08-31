@@ -13,7 +13,12 @@ export class ComplianceService {
     private readonly logger: PinoLogger,
   ) {}
 
-  async log(userId: string, rule: string, action: string, details?: string): Promise<ComplianceLog> {
+  async log(
+    userId: string,
+    rule: string,
+    action: string,
+    details?: string,
+  ): Promise<ComplianceLog> {
     const entry = this.complianceRepo.create({
       id: uuidv4().replace(/-/g, '').slice(0, 32),
       user_id: userId,

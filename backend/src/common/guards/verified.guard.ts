@@ -1,15 +1,27 @@
-import { Injectable, CanActivate, ExecutionContext, ForbiddenException } from '@nestjs/common';
+import {
+  Injectable,
+  CanActivate,
+  ExecutionContext,
+  ForbiddenException,
+} from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
+import { AuthenticatedRequest } from '../../modules/auth/interfaces/auth.interface';
 
 @Injectable()
 export class VerifiedGuard implements CanActivate {
   constructor(private reflector: Reflector) {}
 
   canActivate(context: ExecutionContext): boolean {
-    const requireEmail = this.reflector.get<boolean>('requireEmailVerified', context.getHandler());
-    const requirePhone = this.reflector.get<boolean>('requirePhoneVerified', context.getHandler());
+    const requireEmail = this.reflector.get<boolean>(
+      'requireEmailVerified',
+      context.getHandler(),
+    );
+    const requirePhone = this.reflector.get<boolean>(
+      'requirePhoneVerified',
+      context.getHandler(),
+    );
 
-    const request = context.switchToHttp().getRequest();
+    const request = context.switchToHttp().getRequest<AuthenticatedRequest>();
     const user = request.user;
 
     if (!user) {

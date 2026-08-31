@@ -8,6 +8,7 @@ import { Observable } from 'rxjs';
 import { tap } from 'rxjs/operators';
 import { PinoLogger } from 'nestjs-pino';
 import { AuditService } from '../../modules/audit/audit.service';
+import { AuthenticatedRequest } from '../../modules/auth/interfaces/auth.interface';
 
 @Injectable()
 export class AuditInterceptor implements NestInterceptor {
@@ -17,7 +18,7 @@ export class AuditInterceptor implements NestInterceptor {
   ) {}
 
   intercept(context: ExecutionContext, next: CallHandler): Observable<unknown> {
-    const request = context.switchToHttp().getRequest();
+    const request = context.switchToHttp().getRequest<AuthenticatedRequest>();
     const method = request.method;
 
     if (['GET', 'HEAD', 'OPTIONS'].includes(method)) {
@@ -25,44 +26,52 @@ export class AuditInterceptor implements NestInterceptor {
     }
 
     const startTime = Date.now();
+    const userAgent = request.get('user-agent');
+    const response = context
+      .switchToHttp()
+      .getResponse<{ statusCode: number }>();
 
     return next.handle().pipe(
       tap({
-        next: (data) => {
-          this.auditService.log({
-            actor_id: request.user?.sub || undefined,
-            entity_type: this.extractEntityType(request.url),
-            entity_id: this.extractEntityId(request.url) || undefined,
-            event_type: `${method}_${this.extractResourceName(request.url)}`,
-            payload: {
-              method,
-              url: request.url,
-              statusCode: context.switchToHttp().getResponse().statusCode,
-              duration_ms: Date.now() - startTime,
-            },
-            ip_address: request.ip,
-            user_agent: request.headers['user-agent'],
-          }).catch((err) => {
-            this.logger.warn({ err }, 'Failed to write audit log');
-          });
+        next: () => {
+          this.auditService
+            .log({
+              actor_id: request.user?.id ?? null,
+              entity_type: this.extractEntityType(request.url),
+              entity_id: this.extractEntityId(request.url) || undefined,
+              event_type: `${method}_${this.extractResourceName(request.url)}`,
+              payload: {
+                method,
+                url: request.url,
+                statusCode: response.statusCode,
+                duration_ms: Date.now() - startTime,
+              },
+              ip_address: request.ip,
+              user_agent: userAgent,
+            })
+            .catch((error: unknown) => {
+              this.logger.warn({ error }, 'Failed to write audit log');
+            });
         },
         error: (error) => {
-          this.auditService.log({
-            actor_id: request.user?.sub || undefined,
-            entity_type: this.extractEntityType(request.url),
-            entity_id: this.extractEntityId(request.url) || undefined,
-            event_type: `${method}_${this.extractResourceName(request.url)}_error`,
-            payload: {
-              method,
-              url: request.url,
-              error: error.message,
-              duration_ms: Date.now() - startTime,
-            },
-            ip_address: request.ip,
-            user_agent: request.headers['user-agent'],
-          }).catch((err) => {
-            this.logger.warn({ err }, 'Failed to write audit log');
-          });
+          this.auditService
+            .log({
+              actor_id: request.user?.id ?? null,
+              entity_type: this.extractEntityType(request.url),
+              entity_id: this.extractEntityId(request.url) || undefined,
+              event_type: `${method}_${this.extractResourceName(request.url)}_error`,
+              payload: {
+                method,
+                url: request.url,
+                error: error instanceof Error ? error.message : 'Unknown error',
+                duration_ms: Date.now() - startTime,
+              },
+              ip_address: request.ip,
+              user_agent: userAgent,
+            })
+            .catch((error: unknown) => {
+              this.logger.warn({ error }, 'Failed to write audit log');
+            });
         },
       }),
     );

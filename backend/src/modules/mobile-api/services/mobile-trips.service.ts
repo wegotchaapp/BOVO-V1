@@ -7,7 +7,7 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { ConfigService } from '@nestjs/config';
 import { Between, FindOptionsWhere, ILike, In, Repository } from 'typeorm';
-import * as AWS from 'aws-sdk';
+import { PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
 import * as fs from 'fs';
 import * as path from 'path';
 import { randomUUID } from 'crypto';
@@ -65,7 +65,7 @@ function describeVehicle(v: {
 
 @Injectable()
 export class MobileTripsService {
-  private readonly s3: AWS.S3;
+  private readonly s3: S3Client;
 
   constructor(
     private readonly config: ConfigService,
@@ -86,10 +86,13 @@ export class MobileTripsService {
     private readonly emailNotifications: MobileEmailNotificationsService,
     private readonly vehiclesService: MobileVehiclesService,
   ) {
-    this.s3 = new AWS.S3({
-      accessKeyId: this.config.get('AWS_ACCESS_KEY_ID'),
-      secretAccessKey: this.config.get('AWS_SECRET_ACCESS_KEY'),
-      region: this.config.get('AWS_REGION'),
+    const accessKeyId = this.config.get<string>('AWS_ACCESS_KEY_ID');
+    const secretAccessKey = this.config.get<string>('AWS_SECRET_ACCESS_KEY');
+    this.s3 = new S3Client({
+      region: this.config.get<string>('AWS_REGION'),
+      ...(accessKeyId && secretAccessKey
+        ? { credentials: { accessKeyId, secretAccessKey } }
+        : {}),
     });
   }
 
@@ -176,7 +179,12 @@ export class MobileTripsService {
       trip: tripToDto(
         trip,
         driverSummary(
-          driver ?? { id: trip.driver_id, name: 'Voyager', rating: 5, trips: 0 },
+          driver ?? {
+            id: trip.driver_id,
+            name: 'Voyager',
+            rating: 5,
+            trips: 0,
+          },
         ),
         replies.length,
       ),
@@ -349,15 +357,15 @@ export class MobileTripsService {
       !!awsKey && !!awsSecret && /^AKIA[0-9A-Z]{16}$/.test(awsKey);
 
     if (hasRealAwsCreds) {
-      await this.s3
-        .putObject({
+      await this.s3.send(
+        new PutObjectCommand({
           Bucket: START_VIDEO_BUCKET,
           Key: key,
           Body: buffer,
           ContentType: mimeType,
           ACL: 'private',
-        })
-        .promise();
+        }),
+      );
       return;
     }
 

@@ -6,21 +6,48 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { ConfigService } from '@nestjs/config';
-import { Profile, Vehicle, LuggageCapacity } from '../../database/entities/profile.entities';
+import {
+  Profile,
+  Vehicle,
+  LuggageCapacity,
+} from '../../database/entities/profile.entities';
 import { User } from '../../database/entities/user.entity';
 import { Verification } from '../../database/entities/identity.entities';
-import { UpdateProfileDto, RegisterVehicleDto, UpdateVehicleDto } from './dto/profile.dto';
+import {
+  UpdateProfileDto,
+  RegisterVehicleDto,
+  UpdateVehicleDto,
+} from './dto/profile.dto';
 import { PinoLogger } from 'nestjs-pino';
-import * as AWS from 'aws-sdk';
+import { PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
+import {
+  DetectFacesCommand,
+  DetectModerationLabelsCommand,
+  RekognitionClient,
+} from '@aws-sdk/client-rekognition';
 import { VehicleCategory } from '../../common/enums';
 import { containsProfanity } from '../../common/utils/profanity-filter';
-import { decodeVehicleCategory, VinDecodeResponse } from '../../common/utils/nhtsa-decoder';
+import {
+  decodeVehicleCategory,
+  VinDecodeResponse,
+} from '../../common/utils/nhtsa-decoder';
 import * as fs from 'fs';
 import * as path from 'path';
 
 const ALLOWED_LANGUAGES = [
-  'english', 'spanish', 'french', 'mandarin', 'hindi', 'arabic',
-  'portuguese', 'russian', 'japanese', 'korean', 'german', 'dutch', 'swahili',
+  'english',
+  'spanish',
+  'french',
+  'mandarin',
+  'hindi',
+  'arabic',
+  'portuguese',
+  'russian',
+  'japanese',
+  'korean',
+  'german',
+  'dutch',
+  'swahili',
 ];
 
 const REQUIRED_PHOTOS = ['front_exterior', 'rear_exterior', 'interior'];
@@ -31,8 +58,8 @@ const UPLOADS_DIR = path.join(process.cwd(), 'uploads');
 
 @Injectable()
 export class ProfilesService {
-  private rekognition: AWS.Rekognition;
-  private s3: AWS.S3;
+  private readonly rekognition: RekognitionClient;
+  private readonly s3: S3Client;
 
   constructor(
     @InjectRepository(Profile)
@@ -46,16 +73,18 @@ export class ProfilesService {
     private readonly config: ConfigService,
     private readonly logger: PinoLogger,
   ) {
-    this.rekognition = new AWS.Rekognition({
-      accessKeyId: this.config.get('AWS_ACCESS_KEY_ID'),
-      secretAccessKey: this.config.get('AWS_SECRET_ACCESS_KEY'),
-      region: this.config.get('AWS_REGION'),
-    });
-    this.s3 = new AWS.S3({
-      accessKeyId: this.config.get('AWS_ACCESS_KEY_ID'),
-      secretAccessKey: this.config.get('AWS_SECRET_ACCESS_KEY'),
-      region: this.config.get('AWS_REGION'),
-    });
+    const accessKeyId = this.config.get<string>('AWS_ACCESS_KEY_ID');
+    const secretAccessKey = this.config.get<string>('AWS_SECRET_ACCESS_KEY');
+    const credentials =
+      accessKeyId && secretAccessKey && accessKeyId !== 'AKIA_local_mock'
+        ? { accessKeyId, secretAccessKey }
+        : undefined;
+    const clientConfig = {
+      region: this.config.get<string>('AWS_REGION'),
+      ...(credentials ? { credentials } : {}),
+    };
+    this.rekognition = new RekognitionClient(clientConfig);
+    this.s3 = new S3Client(clientConfig);
 
     if (!fs.existsSync(UPLOADS_DIR)) {
       fs.mkdirSync(UPLOADS_DIR, { recursive: true });
@@ -75,7 +104,9 @@ export class ProfilesService {
     total_trips: number;
     badges: string[];
   }> {
-    const profile = await this.profileRepo.findOne({ where: { user_id: userId } });
+    const profile = await this.profileRepo.findOne({
+      where: { user_id: userId },
+    });
     if (!profile) throw new NotFoundException('Profile not found');
 
     const badges = await this.computeBadges(userId);
@@ -92,7 +123,9 @@ export class ProfilesService {
   }
 
   async updateProfile(userId: string, dto: UpdateProfileDto): Promise<Profile> {
-    let profile = await this.profileRepo.findOne({ where: { user_id: userId } });
+    let profile = await this.profileRepo.findOne({
+      where: { user_id: userId },
+    });
     if (!profile) {
       profile = this.profileRepo.create({ user_id: userId });
     }
@@ -111,7 +144,9 @@ export class ProfilesService {
         (lang) => !ALLOWED_LANGUAGES.includes(lang.toLowerCase()),
       );
       if (invalid.length > 0) {
-        throw new BadRequestException(`Invalid languages: ${invalid.join(', ')}`);
+        throw new BadRequestException(
+          `Invalid languages: ${invalid.join(', ')}`,
+        );
       }
       dto.languages = dto.languages.map((l) => l.toLowerCase());
     }
@@ -131,7 +166,8 @@ export class ProfilesService {
     userId: string,
     imageUrl: string,
   ): Promise<{ url: string; held_for_review: boolean }> {
-    const bucket = this.config.get<string>('AWS_S3_BUCKET') || 'wegotcha-profiles';
+    const bucket =
+      this.config.get<string>('AWS_S3_BUCKET') || 'wegotcha-profiles';
     const imageKey = imageUrl.split('/').pop() || imageUrl;
 
     let moderationResult: any;
@@ -139,18 +175,20 @@ export class ProfilesService {
 
     try {
       moderationResult = await this.rekognition
-        .detectModerationLabels({
-          Image: { S3Object: { Bucket: bucket, Name: imageKey } },
-        })
-        .promise()
+        .send(
+          new DetectModerationLabelsCommand({
+            Image: { S3Object: { Bucket: bucket, Name: imageKey } },
+          }),
+        )
         .catch(() => ({ ModerationLabels: [] }));
 
       faceResult = await this.rekognition
-        .detectFaces({
-          Image: { S3Object: { Bucket: bucket, Name: imageKey } },
-          Attributes: ['ALL'],
-        })
-        .promise()
+        .send(
+          new DetectFacesCommand({
+            Image: { S3Object: { Bucket: bucket, Name: imageKey } },
+            Attributes: ['ALL'],
+          }),
+        )
         .catch(() => ({ FaceDetails: [] }));
     } catch {
       throw new BadRequestException('Unable to analyze image');
@@ -170,7 +208,9 @@ export class ProfilesService {
       return { url: imageUrl, held_for_review: true };
     }
 
-    const profile = await this.profileRepo.findOne({ where: { user_id: userId } });
+    const profile = await this.profileRepo.findOne({
+      where: { user_id: userId },
+    });
     if (profile) {
       profile.profile_photo_url = imageUrl;
       await this.profileRepo.save(profile);
@@ -187,14 +227,17 @@ export class ProfilesService {
     const buffer = Buffer.from(base64Image, 'base64');
     const ext = mimeType.split('/')[1] || 'jpg';
     const key = `profiles/${userId}/${Date.now()}.${ext}`;
-    const bucket = this.config.get<string>('SUPABASE_STORAGE_BUCKET') || 'wegotcha-profiles';
+    const bucket =
+      this.config.get<string>('SUPABASE_STORAGE_BUCKET') || 'wegotcha-profiles';
 
     await this.uploadToSupabaseStorage(bucket, key, buffer, mimeType);
 
     const appUrl = this.config.get('APP_URL') || 'http://localhost:3000';
     const publicUrl = `${appUrl}/uploads/${bucket}/${key}`;
 
-    const profile = await this.profileRepo.findOne({ where: { user_id: userId } });
+    const profile = await this.profileRepo.findOne({
+      where: { user_id: userId },
+    });
     if (profile) {
       profile.profile_photo_url = publicUrl;
       await this.profileRepo.save(profile);
@@ -227,10 +270,13 @@ export class ProfilesService {
     const data = (await response.json()) as VinDecodeResponse;
 
     if (!data.results || data.results.length === 0) {
-      throw new BadRequestException('Could not decode VIN — please enter vehicle details manually');
+      throw new BadRequestException(
+        'Could not decode VIN — please enter vehicle details manually',
+      );
     }
 
-    const { category, luggage_class, max_passengers, reason } = decodeVehicleCategory(data.results);
+    const { category, luggage_class, max_passengers, reason } =
+      decodeVehicleCategory(data.results);
 
     return {
       decoded: data.results,
@@ -279,7 +325,10 @@ export class ProfilesService {
           }
         }
       } catch (err) {
-        this.logger.warn({ userId, error: err }, 'VIN decode failed, using defaults');
+        this.logger.warn(
+          { userId, error: err },
+          'VIN decode failed, using defaults',
+        );
       }
     }
 
@@ -302,7 +351,7 @@ export class ProfilesService {
       category_manually_overridden: false,
     });
 
-    const saved = await this.vehicleRepo.save(vehicle) as Vehicle;
+    const saved = await this.vehicleRepo.save(vehicle);
 
     this.logger.info(
       {
@@ -382,19 +431,31 @@ export class ProfilesService {
 
     const MAX_PHOTO_BYTES = 327680;
     if (buffer.length > MAX_PHOTO_BYTES) {
-      throw new BadRequestException(`Photo exceeds maximum size of 320KB (${(buffer.length / 1024).toFixed(1)}KB uploaded)`);
+      throw new BadRequestException(
+        `Photo exceeds maximum size of 320KB (${(buffer.length / 1024).toFixed(1)}KB uploaded)`,
+      );
     }
 
     const ext = mimeType.split('/')[1] || 'jpg';
     const key = `vehicles/${vehicleId}/${photoType}.${ext}`;
-    const bucket = this.config.get<string>('SUPABASE_STORAGE_BUCKET') || 'wegotcha-vehicle-photos';
+    const bucket =
+      this.config.get<string>('SUPABASE_STORAGE_BUCKET') ||
+      'wegotcha-vehicle-photos';
 
-    const uploadResult = await this.uploadToSupabaseStorage(bucket, key, buffer, mimeType);
+    const uploadResult = await this.uploadToSupabaseStorage(
+      bucket,
+      key,
+      buffer,
+      mimeType,
+    );
 
     const appUrl = this.config.get('APP_URL') || 'http://localhost:3000';
     const publicUrl = `${appUrl}/uploads/${bucket}/${key}`;
 
-    const moderationResult = await this.moderateImageFromBuffer(buffer, mimeType);
+    const moderationResult = await this.moderateImageFromBuffer(
+      buffer,
+      mimeType,
+    );
 
     if (moderationResult.flagged) {
       this.logger.warn(
@@ -440,9 +501,17 @@ export class ProfilesService {
     const buffer = Buffer.from(base64Image, 'base64');
     const ext = mimeType.split('/')[1] || 'jpg';
     const key = `vehicles/${vehicleId}/documents/${docType}.${ext}`;
-    const bucket = this.config.get<string>('SUPABASE_STORAGE_BUCKET_PRIVATE') || 'wegotcha-vehicle-docs';
+    const bucket =
+      this.config.get<string>('SUPABASE_STORAGE_BUCKET_PRIVATE') ||
+      'wegotcha-vehicle-docs';
 
-    await this.uploadToSupabaseStorage(bucket, key, buffer, mimeType, 'private');
+    await this.uploadToSupabaseStorage(
+      bucket,
+      key,
+      buffer,
+      mimeType,
+      'private',
+    );
 
     const documents = { ...vehicle.documents };
     documents[docType] = {
@@ -498,7 +567,9 @@ export class ProfilesService {
     });
 
     if (verification?.status === 'verified') {
-      const expiresAt = verification.expires_at ? new Date(verification.expires_at) : null;
+      const expiresAt = verification.expires_at
+        ? new Date(verification.expires_at)
+        : null;
       if (!expiresAt || expiresAt > new Date()) {
         badges.push('id_verified');
       }
@@ -525,7 +596,11 @@ export class ProfilesService {
       where: { user_id: userId },
     });
 
-    if (profile && (profile.avg_rating || 0) >= 4.5 && (profile.total_trips || 0) >= 10) {
+    if (
+      profile &&
+      (profile.avg_rating || 0) >= 4.5 &&
+      (profile.total_trips || 0) >= 10
+    ) {
       badges.push('top_rated');
     }
 
@@ -537,12 +612,12 @@ export class ProfilesService {
     mimeType: string,
   ): Promise<{ flagged: boolean; labels: any[] }> {
     try {
-      const result = await this.rekognition
-        .detectModerationLabels({
+      const result = await this.rekognition.send(
+        new DetectModerationLabelsCommand({
           Image: { Bytes: buffer },
           MinConfidence: 50,
-        })
-        .promise();
+        }),
+      );
 
       const flagged = (result.ModerationLabels || []).some(
         (label: { Confidence?: number }) => (label.Confidence || 0) > 80,
@@ -568,14 +643,15 @@ export class ProfilesService {
     const awsSecret = this.config.get('AWS_SECRET_ACCESS_KEY');
 
     if (awsKey && awsSecret && awsKey !== 'AKIA_local_mock') {
-      const s3Params = {
-        Bucket: bucket,
-        Key: key,
-        Body: buffer,
-        ContentType: mimeType,
-        ACL: acl === 'public' ? 'public-read' : 'private',
-      };
-      await this.s3.putObject(s3Params).promise();
+      await this.s3.send(
+        new PutObjectCommand({
+          Bucket: bucket,
+          Key: key,
+          Body: buffer,
+          ContentType: mimeType,
+          ACL: acl === 'public' ? 'public-read' : 'private',
+        }),
+      );
       return;
     }
 
@@ -587,7 +663,9 @@ export class ProfilesService {
     fs.writeFileSync(filePath, buffer);
   }
 
-  private async checkVehicleVerificationStatus(vehicle: Vehicle): Promise<void> {
+  private async checkVehicleVerificationStatus(
+    vehicle: Vehicle,
+  ): Promise<void> {
     const photoUrls = vehicle.photo_urls || {};
     const documents = vehicle.documents || {};
 
@@ -602,7 +680,8 @@ export class ProfilesService {
 
     const registrationValid =
       registrationDoc &&
-      (!registrationDoc.expires_at || new Date(registrationDoc.expires_at) > now);
+      (!registrationDoc.expires_at ||
+        new Date(registrationDoc.expires_at) > now);
 
     const insuranceValid =
       insuranceDoc &&
@@ -616,7 +695,10 @@ export class ProfilesService {
         { vehicleId: vehicle.id },
         'Vehicle verification badge awarded',
       );
-    } else if ((!requiredPhotosComplete || !allDocsValid) && vehicle.is_verified) {
+    } else if (
+      (!requiredPhotosComplete || !allDocsValid) &&
+      vehicle.is_verified
+    ) {
       vehicle.is_verified = false;
       this.logger.info(
         { vehicleId: vehicle.id },

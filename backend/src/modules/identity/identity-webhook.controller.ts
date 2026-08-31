@@ -1,4 +1,13 @@
-import { Controller, Post, Body, Headers, HttpCode, HttpStatus, RawBodyRequest, Req } from '@nestjs/common';
+import {
+  Controller,
+  Post,
+  Body,
+  Headers,
+  HttpCode,
+  HttpStatus,
+  RawBodyRequest,
+  Req,
+} from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiExcludeEndpoint } from '@nestjs/swagger';
 import { IdentityService } from './identity.service';
 import { PinoLogger } from 'nestjs-pino';
@@ -32,14 +41,25 @@ export class IdentityWebhookController {
 
     try {
       if (typeof rawBody === 'string') {
-        event = this.stripe.webhooks.constructEvent(rawBody, signature, webhookSecret);
+        event = this.stripe.webhooks.constructEvent(
+          rawBody,
+          signature,
+          webhookSecret,
+        );
       } else if (Buffer.isBuffer(rawBody)) {
-        event = this.stripe.webhooks.constructEvent(rawBody, signature, webhookSecret);
+        event = this.stripe.webhooks.constructEvent(
+          rawBody,
+          signature,
+          webhookSecret,
+        );
       } else {
         throw new Error('Unable to extract raw body');
       }
     } catch (err: unknown) {
-      this.logger.error({ err }, 'Stripe webhook signature verification failed');
+      this.logger.error(
+        { err },
+        'Stripe webhook signature verification failed',
+      );
       return { error: 'Invalid signature' };
     }
 

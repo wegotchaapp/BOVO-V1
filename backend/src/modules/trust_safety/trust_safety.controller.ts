@@ -1,8 +1,24 @@
-import { Controller, Get, Post, Body, Param, Query, UseGuards, Request, Ip, Headers } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Param,
+  Query,
+  UseGuards,
+  Request,
+  Ip,
+  Headers,
+} from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { AuthGuard } from '@nestjs/passport';
 import { TrustSafetyService } from './trust_safety.service';
-import { SubmitReportDto, ModerationActionDto, SubmitAppealDto, ReviewAppealDto } from '../../common/dto/trust-safety.dto';
+import {
+  SubmitReportDto,
+  ModerationActionDto,
+  SubmitAppealDto,
+  ReviewAppealDto,
+} from '../../common/dto/trust-safety.dto';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { RbacGuard } from '../../common/guards/rbac.guard';
 import { UserRole } from '../../common/enums';
@@ -32,10 +48,7 @@ export class TrustSafetyController {
   @ApiBearerAuth('JWT')
   @Roles(UserRole.TS_AGENT, UserRole.ADMIN)
   @ApiOperation({ summary: 'Get moderation queue (ts_agent only)' })
-  async getQueue(
-    @Query('page') page?: number,
-    @Query('limit') limit?: number,
-  ) {
+  async getQueue(@Query('page') page?: number, @Query('limit') limit?: number) {
     return this.tsService.getModerationQueue(
       parseInt(String(page)) || 1,
       parseInt(String(limit)) || 50,
@@ -73,13 +86,20 @@ export class TrustSafetyController {
   @Post('admin/appeals/:id/review')
   @ApiBearerAuth('JWT')
   @Roles(UserRole.TS_AGENT, UserRole.ADMIN)
-  @ApiOperation({ summary: 'Review an appeal (ts_agent only — different from original agent)' })
+  @ApiOperation({
+    summary: 'Review an appeal (ts_agent only — different from original agent)',
+  })
   async reviewAppeal(
     @Request() req: any,
     @Param('id') id: string,
     @Body() dto: ReviewAppealDto,
   ) {
-    return this.tsService.reviewAppeal(req.user.id, id, dto.decision, dto.decision_reason);
+    return this.tsService.reviewAppeal(
+      req.user.id,
+      id,
+      dto.decision,
+      dto.decision_reason,
+    );
   }
 
   @Get('appeals')

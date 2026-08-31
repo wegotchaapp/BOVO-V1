@@ -6,7 +6,12 @@ import { NoonlightWebhookController } from './noonlight-webhook.controller';
 import { SafetyService } from './safety.service';
 import { SafetyJobProcessor } from './processors/safety.processor';
 import { SafetyScheduler } from './safety.scheduler';
-import { TripPing, SosEvent, Incident, DeviationEvent } from '../../database/entities/safety.entities';
+import {
+  TripPing,
+  SosEvent,
+  Incident,
+  DeviationEvent,
+} from '../../database/entities/safety.entities';
 import { Booking } from '../../database/entities/booking.entities';
 import { Trip } from '../../database/entities/trip.entities';
 import { User } from '../../database/entities/user.entity';
@@ -18,7 +23,17 @@ import { RoutingModule } from '../routing/routing.module';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([TripPing, SosEvent, Incident, DeviationEvent, Booking, Trip, User, EmergencyContact, MobileSosEvent]),
+    TypeOrmModule.forFeature([
+      TripPing,
+      SosEvent,
+      Incident,
+      DeviationEvent,
+      Booking,
+      Trip,
+      User,
+      EmergencyContact,
+      MobileSosEvent,
+    ]),
     BullModule.registerQueue({ name: 'safety-jobs' }),
     forwardRef(() => NotificationsModule),
     NoonlightModule,

@@ -1,4 +1,4 @@
-import { MigrationInterface, QueryRunner } from "typeorm";
+import { MigrationInterface, QueryRunner } from 'typeorm';
 
 export class PasswordHashNullable1746286000000 implements MigrationInterface {
   name = 'PasswordHashNullable1746286000000';

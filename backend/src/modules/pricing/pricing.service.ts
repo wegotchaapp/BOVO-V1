@@ -58,7 +58,11 @@ export class PricingService {
     return PRICING.LUGGAGE_SURCHARGE[tier] || 0;
   }
 
-  calculateRiderTotal(distanceMiles: number, luggageTier: string, insuranceElected: boolean): number {
+  calculateRiderTotal(
+    distanceMiles: number,
+    luggageTier: string,
+    insuranceElected: boolean,
+  ): number {
     const seatPrice = this.calculateSeatPrice(distanceMiles);
     const luggage = this.getLuggageSurcharge(luggageTier);
     const insurance = insuranceElected ? PRICING.INSURANCE_PREMIUM : 0;
@@ -66,7 +70,10 @@ export class PricingService {
     return round2(subtotal + this.calculatePlatformFee(subtotal));
   }
 
-  calculateDriverPayout(distanceMiles: number, input: DriverPayoutInput): number {
+  calculateDriverPayout(
+    distanceMiles: number,
+    input: DriverPayoutInput,
+  ): number {
     const seatPrice = this.calculateSeatPrice(distanceMiles);
     const seatRevenue = seatPrice * input.seats_booked;
     const luggageTotal = input.luggage_surcharges.reduce(
@@ -79,17 +86,25 @@ export class PricingService {
   calculatePlatformRevenue(input: PlatformRevenueInput): {
     gross: number;
     net: number;
-    breakdown: { platform_fees: number; insurance_commission: number; stripe_cost: number };
+    breakdown: {
+      platform_fees: number;
+      insurance_commission: number;
+      stripe_cost: number;
+    };
   } {
     // Fees now scale with booking size, so an average subtotal is needed to
     // estimate them in aggregate.
     const avgSubtotal = input.avg_subtotal ?? 0;
     const platformFees =
       platformFeeForSubtotal(avgSubtotal) * input.total_bookings;
-    const insuranceCommission = PRICING.INSURANCE_PREMIUM * PRICING.INSURANCE_COMMISSION * input.insured_count;
+    const insuranceCommission =
+      PRICING.INSURANCE_PREMIUM *
+      PRICING.INSURANCE_COMMISSION *
+      input.insured_count;
     const gross = platformFees + insuranceCommission;
     const stripeCost =
-      PRICING.STRIPE_PERCENT * (avgSubtotal * input.total_bookings + platformFees) +
+      PRICING.STRIPE_PERCENT *
+        (avgSubtotal * input.total_bookings + platformFees) +
       PRICING.STRIPE_FIXED * input.total_bookings;
     return {
       gross: Math.round(gross * 100) / 100,
@@ -102,7 +117,11 @@ export class PricingService {
     };
   }
 
-  getFullPricingBreakdown(distanceMiles: number, luggageTier: string, insuranceElected: boolean): PricingBreakdown {
+  getFullPricingBreakdown(
+    distanceMiles: number,
+    luggageTier: string,
+    insuranceElected: boolean,
+  ): PricingBreakdown {
     const base_seat_price = this.calculateSeatPrice(distanceMiles);
     const luggage_surcharge = this.getLuggageSurcharge(luggageTier);
     const insurance_premium = insuranceElected ? PRICING.INSURANCE_PREMIUM : 0;
@@ -111,9 +130,12 @@ export class PricingService {
     const rider_total = round2(subtotal + platform_fee);
     const grossRev =
       platform_fee +
-      (insuranceElected ? PRICING.INSURANCE_PREMIUM * PRICING.INSURANCE_COMMISSION : 0);
+      (insuranceElected
+        ? PRICING.INSURANCE_PREMIUM * PRICING.INSURANCE_COMMISSION
+        : 0);
     // Stripe bills on the full captured amount, this fee included.
-    const stripeCost = PRICING.STRIPE_PERCENT * rider_total + PRICING.STRIPE_FIXED;
+    const stripeCost =
+      PRICING.STRIPE_PERCENT * rider_total + PRICING.STRIPE_FIXED;
 
     return {
       base_seat_price,

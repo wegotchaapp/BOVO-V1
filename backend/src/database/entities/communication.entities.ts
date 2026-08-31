@@ -205,4 +205,3 @@ export class Device {
   @UpdateDateColumn()
   updated_at!: string;
 }
-

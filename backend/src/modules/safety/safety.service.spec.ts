@@ -4,18 +4,32 @@ import { ConfigService } from '@nestjs/config';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { SafetyService } from './safety.service';
-import { TripPing, SosEvent, Incident, DeviationEvent } from '../../database/entities/safety.entities';
+import {
+  TripPing,
+  SosEvent,
+  Incident,
+  DeviationEvent,
+} from '../../database/entities/safety.entities';
 import { Booking } from '../../database/entities/booking.entities';
 import { Trip } from '../../database/entities/trip.entities';
 import { User } from '../../database/entities/user.entity';
 import { EmergencyContact } from '../../database/entities/communication.entities';
-import { SosTriggerType, SosStatus, DeviationStatus, BookingStatus, UserRole } from '../../common/enums';
+import {
+  SosTriggerType,
+  SosStatus,
+  DeviationStatus,
+  BookingStatus,
+  UserRole,
+} from '../../common/enums';
 import { PinoLogger } from 'nestjs-pino';
 import { RealtimeGateway } from '../../common/gateways/realtime.gateway';
 import { MobileSosEvent } from '../mobile-api/entities/mobile.entities';
 import { NoonlightService } from '../noonlight/noonlight.service';
 import { RoutingService } from '../routing/routing.service';
-import { decodePolyline, encodePolyline } from '../../common/geo/route-geometry';
+import {
+  decodePolyline,
+  encodePolyline,
+} from '../../common/geo/route-geometry';
 
 /**
  * A real route through the coordinate the ping tests use (34.0522,-118.2437),
@@ -114,7 +128,7 @@ describe('SafetyService', () => {
     ...mockBooking,
     trip: { ...mockTrip, driver: mockDriver },
     rider: mockRider,
-  } as Booking;
+  };
 
   beforeEach(async () => {
     const mockRepo = () => ({
@@ -169,7 +183,9 @@ describe('SafetyService', () => {
           // The real one is exercised through the live sandbox, not here; these
           // tests are about what SafetyService does with the id it gets back.
           provide: NoonlightService,
-          useValue: { createAlarm: jest.fn().mockResolvedValue('noonlight-alarm-123') },
+          useValue: {
+            createAlarm: jest.fn().mockResolvedValue('noonlight-alarm-123'),
+          },
         },
         {
           // Decodes for real — the geometry has its own suite — so only the
@@ -270,7 +286,10 @@ describe('SafetyService', () => {
         }),
       );
       expect(pingRepo.save).toHaveBeenCalled();
-      expect(bookingRepo.update).toHaveBeenCalledWith('booking-1', expect.any(Object));
+      expect(bookingRepo.update).toHaveBeenCalledWith(
+        'booking-1',
+        expect.any(Object),
+      );
       expect(result.deviation_triggered).toBe(false);
     });
 
@@ -283,7 +302,10 @@ describe('SafetyService', () => {
     });
 
     it('should throw if trip is not active', async () => {
-      bookingRepo.findOne.mockResolvedValue({ ...mockBooking, status: BookingStatus.COMPLETED });
+      bookingRepo.findOne.mockResolvedValue({
+        ...mockBooking,
+        status: BookingStatus.COMPLETED,
+      });
 
       await expect(
         service.receivePing('driver-1', 'booking-1', 34.0522, -118.2437),
@@ -313,8 +335,8 @@ describe('SafetyService', () => {
       const result = await service.receivePing(
         'driver-1',
         'booking-1',
-        34.1500,
-        -118.3500,
+        34.15,
+        -118.35,
       );
 
       expect(deviationRepo.create).toHaveBeenCalled();
@@ -332,7 +354,12 @@ describe('SafetyService', () => {
       incidentRepo.create.mockReturnValue({ id: 'inc-1' } as Incident);
       incidentRepo.save.mockResolvedValue({ id: 'inc-1' } as Incident);
       emergencyContactRepo.find.mockResolvedValue([
-        { id: 'ec-1', phone: '+15559998888', name: 'Mom', opted_in: true } as EmergencyContact,
+        {
+          id: 'ec-1',
+          phone: '+15559998888',
+          name: 'Mom',
+          opted_in: true,
+        } as EmergencyContact,
       ]);
       userRepo.find.mockResolvedValue([]);
 
@@ -382,7 +409,13 @@ describe('SafetyService', () => {
       userRepo.findOne.mockResolvedValue(null);
 
       await expect(
-        service.activateSOS('nonexistent', SosTriggerType.BUTTON, undefined, 34.0522, -118.2437),
+        service.activateSOS(
+          'nonexistent',
+          SosTriggerType.BUTTON,
+          undefined,
+          34.0522,
+          -118.2437,
+        ),
       ).rejects.toThrow(BadRequestException);
     });
   });
@@ -399,9 +432,17 @@ describe('SafetyService', () => {
       sosRepo.findOne.mockResolvedValue(mockSos);
       userRepo.findOne.mockResolvedValue(mockUser);
       mockedAxios.post.mockResolvedValue({ data: {} });
-      sosRepo.save.mockResolvedValue({ ...mockSos, status: SosStatus.FALSE_ALARM });
+      sosRepo.save.mockResolvedValue({
+        ...mockSos,
+        status: SosStatus.FALSE_ALARM,
+      });
       emergencyContactRepo.find.mockResolvedValue([
-        { id: 'ec-1', phone: '+15559998888', name: 'Mom', opted_in: true } as EmergencyContact,
+        {
+          id: 'ec-1',
+          phone: '+15559998888',
+          name: 'Mom',
+          opted_in: true,
+        } as EmergencyContact,
       ]);
 
       const result = await service.cancelSOS('user-1', 'sos-1', 'sunflower');
@@ -448,7 +489,10 @@ describe('SafetyService', () => {
 
       sosRepo.findOne.mockResolvedValue(mockSos);
       userRepo.findOne.mockResolvedValue(mockUser);
-      sosRepo.save.mockResolvedValue({ ...mockSos, status: SosStatus.FALSE_ALARM });
+      sosRepo.save.mockResolvedValue({
+        ...mockSos,
+        status: SosStatus.FALSE_ALARM,
+      });
       emergencyContactRepo.find.mockResolvedValue([]);
 
       const result = await service.cancelSOS('user-1', 'sos-1', 'SUNFLOWER');
@@ -461,10 +505,23 @@ describe('SafetyService', () => {
     it('should create SOS event with UNSAFE_FEELING trigger and P0 incident', async () => {
       userRepo.findOne.mockResolvedValue(mockUser);
       bookingRepo.findOne.mockResolvedValue(mockActiveBookingWithRelations);
-      sosRepo.create.mockReturnValue({ id: 'sos-3', trigger_type: SosTriggerType.UNSAFE_FEELING, status: SosStatus.RESOLVED, noonlight_alarm_id: null } as SosEvent);
+      sosRepo.create.mockReturnValue({
+        id: 'sos-3',
+        trigger_type: SosTriggerType.UNSAFE_FEELING,
+        status: SosStatus.RESOLVED,
+        noonlight_alarm_id: null,
+      } as SosEvent);
       sosRepo.save.mockResolvedValue({ id: 'sos-3' } as SosEvent);
-      incidentRepo.create.mockReturnValue({ id: 'inc-3', severity: 'P0', status: 'open' } as Incident);
-      incidentRepo.save.mockResolvedValue({ id: 'inc-3', severity: 'P0', status: 'open' } as Incident);
+      incidentRepo.create.mockReturnValue({
+        id: 'inc-3',
+        severity: 'P0',
+        status: 'open',
+      } as Incident);
+      incidentRepo.save.mockResolvedValue({
+        id: 'inc-3',
+        severity: 'P0',
+        status: 'open',
+      } as Incident);
       userRepo.find.mockResolvedValue([]);
 
       const result = await service.submitUnsafeFeeling(
@@ -496,7 +553,12 @@ describe('SafetyService', () => {
       bookingRepo.findOne.mockResolvedValue(null);
 
       await expect(
-        service.submitUnsafeFeeling('user-1', 'nonexistent', 34.0522, -118.2437),
+        service.submitUnsafeFeeling(
+          'user-1',
+          'nonexistent',
+          34.0522,
+          -118.2437,
+        ),
       ).rejects.toThrow(BadRequestException);
     });
   });
@@ -626,7 +688,9 @@ describe('SafetyService', () => {
     });
 
     it('ignores an event with no meta.alarm_id', async () => {
-      const res = await service.handleNoonlightEvent({ event_type: 'alarm.closed' });
+      const res = await service.handleNoonlightEvent({
+        event_type: 'alarm.closed',
+      });
 
       expect(res).toEqual({ applied: false, reason: 'unknown_alarm' });
       expect(sosRepo.findOne).not.toHaveBeenCalled();
@@ -660,7 +724,10 @@ describe('SafetyService', () => {
   describe('getTrackToken', () => {
     it('should generate and return a 16-character share token', async () => {
       bookingRepo.findOne.mockResolvedValue(mockBooking);
-      bookingRepo.save.mockResolvedValue({ ...mockBooking, share_token: 'XFB28FC6C85PHJJU' });
+      bookingRepo.save.mockResolvedValue({
+        ...mockBooking,
+        share_token: 'XFB28FC6C85PHJJU',
+      });
 
       const result = await service.getTrackToken('booking-1');
 
@@ -671,7 +738,10 @@ describe('SafetyService', () => {
     });
 
     it('should return existing token if already generated', async () => {
-      const existingTokenBooking = { ...mockBooking, share_token: 'EXISTINGTOKEN12345' };
+      const existingTokenBooking = {
+        ...mockBooking,
+        share_token: 'EXISTINGTOKEN12345',
+      };
       bookingRepo.findOne.mockResolvedValue(existingTokenBooking);
 
       const result = await service.getTrackToken('booking-1');
@@ -683,7 +753,9 @@ describe('SafetyService', () => {
     it('should throw if booking not found', async () => {
       bookingRepo.findOne.mockResolvedValue(null);
 
-      await expect(service.getTrackToken('nonexistent')).rejects.toThrow(BadRequestException);
+      await expect(service.getTrackToken('nonexistent')).rejects.toThrow(
+        BadRequestException,
+      );
     });
   });
 
@@ -715,7 +787,9 @@ describe('SafetyService', () => {
     it('should throw if token is invalid', async () => {
       bookingRepo.findOne.mockResolvedValue(null);
 
-      await expect(service.getPublicTrack('invalid-token')).rejects.toThrow(BadRequestException);
+      await expect(service.getPublicTrack('invalid-token')).rejects.toThrow(
+        BadRequestException,
+      );
     });
 
     it('should throw if tracking link expired (over 1 hour after completion)', async () => {
@@ -726,7 +800,9 @@ describe('SafetyService', () => {
       };
       bookingRepo.findOne.mockResolvedValue(oldCompletedBooking);
 
-      await expect(service.getPublicTrack('expired-token')).rejects.toThrow(BadRequestException);
+      await expect(service.getPublicTrack('expired-token')).rejects.toThrow(
+        BadRequestException,
+      );
     });
 
     it('should allow tracking within 1 hour of completion', async () => {
@@ -752,7 +828,10 @@ describe('SafetyService', () => {
       } as DeviationEvent;
 
       deviationRepo.findOne.mockResolvedValue(mockDeviation);
-      deviationRepo.save.mockResolvedValue({ ...mockDeviation, status: DeviationStatus.RESPONDED_OK });
+      deviationRepo.save.mockResolvedValue({
+        ...mockDeviation,
+        status: DeviationStatus.RESPONDED_OK,
+      });
 
       await service.respondToDeviation('dev-1', 'ok');
 
@@ -844,8 +923,14 @@ describe('SafetyService', () => {
 
       bookingRepo.find.mockResolvedValue([overrunBooking]);
       deviationRepo.findOne.mockResolvedValue(null);
-      deviationRepo.create.mockReturnValue({ id: 'dev-overrun', booking_id: 'booking-overrun', status: DeviationStatus.PENDING } as DeviationEvent);
-      deviationRepo.save.mockResolvedValue({ id: 'dev-overrun' } as DeviationEvent);
+      deviationRepo.create.mockReturnValue({
+        id: 'dev-overrun',
+        booking_id: 'booking-overrun',
+        status: DeviationStatus.PENDING,
+      } as DeviationEvent);
+      deviationRepo.save.mockResolvedValue({
+        id: 'dev-overrun',
+      } as DeviationEvent);
 
       await service.checkTripOverruns();
 
@@ -866,7 +951,9 @@ describe('SafetyService', () => {
       };
 
       bookingRepo.find.mockResolvedValue([overrunBooking]);
-      deviationRepo.findOne.mockResolvedValue({ id: 'existing-dev' } as DeviationEvent);
+      deviationRepo.findOne.mockResolvedValue({
+        id: 'existing-dev',
+      } as DeviationEvent);
 
       await service.checkTripOverruns();
 

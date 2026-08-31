@@ -73,7 +73,10 @@ export class EmergencyContactsService {
     if (contact) {
       contact.opted_in = false;
       await this.contactRepo.save(contact);
-      this.logger.info({ contactId: contact.id, phone }, 'Emergency contact opted out');
+      this.logger.info(
+        { contactId: contact.id, phone },
+        'Emergency contact opted out',
+      );
     }
   }
 
@@ -104,22 +107,30 @@ export class EmergencyContactsService {
       `Questions? Reach us at safety@bovogo.com`;
 
     try {
-      const auth = Buffer.from(`${twilioSid}:${twilioToken}`).toString('base64');
+      const auth = Buffer.from(`${twilioSid}:${twilioToken}`).toString(
+        'base64',
+      );
       const body = new URLSearchParams();
       body.set('From', twilioPhone);
       body.set('To', contact.phone);
       body.set('Body', message);
 
-      await fetch(`https://api.twilio.com/2010-04-01/Accounts/${twilioSid}/Messages.json`, {
-        method: 'POST',
-        headers: {
-          Authorization: `Basic ${auth}`,
-          'Content-Type': 'application/x-www-form-urlencoded',
+      await fetch(
+        `https://api.twilio.com/2010-04-01/Accounts/${twilioSid}/Messages.json`,
+        {
+          method: 'POST',
+          headers: {
+            Authorization: `Basic ${auth}`,
+            'Content-Type': 'application/x-www-form-urlencoded',
+          },
+          body: body.toString(),
         },
-        body: body.toString(),
-      });
+      );
 
-      this.logger.info({ contactId: contact.id, phone: contact.phone }, 'Opt-in SMS sent');
+      this.logger.info(
+        { contactId: contact.id, phone: contact.phone },
+        'Opt-in SMS sent',
+      );
     } catch (error) {
       this.logger.error(
         { contactId: contact.id, error },

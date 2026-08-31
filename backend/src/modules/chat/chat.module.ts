@@ -1,6 +1,11 @@
 import { Module, forwardRef } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { ChatConversation, ChatMessage, ChatBlock, CallRecord } from '../../database/entities/chat.entities';
+import {
+  ChatConversation,
+  ChatMessage,
+  ChatBlock,
+  CallRecord,
+} from '../../database/entities/chat.entities';
 import { Booking } from '../../database/entities/booking.entities';
 import { User } from '../../database/entities/user.entity';
 import { ChatController } from './chat.controller';
@@ -10,7 +15,14 @@ import { AuditModule } from '../audit/audit.module';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([ChatConversation, ChatMessage, ChatBlock, CallRecord, Booking, User]),
+    TypeOrmModule.forFeature([
+      ChatConversation,
+      ChatMessage,
+      ChatBlock,
+      CallRecord,
+      Booking,
+      User,
+    ]),
     NotificationsModule,
     AuditModule,
   ],

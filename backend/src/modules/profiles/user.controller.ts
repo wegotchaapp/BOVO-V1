@@ -83,9 +83,14 @@ export class UserController {
   @UseGuards(AuthGuard('jwt'))
   @ApiBearerAuth('JWT')
   @ApiOperation({ summary: 'Update user preferences (languages)' })
-  async updatePreferences(@Request() req: any, @Body() dto: UpdatePreferencesDto) {
+  async updatePreferences(
+    @Request() req: any,
+    @Body() dto: UpdatePreferencesDto,
+  ) {
     if (dto.languages !== undefined) {
-      await this.profilesService.updateProfile(req.user.id, { languages: dto.languages });
+      await this.profilesService.updateProfile(req.user.id, {
+        languages: dto.languages,
+      });
     }
     return { message: 'Preferences updated' };
   }
@@ -97,7 +102,12 @@ export class UserController {
   async getTravelPreferences(@Request() req: any) {
     const user = await this.userRepo.findOne({
       where: { id: req.user.id },
-      select: ['rider_conversation_style', 'rider_music_preference', 'rider_smoking_preference', 'rider_pet_preference'],
+      select: [
+        'rider_conversation_style',
+        'rider_music_preference',
+        'rider_smoking_preference',
+        'rider_pet_preference',
+      ],
     });
     return {
       rider_conversation_style: user?.rider_conversation_style || null,
@@ -111,12 +121,19 @@ export class UserController {
   @UseGuards(AuthGuard('jwt'))
   @ApiBearerAuth('JWT')
   @ApiOperation({ summary: 'Update user travel preferences' })
-  async updateTravelPreferences(@Request() req: any, @Body() dto: UpdateTravelPreferencesDto) {
+  async updateTravelPreferences(
+    @Request() req: any,
+    @Body() dto: UpdateTravelPreferencesDto,
+  ) {
     const update: any = {};
-    if (dto.rider_conversation_style !== undefined) update.rider_conversation_style = dto.rider_conversation_style;
-    if (dto.rider_music_preference !== undefined) update.rider_music_preference = dto.rider_music_preference;
-    if (dto.rider_smoking_preference !== undefined) update.rider_smoking_preference = dto.rider_smoking_preference;
-    if (dto.rider_pet_preference !== undefined) update.rider_pet_preference = dto.rider_pet_preference;
+    if (dto.rider_conversation_style !== undefined)
+      update.rider_conversation_style = dto.rider_conversation_style;
+    if (dto.rider_music_preference !== undefined)
+      update.rider_music_preference = dto.rider_music_preference;
+    if (dto.rider_smoking_preference !== undefined)
+      update.rider_smoking_preference = dto.rider_smoking_preference;
+    if (dto.rider_pet_preference !== undefined)
+      update.rider_pet_preference = dto.rider_pet_preference;
     if (Object.keys(update).length > 0) {
       await this.userRepo.update(req.user.id, update);
     }
@@ -146,7 +163,16 @@ export class UserController {
 
     const activePosts = await this.tripRepo.find({
       where: { driver_id: userId, status: Not(In(['completed', 'cancelled'])) },
-      select: ['id', 'origin_metro', 'dest_metro', 'departure_date', 'departure_time', 'seats_available', 'created_at', 'status'],
+      select: [
+        'id',
+        'origin_metro',
+        'dest_metro',
+        'departure_date',
+        'departure_time',
+        'seats_available',
+        'created_at',
+        'status',
+      ],
       order: { departure_date: 'ASC' },
       take: 10,
     });
@@ -181,9 +207,11 @@ export class UserController {
   }
 
   @Get('legal/current-irs-rate')
-  @ApiOperation({ summary: 'Get current IRS mileage rate for cost-sharing calculation' })
+  @ApiOperation({
+    summary: 'Get current IRS mileage rate for cost-sharing calculation',
+  })
   async getCurrentIrsRate() {
-    return { rate: 0.70, year: 2026, source: 'IRS Publication 463' };
+    return { rate: 0.7, year: 2026, source: 'IRS Publication 463' };
   }
 
   @Get('user/me')
@@ -193,7 +221,22 @@ export class UserController {
   async getMe(@Request() req: any) {
     const user = await this.userRepo.findOne({
       where: { id: req.user.id },
-      select: ['id', 'email', 'phone', 'name', 'role', 'selected_role', 'is_email_verified', 'is_phone_verified', 'subscription_tier', 'subscription_expires_at', 'rider_conversation_style', 'rider_music_preference', 'rider_smoking_preference', 'rider_pet_preference'],
+      select: [
+        'id',
+        'email',
+        'phone',
+        'name',
+        'role',
+        'selected_role',
+        'is_email_verified',
+        'is_phone_verified',
+        'subscription_tier',
+        'subscription_expires_at',
+        'rider_conversation_style',
+        'rider_music_preference',
+        'rider_smoking_preference',
+        'rider_pet_preference',
+      ],
     });
     return user;
   }
@@ -207,9 +250,10 @@ export class UserController {
     @Body() body: { receipt_data: string; product_id: string },
   ) {
     const environment = process.env.APP_STORE_ENV || 'sandbox';
-    const url = environment === 'production'
-      ? 'https://buy.itunes.apple.com/verifyReceipt'
-      : 'https://sandbox.itunes.apple.com/verifyReceipt';
+    const url =
+      environment === 'production'
+        ? 'https://buy.itunes.apple.com/verifyReceipt'
+        : 'https://sandbox.itunes.apple.com/verifyReceipt';
 
     const response = await fetch(url, {
       method: 'POST',
@@ -229,8 +273,8 @@ export class UserController {
 
     const receipt = result.receipt;
     const latestIap = receipt.in_app?.[receipt.in_app.length - 1];
-    const originalTxId = latestIap?.original_transaction_id
-      || receipt.receipt_creation_date;
+    const originalTxId =
+      latestIap?.original_transaction_id || receipt.receipt_creation_date;
 
     const expiresAt = latestIap?.expires_date
       ? new Date(latestIap.expires_date).toISOString()
@@ -267,8 +311,9 @@ export class UserController {
     }
 
     const notificationType = payload.notificationType;
-    const originalTxId = payload.data?.originalTransactionId
-      || payload.signedTransactionInfo?.originalTransactionId;
+    const originalTxId =
+      payload.data?.originalTransactionId ||
+      payload.signedTransactionInfo?.originalTransactionId;
 
     if (!originalTxId) return { received: true };
 
@@ -283,8 +328,9 @@ export class UserController {
       case 'DID_RENEW':
       case 'SUBSCRIBED':
       case 'INTERACTIVE_RENEWAL': {
-        const expiresMs = payload.data?.signedTransactionInfo?.expiresDate
-          || payload.renewalInfo?.expiresDate;
+        const expiresMs =
+          payload.data?.signedTransactionInfo?.expiresDate ||
+          payload.renewalInfo?.expiresDate;
         await this.userRepo.update(user.id, {
           subscription_tier: 'premium' as any,
           subscription_expires_at: expiresMs

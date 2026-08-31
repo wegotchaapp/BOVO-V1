@@ -17,7 +17,9 @@ import { JwtService } from '@nestjs/jwt';
   },
   transports: ['websocket'],
 })
-export class RealtimeGateway implements OnGatewayConnection, OnGatewayDisconnect {
+export class RealtimeGateway
+  implements OnGatewayConnection, OnGatewayDisconnect
+{
   @WebSocketServer()
   server!: Server;
 
@@ -78,18 +80,18 @@ export class RealtimeGateway implements OnGatewayConnection, OnGatewayDisconnect
   }
 
   emitNewMessage(conversationId: string, message: any) {
-    this.server.to(`conversation:${conversationId}`).emit(
-      `message:new:${conversationId}`,
-      message,
-    );
-    this.server.to(`conversation:${conversationId}`).emit('message:new', message);
+    this.server
+      .to(`conversation:${conversationId}`)
+      .emit(`message:new:${conversationId}`, message);
+    this.server
+      .to(`conversation:${conversationId}`)
+      .emit('message:new', message);
   }
 
   emitMessageUpdated(conversationId: string, message: any) {
-    this.server.to(`conversation:${conversationId}`).emit(
-      `message:updated:${conversationId}`,
-      message,
-    );
+    this.server
+      .to(`conversation:${conversationId}`)
+      .emit(`message:updated:${conversationId}`, message);
   }
 
   emitConversationUpdated(userId: string) {

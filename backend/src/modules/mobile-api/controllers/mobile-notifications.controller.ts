@@ -10,9 +10,7 @@ import { MobileUser } from '../entities/mobile.entities';
 @Controller('api/notifications')
 @UseGuards(MobileAuthGuard)
 export class MobileNotificationsController {
-  constructor(
-    private readonly notifications: MobileNotificationsService,
-  ) {}
+  constructor(private readonly notifications: MobileNotificationsService) {}
 
   @Get('unread')
   unread(@MobileAuthUser() user: MobileUser) {

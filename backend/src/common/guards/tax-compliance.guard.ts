@@ -1,13 +1,15 @@
-import { Injectable, ForbiddenException } from '@nestjs/common';
-import { CanActivate, ExecutionContext } from '@nestjs/common';
-import { Reflector } from '@nestjs/core';
+import {
+  Injectable,
+  ForbiddenException,
+  CanActivate,
+  ExecutionContext,
+} from '@nestjs/common';
+import { AuthenticatedRequest } from '../../modules/auth/interfaces/auth.interface';
 
 @Injectable()
 export class TaxComplianceGuard implements CanActivate {
-  constructor(private reflector: Reflector) {}
-
   canActivate(context: ExecutionContext): boolean {
-    const request = context.switchToHttp().getRequest();
+    const request = context.switchToHttp().getRequest<AuthenticatedRequest>();
     const user = request.user;
 
     if (!user) return true;

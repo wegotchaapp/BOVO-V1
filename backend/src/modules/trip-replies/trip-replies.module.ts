@@ -2,7 +2,10 @@ import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { TripRepliesController } from './trip-replies.controller';
 import { TripRepliesService } from './trip-replies.service';
-import { TripReply, TripReplyRead } from '../../database/entities/trip-reply.entity';
+import {
+  TripReply,
+  TripReplyRead,
+} from '../../database/entities/trip-reply.entity';
 
 @Module({
   imports: [TypeOrmModule.forFeature([TripReply, TripReplyRead])],

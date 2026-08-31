@@ -93,8 +93,7 @@ export class MobileRatingsService {
   private async recomputeUserRating(userId: string) {
     const rows = await this.ratings.find({ where: { ratee_id: userId } });
     if (rows.length === 0) return;
-    const avg =
-      rows.reduce((sum, r) => sum + r.score, 0) / rows.length;
+    const avg = rows.reduce((sum, r) => sum + r.score, 0) / rows.length;
     const user = await this.users.findOne({ where: { id: userId } });
     if (!user) return;
     user.rating = avg.toFixed(2);

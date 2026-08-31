@@ -9,7 +9,7 @@ import { Repository } from 'typeorm';
 import { randomUUID } from 'crypto';
 import * as fs from 'fs';
 import * as path from 'path';
-import * as AWS from 'aws-sdk';
+import { PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
 
 import { MobileVehicle } from '../entities/mobile.entities';
 import { UpsertVehicleBody } from '../dto/mobile.dto';
@@ -31,7 +31,13 @@ const ALLOWED_DOC_MIME: Record<string, string> = {
   'application/pdf': 'pdf',
 };
 
-export const PHOTO_SLOTS = ['front', 'rear', 'left', 'right', 'interior'] as const;
+export const PHOTO_SLOTS = [
+  'front',
+  'rear',
+  'left',
+  'right',
+  'interior',
+] as const;
 export type PhotoSlot = (typeof PHOTO_SLOTS)[number];
 
 export const DOC_KINDS = ['insurance', 'registration'] as const;
@@ -72,17 +78,20 @@ export function normaliseVin(raw: string): string {
 
 @Injectable()
 export class MobileVehiclesService {
-  private readonly s3: AWS.S3;
+  private readonly s3: S3Client;
 
   constructor(
     private readonly config: ConfigService,
     @InjectRepository(MobileVehicle)
     private readonly vehicles: Repository<MobileVehicle>,
   ) {
-    this.s3 = new AWS.S3({
-      accessKeyId: this.config.get('AWS_ACCESS_KEY_ID'),
-      secretAccessKey: this.config.get('AWS_SECRET_ACCESS_KEY'),
-      region: this.config.get('AWS_REGION'),
+    const accessKeyId = this.config.get<string>('AWS_ACCESS_KEY_ID');
+    const secretAccessKey = this.config.get<string>('AWS_SECRET_ACCESS_KEY');
+    this.s3 = new S3Client({
+      region: this.config.get<string>('AWS_REGION'),
+      ...(accessKeyId && secretAccessKey
+        ? { credentials: { accessKeyId, secretAccessKey } }
+        : {}),
     });
   }
 
@@ -91,7 +100,9 @@ export class MobileVehiclesService {
       where: { user_id: userId },
       order: { updated_at: 'DESC' },
     });
-    return { vehicles: rows.map((v) => vehicleToDto(v, missingRequirements(v))) };
+    return {
+      vehicles: rows.map((v) => vehicleToDto(v, missingRequirements(v))),
+    };
   }
 
   /** Upsert the Voyager's single primary vehicle. */
@@ -153,7 +164,8 @@ export class MobileVehiclesService {
 
     const key = `vehicles/${row.id}/${slot}-${randomUUID()}.${ext}`;
     await this.store(key, file!.buffer, file!.mimetype);
-    (row as unknown as Record<string, unknown>)[PHOTO_COLUMN[slot]] = this.publicUrl(key);
+    (row as unknown as Record<string, unknown>)[PHOTO_COLUMN[slot]] =
+      this.publicUrl(key);
 
     const saved = await this.save(row);
     return {
@@ -300,15 +312,15 @@ export class MobileVehiclesService {
       !!awsKey && !!awsSecret && /^AKIA[0-9A-Z]{16}$/.test(awsKey);
 
     if (hasRealAwsCreds) {
-      await this.s3
-        .putObject({
+      await this.s3.send(
+        new PutObjectCommand({
           Bucket: VEHICLE_BUCKET,
           Key: key,
           Body: buffer,
           ContentType: mimeType,
           ACL: 'private',
-        })
-        .promise();
+        }),
+      );
       return;
     }
 
@@ -344,10 +356,12 @@ export function missingRequirements(v: MobileVehicle): string[] {
   }
 
   if (!v.insurance_doc_url) missing.push('insurance certificate');
-  else if (isExpired(v.insurance_expires_at)) missing.push('valid (unexpired) insurance');
+  else if (isExpired(v.insurance_expires_at))
+    missing.push('valid (unexpired) insurance');
 
   if (!v.registration_doc_url) missing.push('vehicle registration');
-  else if (isExpired(v.registration_expires_at)) missing.push('valid (unexpired) registration');
+  else if (isExpired(v.registration_expires_at))
+    missing.push('valid (unexpired) registration');
 
   return missing;
 }

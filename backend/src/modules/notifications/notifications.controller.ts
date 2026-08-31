@@ -53,10 +53,7 @@ export class NotificationsController {
   @Post('devices/register')
   @ApiBearerAuth('JWT')
   @ApiOperation({ summary: 'Register device push token' })
-  async registerDevice(
-    @Request() req: any,
-    @Body() body: DeviceRegisterDto,
-  ) {
+  async registerDevice(@Request() req: any, @Body() body: DeviceRegisterDto) {
     return this.notificationsService.registerDevice(
       req.user.id,
       body.expo_push_token,

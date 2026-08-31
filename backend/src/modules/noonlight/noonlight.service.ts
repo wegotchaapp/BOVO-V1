@@ -51,7 +51,8 @@ export class NoonlightService {
     private readonly logger: PinoLogger,
   ) {
     this.apiUrl =
-      this.config.get<string>('NOONLIGHT_API_URL') || 'https://api-sandbox.noonlight.com';
+      this.config.get<string>('NOONLIGHT_API_URL') ||
+      'https://api-sandbox.noonlight.com';
     this.apiKey = this.config.get<string>('NOONLIGHT_API_KEY') || '';
   }
 

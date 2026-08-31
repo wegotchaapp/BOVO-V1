@@ -1,4 +1,17 @@
-import { Controller, Get, Post, Body, Headers, Param, UseGuards, Request, HttpCode, HttpStatus, BadRequestException, Req } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Headers,
+  Param,
+  UseGuards,
+  Request,
+  HttpCode,
+  HttpStatus,
+  BadRequestException,
+  Req,
+} from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { AuthGuard } from '@nestjs/passport';
 import { PaymentsService } from './payments.service';
@@ -30,7 +43,9 @@ export class PaymentsController {
   }
 
   @Get('config')
-  @ApiOperation({ summary: 'Get Stripe publishable key for client-side initialization' })
+  @ApiOperation({
+    summary: 'Get Stripe publishable key for client-side initialization',
+  })
   getConfig() {
     return {
       publishableKey: this.config.get<string>('STRIPE_PUBLISHABLE_KEY') || '',
@@ -40,7 +55,9 @@ export class PaymentsController {
   @Post('subscription/create-payment-intent')
   @UseGuards(AuthGuard('jwt'))
   @ApiBearerAuth('JWT')
-  @ApiOperation({ summary: 'Create subscription PaymentIntent for Stripe PaymentSheet' })
+  @ApiOperation({
+    summary: 'Create subscription PaymentIntent for Stripe PaymentSheet',
+  })
   async createSubscriptionPaymentIntent(@Request() req: any) {
     const user = await this.userRepo.findOne({ where: { id: req.user.id } });
     if (user?.subscription_tier === 'premium') {
@@ -66,19 +83,25 @@ export class PaymentsController {
   @UseGuards(AuthGuard('jwt'))
   @ApiBearerAuth('JWT')
   @ApiOperation({ summary: 'Confirm subscription payment and activate Guild' })
-  async confirmSubscription(@Request() req: any, @Body() body: { payment_intent_id?: string }) {
+  async confirmSubscription(
+    @Request() req: any,
+    @Body() body: { payment_intent_id?: string },
+  ) {
     const user = await this.userRepo.findOne({ where: { id: req.user.id } });
     if (user?.subscription_tier === 'premium') {
       return { activated: true };
     }
 
     const secretKey = this.config.get<string>('STRIPE_SECRET_KEY') || '';
-    const isMock = secretKey.includes('mock') || secretKey.includes('test_local');
+    const isMock =
+      secretKey.includes('mock') || secretKey.includes('test_local');
 
     if (isMock) {
       await this.userRepo.update(req.user.id, {
         subscription_tier: 'premium' as any,
-        subscription_expires_at: new Date(Date.now() + 30 * 86400000).toISOString(),
+        subscription_expires_at: new Date(
+          Date.now() + 30 * 86400000,
+        ).toISOString(),
       });
       return { activated: true };
     }
@@ -87,14 +110,18 @@ export class PaymentsController {
       throw new BadRequestException('payment_intent_id is required');
     }
 
-    const paymentIntent = await this.stripe.paymentIntents.retrieve(body.payment_intent_id);
+    const paymentIntent = await this.stripe.paymentIntents.retrieve(
+      body.payment_intent_id,
+    );
     if (paymentIntent.status !== 'succeeded') {
       throw new BadRequestException('Payment has not succeeded yet');
     }
 
     await this.userRepo.update(req.user.id, {
       subscription_tier: 'premium' as any,
-      subscription_expires_at: new Date(Date.now() + 30 * 86400000).toISOString(),
+      subscription_expires_at: new Date(
+        Date.now() + 30 * 86400000,
+      ).toISOString(),
     });
 
     return { activated: true };
@@ -127,7 +154,10 @@ export class PaymentsController {
     if (!user?.stripe_account_id) {
       throw new BadRequestException('No connected Stripe account');
     }
-    return this.paymentsService.getConnectStatus(req.user.sub, user.stripe_account_id);
+    return this.paymentsService.getConnectStatus(
+      req.user.sub,
+      user.stripe_account_id,
+    );
   }
 
   @Post('connect/refresh')
@@ -138,7 +168,10 @@ export class PaymentsController {
     if (!user?.stripe_account_id) {
       throw new BadRequestException('No connected Stripe account');
     }
-    return this.paymentsService.refreshAccountLink(req.user.sub, user.stripe_account_id);
+    return this.paymentsService.refreshAccountLink(
+      req.user.sub,
+      user.stripe_account_id,
+    );
   }
 
   @Get('connect/dashboard-link')
@@ -164,10 +197,16 @@ export class PaymentsController {
     if (this.webhookSecret) {
       const rawBody = req.rawBody;
       if (!rawBody) {
-        throw new BadRequestException('Raw body not available for signature verification');
+        throw new BadRequestException(
+          'Raw body not available for signature verification',
+        );
       }
       try {
-        event = this.stripe.webhooks.constructEvent(rawBody, sig, this.webhookSecret);
+        event = this.stripe.webhooks.constructEvent(
+          rawBody,
+          sig,
+          this.webhookSecret,
+        );
       } catch {
         throw new BadRequestException('Invalid Stripe webhook signature');
       }
@@ -202,7 +241,9 @@ export class PaymentsController {
 
   @Post('tax/w9-submit')
   @ApiBearerAuth('JWT')
-  @ApiOperation({ summary: 'Submit W-9 tax form (unblocks payouts above $600 threshold)' })
+  @ApiOperation({
+    summary: 'Submit W-9 tax form (unblocks payouts above $600 threshold)',
+  })
   async submitW9(@Request() req: any) {
     const user = await this.userRepo.findOne({ where: { id: req.user.sub } });
     if (!user) throw new BadRequestException('User not found');

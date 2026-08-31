@@ -25,7 +25,9 @@ function startOfCurrentMonthCentralAsUtc(): Date {
   const year = get('year');
   const month = get('month');
   for (const offsetHours of [5, 6]) {
-    const candidate = new Date(Date.UTC(year, month - 1, 1, offsetHours, 0, 0, 0));
+    const candidate = new Date(
+      Date.UTC(year, month - 1, 1, offsetHours, 0, 0, 0),
+    );
     const proj = new Intl.DateTimeFormat('en-US', {
       timeZone: TZ,
       year: 'numeric',

@@ -1,4 +1,13 @@
-import { Controller, Get, Post, Body, Param, Query, UseGuards, Request } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Param,
+  Query,
+  UseGuards,
+  Request,
+} from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { AuthGuard } from '@nestjs/passport';
 import { TripGroupsService } from './trip-groups.service';
@@ -24,7 +33,12 @@ export class TripGroupsController {
     @Body('text') text: string,
     @Body('is_system') isSystem: boolean,
   ) {
-    return this.tripGroupsService.sendMessage(groupId, senderId, text, isSystem);
+    return this.tripGroupsService.sendMessage(
+      groupId,
+      senderId,
+      text,
+      isSystem,
+    );
   }
 
   @Get(':groupId/messages')
@@ -33,7 +47,10 @@ export class TripGroupsController {
     @Param('groupId') groupId: string,
     @Query('limit') limit?: number,
   ) {
-    return this.tripGroupsService.getMessages(groupId, limit ? parseInt(String(limit), 10) : undefined);
+    return this.tripGroupsService.getMessages(
+      groupId,
+      limit ? parseInt(String(limit), 10) : undefined,
+    );
   }
 
   @Post(':groupId/pickup-vote')

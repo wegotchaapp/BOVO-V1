@@ -4,55 +4,45 @@ on:
   pull_request:
     branches: [main]
     paths:
-      - 'wegotcha/**'
+      - 'mobile/**'
       - '.github/workflows/mobile-ci.yml'
 
 jobs:
   ci:
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: ./wegotcha
-
     steps:
       - uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '20'
-
-      - name: Cache dependencies
-        uses: actions/cache@v4
-        with:
-          path: |
-            wegotcha/node_modules
-            ~/.expo
-          key: ${{ runner.os }}-mobile-modules-${{ hashFiles('wegotcha/package-lock.json') }}
+          cache: pnpm
+          cache-dependency-path: mobile/pnpm-lock.yaml
 
       - name: Install dependencies
-        run: npm ci
+        working-directory: ./mobile
+        run: pnpm install --frozen-lockfile
 
-      - name: Load .env
+      - name: Configure CI environment
+        working-directory: ./mobile
         run: |
-          cp .env.example .env
-          sed -i "s|EXPO_PUBLIC_API_URL=.*|EXPO_PUBLIC_API_URL=http://localhost:3000|" .env
+          cp artifacts/mobile/.env.example artifacts/mobile/.env
+          sed -i "s|EXPO_PUBLIC_API_URL=.*|EXPO_PUBLIC_API_URL=http://localhost:3000|" artifacts/mobile/.env
 
       - name: TypeScript Check
-        run: npx tsc --noEmit
+        working-directory: ./mobile
+        run: pnpm run typecheck
 
-      - name: Lint
-        run: npm run lint
-
-      - name: Expo Dry Run Export
-        run: npx expo export --platform web --output-dir /tmp/expo-export
+      - name: Release bundle check
+        working-directory: ./mobile
+        run: pnpm run release:check
         env:
           EXPO_PUBLIC_API_URL: http://localhost:3000
-          EXPO_PUBLIC_SUPABASE_URL: https://your-project.supabase.co
-          EXPO_PUBLIC_SUPABASE_ANON_KEY: your-anon-key-here
-          EXPO_PUBLIC_MAPBOX_ACCESS_TOKEN: pk.your-mapbox-token-here
-          EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY: pk_test_your-stripe-key-here
-          EXPO_PUBLIC_SENTRY_DSN: https://your-dsn@sentry.io/your-project-id
-          EXPO_PUBLIC_POSTHOG_API_KEY: phc_your-posthog-key-here
-          EXPO_PUBLIC_POSTHOG_HOST: https://us.i.posthog.com
-          APP_ENV: test
+          EXPO_PUBLIC_MAPBOX_TOKEN: pk.test-token
+          EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY: pk_test_ci

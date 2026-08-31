@@ -11,7 +11,17 @@ import { Booking } from '../../database/entities/booking.entities';
 import { Payout } from '../../database/entities/payment.entities';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Profile, Vehicle, User, Verification, Trip, Booking, Payout])],
+  imports: [
+    TypeOrmModule.forFeature([
+      Profile,
+      Vehicle,
+      User,
+      Verification,
+      Trip,
+      Booking,
+      Payout,
+    ]),
+  ],
   controllers: [ProfilesController, UserController],
   providers: [ProfilesService],
   exports: [ProfilesService],

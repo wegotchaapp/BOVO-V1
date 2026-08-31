@@ -5,7 +5,7 @@ import {
   HttpException,
   HttpStatus,
 } from '@nestjs/common';
-import { Response } from 'express';
+import type { Request, Response } from 'express';
 import { PinoLogger } from 'nestjs-pino';
 
 @Catch()
@@ -22,17 +22,18 @@ export class AllExceptionsFilter implements ExceptionFilter {
         ? exception.getStatus()
         : HttpStatus.INTERNAL_SERVER_ERROR;
 
-    const message =
+    const exceptionResponse =
       exception instanceof HttpException
         ? exception.getResponse()
         : 'Internal server error';
+    const message = this.messageFrom(exceptionResponse);
 
     const errorResponse = {
       statusCode: status,
       timestamp: new Date().toISOString(),
       path: request.url,
       method: request.method,
-      message: typeof message === 'string' ? message : (message as any).message,
+      message,
       ...(process.env.NODE_ENV !== 'production' && {
         stack: exception instanceof Error ? exception.stack : undefined,
       }),
@@ -49,5 +50,16 @@ export class AllExceptionsFilter implements ExceptionFilter {
     );
 
     response.status(status).json(errorResponse);
+  }
+
+  private messageFrom(response: string | object): string | string[] {
+    if (typeof response === 'string') return response;
+    if (
+      'message' in response &&
+      (typeof response.message === 'string' || Array.isArray(response.message))
+    ) {
+      return response.message;
+    }
+    return 'Internal server error';
   }
 }

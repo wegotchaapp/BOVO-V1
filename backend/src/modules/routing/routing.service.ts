@@ -39,9 +39,14 @@ export class RoutingService {
    * Never throws — a missing route degrades deviation detection to "cannot
    * tell", which is the honest outcome, rather than failing a location ping.
    */
-  async routeBetweenCities(fromCity: string, toCity: string): Promise<string | null> {
+  async routeBetweenCities(
+    fromCity: string,
+    toCity: string,
+  ): Promise<string | null> {
     if (!this.accessToken) {
-      this.logger.warn('MAPBOX_ACCESS_TOKEN is not set — no route geometry, so no deviation detection.');
+      this.logger.warn(
+        'MAPBOX_ACCESS_TOKEN is not set — no route geometry, so no deviation detection.',
+      );
       return null;
     }
 
@@ -64,7 +69,10 @@ export class RoutingService {
 
       const geometry: string | undefined = data?.routes?.[0]?.geometry;
       if (!geometry) {
-        this.logger.warn({ fromCity, toCity, code: data?.code }, 'Mapbox returned no route');
+        this.logger.warn(
+          { fromCity, toCity, code: data?.code },
+          'Mapbox returned no route',
+        );
         return null;
       }
       return geometry;
@@ -73,7 +81,12 @@ export class RoutingService {
       // access token rides in the URL too.
       const res = (err as any)?.response;
       this.logger.error(
-        { status: res?.status ?? null, code: res?.data?.code ?? null, fromCity, toCity },
+        {
+          status: res?.status ?? null,
+          code: res?.data?.code ?? null,
+          fromCity,
+          toCity,
+        },
         'Mapbox Directions request failed',
       );
       return null;

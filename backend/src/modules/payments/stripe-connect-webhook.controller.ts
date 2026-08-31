@@ -49,7 +49,9 @@ export class StripeConnectWebhookController {
     const { type, data } = body;
     const account = data.object;
 
-    this.logger.log(`Received Stripe webhook: ${type} (account: ${account.id || 'N/A'})`);
+    this.logger.log(
+      `Received Stripe webhook: ${type} (account: ${account.id || 'N/A'})`,
+    );
 
     switch (type) {
       case 'account.updated':

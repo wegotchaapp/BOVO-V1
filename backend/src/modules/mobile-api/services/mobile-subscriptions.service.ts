@@ -108,7 +108,10 @@ export class MobileSubscriptionsService {
     return this.toStartResponse(subscription, publishableKey);
   }
 
-  private toStartResponse(subscription: Stripe.Subscription, publishableKey: string) {
+  private toStartResponse(
+    subscription: Stripe.Subscription,
+    publishableKey: string,
+  ) {
     const trialEndsAt = subscription.trial_end
       ? new Date(subscription.trial_end * 1000).toISOString()
       : null;
@@ -121,7 +124,9 @@ export class MobileSubscriptionsService {
     };
   }
 
-  private extractClientSecret(subscription: Stripe.Subscription): string | null {
+  private extractClientSecret(
+    subscription: Stripe.Subscription,
+  ): string | null {
     const setupIntent = subscription.pending_setup_intent as
       | Stripe.SetupIntent
       | string
@@ -136,9 +141,11 @@ export class MobileSubscriptionsService {
       | null
       | undefined;
     if (invoice && typeof invoice !== 'string') {
-      const pi = (invoice as unknown as {
-        payment_intent?: Stripe.PaymentIntent | string | null;
-      }).payment_intent;
+      const pi = (
+        invoice as unknown as {
+          payment_intent?: Stripe.PaymentIntent | string | null;
+        }
+      ).payment_intent;
       if (pi && typeof pi !== 'string') {
         return pi.client_secret ?? null;
       }

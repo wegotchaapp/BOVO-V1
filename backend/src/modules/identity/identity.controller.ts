@@ -27,7 +27,9 @@ export class IdentityController {
 
   @Get('identity/face-image-ref')
   @ApiBearerAuth('JWT')
-  @ApiOperation({ summary: 'Get stored face image reference for profile photo comparison' })
+  @ApiOperation({
+    summary: 'Get stored face image reference for profile photo comparison',
+  })
   async getFaceImageRef(@Request() req: any) {
     const ref = await this.identityService.getFaceImageReference(req.user.id);
     return { face_image_reference: ref };

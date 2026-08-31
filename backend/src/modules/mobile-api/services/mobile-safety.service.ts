@@ -122,7 +122,12 @@ export class MobileSafetyService {
         `SOS SMS sent to emergency contact (sid ${result.sid}, status ${result.status})`,
       );
       await this.sosEvents.update(sos.id, { contact_notified: true });
-      return { ok: true, sosId: sos.id, dispatched: alarmId != null, contactNotified: true };
+      return {
+        ok: true,
+        sosId: sos.id,
+        dispatched: alarmId != null,
+        contactNotified: true,
+      };
     } catch (err) {
       this.logger.error(
         `SOS SMS to emergency contact failed: ${err instanceof Error ? err.message : err}`,

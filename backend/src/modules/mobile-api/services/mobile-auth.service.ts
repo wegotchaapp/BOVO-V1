@@ -56,7 +56,9 @@ export class MobileAuthService {
       await this.purgeIfExpired(existing);
       const still = await this.users.findOne({ where: { email } });
       if (still) {
-        throw new ConflictException('An account with this email already exists');
+        throw new ConflictException(
+          'An account with this email already exists',
+        );
       }
     }
 
@@ -331,9 +333,10 @@ export class MobileAuthService {
       throw new UnauthorizedException('Invalid Apple identity token.');
     }
     const payload = JSON.parse(
-      Buffer.from(parts[1].replace(/-/g, '+').replace(/_/g, '/'), 'base64').toString(
-        'utf8',
-      ),
+      Buffer.from(
+        parts[1].replace(/-/g, '+').replace(/_/g, '/'),
+        'base64',
+      ).toString('utf8'),
     ) as {
       sub?: string;
       email?: string;

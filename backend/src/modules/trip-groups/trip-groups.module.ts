@@ -11,7 +11,15 @@ import {
 import { Booking } from '../../database/entities/booking.entities';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([TripGroup, TripGroupMember, TripGroupMessage, TripGroupPickupApproval, Booking])],
+  imports: [
+    TypeOrmModule.forFeature([
+      TripGroup,
+      TripGroupMember,
+      TripGroupMessage,
+      TripGroupPickupApproval,
+      Booking,
+    ]),
+  ],
   controllers: [TripGroupsController],
   providers: [TripGroupsService],
   exports: [TripGroupsService],

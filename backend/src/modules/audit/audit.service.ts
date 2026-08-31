@@ -31,7 +31,10 @@ export class AuditService {
     return this.auditRepo.save(event);
   }
 
-  async getAuditTrail(entityType: string, entityId: string): Promise<AuditEvent[]> {
+  async getAuditTrail(
+    entityType: string,
+    entityId: string,
+  ): Promise<AuditEvent[]> {
     return this.auditRepo.find({
       where: { entity_type: entityType, entity_id: entityId },
       order: { created_at: 'ASC' },
@@ -53,13 +56,17 @@ export class AuditService {
       qb.andWhere('audit.actor_id = :actorId', { actorId: params.actorId });
     }
     if (params.entityType) {
-      qb.andWhere('audit.entity_type = :entityType', { entityType: params.entityType });
+      qb.andWhere('audit.entity_type = :entityType', {
+        entityType: params.entityType,
+      });
     }
     if (params.eventType) {
       qb.andWhere('audit.action = :eventType', { eventType: params.eventType });
     }
     if (params.startDate) {
-      qb.andWhere('audit.created_at >= :startDate', { startDate: params.startDate });
+      qb.andWhere('audit.created_at >= :startDate', {
+        startDate: params.startDate,
+      });
     }
     if (params.endDate) {
       qb.andWhere('audit.created_at <= :endDate', { endDate: params.endDate });
@@ -81,10 +88,14 @@ export class AuditService {
   }
 
   async deleteEvent(_id: string): Promise<never> {
-    throw new ForbiddenException('Audit events are immutable and cannot be deleted');
+    throw new ForbiddenException(
+      'Audit events are immutable and cannot be deleted',
+    );
   }
 
   async updateEvent(_id: string, _data: Partial<AuditEvent>): Promise<never> {
-    throw new ForbiddenException('Audit events are immutable and cannot be updated');
+    throw new ForbiddenException(
+      'Audit events are immutable and cannot be updated',
+    );
   }
 }

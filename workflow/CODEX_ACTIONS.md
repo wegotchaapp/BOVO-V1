@@ -356,3 +356,103 @@ database → clean) will now be demonstrated automatically on the next PR**. Tha
 does not close the item. Runs 2 and 3 — the second-run no-op, and a copy of
 production — still need you, and still need the console output posted. "It ran"
 is not evidence.
+
+
+---
+
+# 2026-09-01 — your next task: prove the migrations, runs 1 and 2
+
+**This is P1-1 in `PRODUCTION_WORKFLOW.md`, and it is now the only item on the
+critical path.** Everything in Phase 8 waits on it. It is also squarely the kind
+of work you are best at: a written spec, executed exactly, with a mechanical
+gate that says pass or fail.
+
+First: `git -C "$HOME/Desktop/bovogo-codex" rebase feat/mobile-api-v1`. Your 15
+commits are merged, so your branch's base no longer exists on its own.
+
+## Read this before you run anything
+
+> [!danger] `backend/.env` points at **production**, and `data-source.ts` reads it
+> `src/database/data-source.ts:1` is `import 'dotenv/config'`, and line 83 is
+> `url: process.env.DATABASE_URL`. `backend/.env` holds the live Supabase
+> `postgres` URL — the same credential in `CREDENTIAL_ROTATION.md` §1.
+>
+> **A bare `npm run migration:run` in `backend/` migrates production.** Not a
+> staging copy. Production, with real riders' data in it.
+>
+> `dotenv` does not overwrite a variable that is already set, so an **exported**
+> `DATABASE_URL` wins over the file. Export it explicitly in every command below
+> and never rely on the file being right. Agreement §11 forbids running a
+> migration against production; this is the specific way it would happen by
+> accident.
+
+## The cluster
+
+PostgreSQL 18.4 is on this machine at `~/.local/pgsql/bin` (`initdb`, `pg_ctl`,
+`postgres`) with **no cluster created** — the same tools you used to prove the
+missing `users` table. Build a throwaway cluster on a non-default port, outside
+the repository, and delete it when you are done. Do not use port 5432.
+
+## Run 1 — empty database
+
+```bash
+export PATH="$HOME/.local/pgsql/bin:$PATH"
+export PGDATA=/tmp/bovogo-migration-proof/pgdata
+export DATABASE_URL='postgresql://postgres@127.0.0.1:5433/bovogo_proof'
+export DATABASE_SSL=false
+```
+
+`initdb`, start on 5433, create `bovogo_proof` **empty**, then from `backend/`:
+
+```bash
+npm run build && npm run migration:run
+```
+
+Use the compiled path (`migration:run` → `dist/database/data-source.js`), because
+that is what `backend-ci.yml` and the deploy run. Expect exit 0 and every
+migration applied in timestamp order, starting with
+`1746284000000-InitialTypeormBaseline.ts`.
+
+## Run 2 — idempotency
+
+Immediately run `npm run migration:run` **again against the same database**.
+Expect `No migrations are pending`, exit 0, and no DDL executed. A second run
+that does work is a failure, not a curiosity.
+
+## What counts as evidence
+
+Post, in `FINDINGS.md`, verbatim:
+
+- the full console output of both runs, including the TypeORM `query:` lines —
+  `logging: true` is already on, so you get them for free;
+- `select count(*) from information_schema.tables where table_schema='public';`
+  after run 1;
+- the contents of the `migrations` table after run 1 and after run 2, which is
+  the actual proof that run 2 was a no-op.
+
+**"It ran" is not evidence.** That has been the standing bar on this item since
+2026-08-31 and it has not moved.
+
+## Then check the mobile tables against the frozen schema
+
+Once the mobile migrations have run in sequence **after a real platform base**
+for the first time, re-check them against `SCHEMA_BASELINE.md` §1–§3: the 9 CHECK
+constraints, the 3 foreign keys, the 21 indexes including the partial and
+`DESC`/`NULLS LAST` ones, and the UUID defaults you already corrected. Report
+drift in `FINDINGS.md`; do not "fix" production to match the migration.
+
+## What is *not* in this task
+
+- **Run 3, the production copy.** It needs a dump only Sushant can produce, and
+  it comes after the rotation in `CREDENTIAL_ROTATION.md` §1. Do not attempt it,
+  and do not connect to the production database for any reason.
+- **The redundant index cleanup** (`SCHEMA_BASELINE.md` §2.3). Still correctly
+  waiting on this item passing. Its own migration, afterwards.
+- Anything in `mobile/**` — and no installs there, ever.
+
+## If a migration fails
+
+Post the failure the same way you would post a pass. A baseline that does not
+apply cleanly is the single most valuable thing you could find this week, and
+finding it here costs nothing — finding it during the first production deploy
+costs the launch. Do not patch around an error to get a green run; report it.

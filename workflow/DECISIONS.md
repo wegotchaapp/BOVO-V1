@@ -8,7 +8,7 @@ Decided by Claude unless marked `USER` — Sushant's decisions override.
 | # | Date | Question | Decision | By | Reasoning |
 | --- | --- | --- | --- | --- | --- |
 | 1 | 2026-08-30 | Topic-based split (mobile vs backend) or artifact-based? | Artifact-based, with a shared-writer rule for generated files | Claude | Topic split collides on `mobile/pnpm-lock.yaml`, the migration source, and SOS, which spans both lanes |
-| 2 | | Does `mockup-sandbox` block the release? | *open* | USER | Agreement §9.1 — recommendation is to drop it from the gate |
+| 2 | 2026-09-01 | Does `mockup-sandbox` block the release? | **No — dropped from the release gate** | USER | It ships to nobody, is referenced by nothing but the lockfile, and the alternative fix unpins Expo SDK 54. See below |
 | 3 | 2026-08-30 | Are the frozen `.sql` files a faithful record of production? | **Yes — verified, zero drift** | Claude | Live schema diff against Supabase; see below |
 | 4 | 2026-08-30 | Admin lint debt: fix now or formally defer? | **Fix now, in Codex's lane, bundled with item 4** | Claude | Typing the 60 `any`s *is* defining the admin API contract — the same work as the route-gap item |
 
@@ -43,3 +43,46 @@ fourteen investigations. Lint stays **blocking** in both `backend-ci.yml` and
 Codex escalates to Sushant only if a `set-state-in-effect` fix turns out to
 change behaviour — a cascading render in a load effect can mean a real double
 fetch, and that is a bug report, not a lint fix.
+
+
+## Decision 2 — `mockup-sandbox`, 2026-09-01
+
+Sushant's call, answering the question `AGENT_OPERATING_AGREEMENT.md` §9.1 left
+open on 2026-08-30. **`mockup-sandbox` is out of the release gate.**
+
+Its failure is two files — `src/components/ui/calendar.tsx:132` and
+`src/components/ui/spinner.tsx:7`, both `TS2322` from two `@types/react` trees
+resolving in one pnpm workspace. The clean fix is at the workspace level and
+would mean unpinning Expo SDK 54, which is a real risk taken on behalf of a
+sandbox that ships to no user.
+
+**The gate already implements this**, which is worth recording so nobody
+"fixes" it twice: `mobile/package.json` filters `!@workspace/mockup-sandbox` out
+of `typecheck`, `build` and `test`, and keeps a separate opt-in
+`typecheck:sandbox` for anyone working in there. Verified 2026-09-01 —
+`pnpm run typecheck` scopes to 4 of 10 projects and all four pass:
+
+```
+artifacts/api-server  artifacts/mobile  artifacts/support-admin  scripts   Done
+```
+
+So the decision closes an open question rather than changing any code. It stays
+excluded until someone has a reason to work in the sandbox, at which point the
+two type errors are theirs to deal with, not the release's.
+
+## Correction to Decision 4 — lint is no longer blocking, 2026-09-01
+
+Decision 4 ends "Lint stays **blocking** in both `backend-ci.yml` and
+`backend-deploy.yml`." That is no longer true of the repository, and a ledger
+that contradicts the workflows is worse than one that admits the change.
+
+Both workflows now run backend lint with `continue-on-error: true`, each with a
+comment saying why: `main` produces 842 errors, overwhelmingly
+`@typescript-eslint/no-unsafe-*` in the weather, trust_safety and payments
+modules, so the step failed on every PR regardless of its contents. A check that
+is always red trains people to ignore CI, which costs the next real failure.
+
+The current count on `feat/mobile-api-v1` is **821**, after Codex's targeted
+fixes in `3c47c78`. TypeScript, formatting, tests, build and migrations are all
+still blocking. Restoring lint to blocking is the right end state and needs the
+backlog cleared first — it is not currently anybody's assigned item.

@@ -21,13 +21,13 @@ forward from an earlier audit. Where a claim is *not* re-verified it says so.
 | `docs/APP_STORE_SUBMISSION.md` | store mechanics | Yes — Phase 7 |
 | `DECISIONS.md` / `CONTRACTS.md` / `FINDINGS.md` | coordination ledgers | Yes |
 
-> **Phase 0 is now mostly closed** (2026-09-01): the stranded commits are
-> cherry-picked and Codex's 15 commits are integrated. What remains there is
-> Sushant's — approve the push, and decide the stray clone and `mockup-sandbox`.
+> **Phase 0 is closed** (2026-09-01). The stranded commits are cherry-picked,
+> Codex's 15 commits are integrated, the branch is pushed, the stray clone is
+> archived and gone, and `mockup-sandbox` is decided.
 >
 > **Codex: your next item is P1-1.** The baseline is on the release branch now,
-> and it is still the only thing standing between this build and a database that
-> can be created from empty.
+> and it is the only thing standing between this build and a database that can
+> be created from empty.
 
 ---
 
@@ -46,6 +46,7 @@ actually tested.
 | `admin: npm run lint` | **clean** | |
 | `admin: npm run build` | **passes** | 370.99 kB JS / 23.58 kB CSS |
 | `mobile/artifacts/mobile: tsc --noEmit` | **clean** | Re-run after both cherry-picks and the merge |
+| `mobile: pnpm run typecheck` (whole workspace) | **passes** | Scopes to 4 of 10 projects — `mockup-sandbox` is excluded by decision, see P0-4 |
 | `backend: npm audit --omit=dev` | **0 vulnerabilities** | Was 1 critical, 10 high, 25 moderate, 1 low. Closed by integrating `25ac35d` |
 | `admin: npm audit --omit=dev` | **0 vulnerabilities** | Was 3 high, 1 moderate. Closed by integrating `d5ac8d3` |
 | Platform base migration on `feat` | **present**, still **unproven** | `1746284000000-InitialTypeormBaseline.ts` merged. It has never been run against a database — P1-1 is unchanged |
@@ -54,8 +55,9 @@ actually tested.
 | `eas.json` | **placeholders** | `YOUR_APPLE_ID_EMAIL`, `YOUR_APP_STORE_CONNECT_APP_ID`, `YOUR_APPLE_TEAM_ID`; `extra.eas.projectId` is null |
 
 **Not re-verified today** (carried from `PRODUCTION_READINESS.md`, treat as
-unconfirmed): mobile dependency audit counts, and the `mockup-sandbox` workspace
-build failure.
+unconfirmed): the mobile dependency audit counts. The `mockup-sandbox` failure
+is no longer listed as a blocker — it is out of the gate by decision, and its two
+type errors are unchanged and unfixed.
 
 **No runtime testing was done at any point.** Every row above is a build, a
 typecheck, a test run or an audit. No server was started and no screen opened.
@@ -83,13 +85,15 @@ Both stranded commits were read in full and cherry-picked cleanly onto this tree
 
 Mobile typecheck clean afterwards; backend tests still green.
 
-**Outstanding — needs Sushant.** The stray clone at `~/Desktop/Bovogo VS/BOVO-V1`
-still exists and can still diverge again. Deleting someone's working copy is not
-an agent's call: **archive or delete it, and say which.** Everything in it is now
-on `feat/mobile-api-v1`, so nothing is lost either way.
+**Closed.** On Sushant's instruction the stray clone was archived to
+`~/Desktop/BOVO-V1-stray-clone-archive-2026-09-01.tar.gz` (17 MB, `.git`
+included, so its history survives) and `~/Desktop/Bovogo VS/` was removed. It
+was verified empty of unique work first: no uncommitted changes, no stashes,
+every local branch tracking `origin`, and both of its own commits confirmed
+present on the pushed branch.
 
-*Done when:* the stray clone is gone or archived. The cherry-picks and the
-typecheck are already satisfied.
+There is now **one clone and one registered worktree**, which is what the rest
+of this document assumes.
 
 ### P0-2. Integrate the 15 Codex commits · owner: **Claude** · **done 2026-09-01**
 
@@ -122,24 +126,25 @@ shape the mobile client reads: the two deleted `kyc/*` routes sat outside the
 `/api` namespace and had no callers anywhere in the repo, and the added JWT
 fields are internal to `request.user`.
 
-### P0-3. Nothing is pushed · owner: **Sushant** approves, **Claude** executes · **still open, and now the largest single risk**
+### P0-3. Nothing is pushed · owner: **Sushant** approves, **Claude** executes · **done 2026-09-01**
 
-`origin/feat/mobile-api-v1` is still at `1965b15`. As of 2026-09-01 this tree is
-**45 commits ahead of it**, and that now includes everything Codex did as well —
-the two clones have been consolidated into one, which means one disk failure
-loses the entire pass rather than part of it.
+`origin/feat/mobile-api-v1` moved `1965b15..eb80232` — 45 commits, the whole
+Claude/Codex pass, which until then existed only on this Mac. Approved
+explicitly by Sushant per agreement §11 before the push, and that approval
+covered this push only: **no PR was opened and nothing went near `main`.**
 
-Per the agreement §11, neither agent pushes without explicit approval. Ask for it
-early — this is the cheapest risk reduction available.
+The next push needs its own approval.
 
-### P0-4. Decide `mockup-sandbox` · owner: **Sushant** · `DECISIONS.md` #2 still open
+### P0-4. Decide `mockup-sandbox` · owner: **Sushant** · **decided 2026-09-01**
 
-`AGENT_OPERATING_AGREEMENT.md` §9.1 asks it; it has never been answered and it
-gates the mobile release build.
+**Dropped from the release gate**, recorded as `DECISIONS.md` #2. It ships to no
+user, is referenced by nothing but the lockfile, and the alternative unpins Expo
+SDK 54 for the sake of two type errors in a sandbox.
 
-Recommendation stands: **drop `mockup-sandbox` from the release gate.** It is
-referenced by nothing but the lockfile, ships to no user, and the alternative
-unpins Expo SDK 54.
+No code change was needed — `mobile/package.json` already filters
+`!@workspace/mockup-sandbox` out of `typecheck`, `build` and `test`, with an
+opt-in `typecheck:sandbox` for anyone working in there. Verified on the day:
+`pnpm run typecheck` scopes to 4 of 10 projects and all four pass.
 
 ---
 
@@ -465,14 +470,15 @@ individually, every time — `AGENT_OPERATING_AGREEMENT.md` §11.
 
 ## The critical path
 
+Phase 0 is done, so the path is shorter than it was — and every remaining item
+on it belongs to someone other than Claude.
+
 ```
-P2-1 rotate credential ─┐
-P0-1 merge stray tree ──┼─→ P0-2 integrate Codex ─→ P1-1 prove migrations ─┐
-P0-4 mockup decision ───┘                                                   │
-                                                                            ▼
-P3 integrations (Sushant, parallel) ─────────────→ Phase 8 staging ─→ launch
-P4-1 insurance decision (Sushant) ───────────────→        ▲
-Phase 6 legal (Sushant, longest lead) ───────────────────┘
+P2-1 rotate credential (Sushant) ─────────────────────────┐
+P1-1 prove migrations (Codex) ────────────────────────────┤
+P3 integrations (Sushant, parallel) ──────────────────────┼─→ Phase 8 staging ─→ launch
+P4-1 insurance decision (Sushant) ────────────────────────┤
+Phase 6 legal (Sushant, longest lead) ────────────────────┘
 ```
 
 **Phase 6 and P4-1 have the longest lead times and no engineering dependency —

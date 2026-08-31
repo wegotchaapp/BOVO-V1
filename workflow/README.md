@@ -40,11 +40,13 @@ one branch: Codex's 15 commits are integrated, the two stranded product commits
 are cherry-picked, backend tests are 99 across 10 suites, and **both production
 dependency audits are zero** — backend was 1 critical and 10 high the day before.
 
-What still blocks the release is unchanged in kind: a fresh production database
-has never once been created (the baseline migration now ships, but has never
-been run), a live database credential has been public since June, 45 commits
-exist only on this Mac, and the app charges an insurance premium that no policy
-is ever issued against.
+Phase 0 is closed: the branch is pushed (`1965b15..eb80232`), the stray clone is
+archived, and `mockup-sandbox` is decided.
+
+What still blocks the release: a fresh production database has never once been
+created — the baseline migration now ships, but has never been run — a live
+database credential has been public since June, and the app charges an insurance
+premium that no policy is ever issued against.
 
 See [PRODUCTION_WORKFLOW.md](PRODUCTION_WORKFLOW.md) for the sequenced plan and
 the measured status.

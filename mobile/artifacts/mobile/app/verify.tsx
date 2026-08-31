@@ -1,6 +1,6 @@
 import { Feather } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
-import React, { useState } from "react";
+import React from "react";
 import {
   Platform,
   SafeAreaView,
@@ -11,53 +11,38 @@ import {
   View,
 } from "react-native";
 
-import { Alert } from "@/lib/alert";
-
 import { useColors } from "@/hooks/useColors";
 
 interface VerifyItem {
   icon: string;
   title: string;
   subtitle: string;
-  status: "pending" | "done" | "placeholder";
+  /** Where the check actually runs. Absent means it isn't built yet. */
+  href?: string;
 }
 
 const ITEMS: VerifyItem[] = [
   {
     icon: "credit-card",
     title: "Government ID",
-    subtitle: "Upload your valid ID",
-    status: "done",
+    subtitle: "Not available yet — Bovogo can't check IDs today",
   },
   {
     icon: "camera",
     title: "Selfie Verification",
-    subtitle: "Take a quick selfie",
-    status: "done",
+    subtitle: "Not available yet",
   },
   {
     icon: "shield",
     title: "Background Check",
-    subtitle: "For your safety (coming soon)",
-    status: "placeholder",
+    subtitle: "Run by Checkr before you can post an adventure",
+    href: "/vehicle",
   },
 ];
 
 export default function Verify() {
   const colors = useColors();
   const router = useRouter();
-  const [tapped, setTapped] = useState<Record<number, boolean>>({});
-
-  function handleItem(idx: number) {
-    if (ITEMS[idx].status === "placeholder") {
-      Alert.alert(
-        "Coming Soon",
-        "Background checks will be enabled before launch. You can continue for now.",
-      );
-      return;
-    }
-    setTapped((prev) => ({ ...prev, [idx]: true }));
-  }
 
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: colors.background }]}>
@@ -72,15 +57,14 @@ export default function Verify() {
           <Feather name="arrow-left" size={22} color={colors.foreground} />
         </TouchableOpacity>
 
-        <Text style={[styles.title, { color: colors.foreground }]}>Verify Your Identity</Text>
+        <Text style={[styles.title, { color: colors.foreground }]}>Identity Checks</Text>
         <Text style={[styles.subtitle, { color: colors.mutedForeground }]}>
-          We need to verify it's you.
+          What Bovogo can check today, and what it can't yet.
         </Text>
 
         <View style={styles.items}>
-          {ITEMS.map((item, idx) => {
-            const isDone = tapped[idx] || item.status === "done";
-            const isPlaceholder = item.status === "placeholder";
+          {ITEMS.map((item) => {
+            const live = !!item.href;
             return (
               <TouchableOpacity
                 key={item.title}
@@ -88,12 +72,13 @@ export default function Verify() {
                   styles.item,
                   {
                     backgroundColor: colors.card,
-                    borderColor: isDone ? colors.primary : colors.border,
-                    borderWidth: isDone ? 1.5 : 1,
-                    opacity: isPlaceholder ? 0.65 : 1,
+                    borderColor: colors.border,
+                    borderWidth: 1,
+                    opacity: live ? 1 : 0.65,
                   },
                 ]}
-                onPress={() => handleItem(idx)}
+                onPress={() => item.href && router.push(item.href as any)}
+                disabled={!live}
                 activeOpacity={0.75}
               >
                 <View style={[styles.itemIcon, { backgroundColor: colors.secondary }]}>
@@ -105,23 +90,19 @@ export default function Verify() {
                     {item.subtitle}
                   </Text>
                 </View>
-                <View
-                  style={[
-                    styles.check,
-                    { backgroundColor: isDone ? colors.primary : colors.muted },
-                  ]}
-                >
-                  <Feather name="check" size={14} color={isDone ? "#fff" : colors.mutedForeground} />
-                </View>
+                {live ? (
+                  <Feather name="chevron-right" size={20} color={colors.mutedForeground} />
+                ) : null}
               </TouchableOpacity>
             );
           })}
         </View>
 
         <View style={[styles.notice, { backgroundColor: colors.secondary }]}>
-          <Feather name="lock" size={16} color={colors.primary} />
+          <Feather name="info" size={16} color={colors.primary} />
           <Text style={[styles.noticeText, { color: colors.primary }]}>
-            Your data is secure and encrypted
+            Nothing on this screen has been submitted. Don't treat another
+            Bovogo member as ID-checked — no one is, yet.
           </Text>
         </View>
 
@@ -161,22 +142,15 @@ const styles = StyleSheet.create({
   itemText: { flex: 1, gap: 3 },
   itemTitle: { fontSize: 15, fontFamily: "Inter_600SemiBold" },
   itemSubtitle: { fontSize: 13, fontFamily: "Inter_400Regular" },
-  check: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    alignItems: "center",
-    justifyContent: "center",
-  },
   notice: {
     flexDirection: "row",
-    alignItems: "center",
+    alignItems: "flex-start",
     gap: 8,
     padding: 14,
     borderRadius: 12,
     marginTop: 24,
   },
-  noticeText: { fontSize: 13, fontFamily: "Inter_500Medium", flex: 1 },
+  noticeText: { fontSize: 13, fontFamily: "Inter_500Medium", flex: 1, lineHeight: 19 },
   primaryBtn: {
     height: 54,
     borderRadius: 14,

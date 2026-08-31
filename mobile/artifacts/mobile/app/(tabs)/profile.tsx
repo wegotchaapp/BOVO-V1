@@ -131,7 +131,7 @@ export default function ProfileTab() {
     {
       title: "Safety",
       items: [
-        { icon: "shield", label: "Verifications", sublabel: user?.isVerified ? "ID verified ✓" : "Complete verification", action: () => router.push("/verify") },
+        { icon: "shield", label: "Verifications", sublabel: user?.isVerified ? "ID verified ✓" : "What we check, and what we don't", action: () => router.push("/verify") },
         { icon: "alert-triangle", label: "Safety Center", sublabel: "SOS, emergency contacts", route: "/safety" },
       ],
     },

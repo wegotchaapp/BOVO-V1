@@ -297,3 +297,62 @@ try to hide it.
 The other eight `backend/scripts/*.js` files that still embed a URL are all
 `localhost` with a throwaway password — leave them, or clean them in one
 unrelated commit, but they are not an exposure.
+
+
+---
+
+# 2026-09-01 — your branch is integrated
+
+All 15 commits from `codex/prod-readiness` are on `feat/mobile-api-v1` as of the
+merge `00c3e8a`. `git rev-list --count feat/mobile-api-v1..codex/prod-readiness`
+is `0`. **Rebase your worktree onto `feat/mobile-api-v1` before your next commit**
+or you will be building on a base that no longer exists on its own.
+
+Two of your commits were reviewed line by line rather than taken on trust,
+because both could fail in a way no test here would catch:
+
+- `cd6de43` — adding `tax_blocked` to the JWT strategy's `select` is correct
+  only because the column really exists (`user.entity.ts:153`). The spec mocks
+  the repository, so a wrong column name would have passed CI and 500'd every
+  authenticated request in production. It is right. Worth knowing why it was
+  checked.
+- `b67a747` — the SDK v3 move passes credentials only when both are present,
+  which is what lets instance roles work, and it keeps the `AKIA`-prefix guard
+  in front of the real upload. Correct.
+
+What integrating them actually bought, measured on the merge result after
+`npm ci` in both workspaces:
+
+```
+backend  npm audit --omit=dev   1 critical, 10 high, 25 moderate, 1 low  →  0
+admin    npm audit --omit=dev   3 high, 1 moderate                       →  0
+backend  jest src               95 tests / 8 suites  →  99 tests / 10 suites
+backend  npm run lint           842 errors on main   →  821
+backend  format:check           clean, and now enforced in CI
+```
+
+Both audits at zero is your work. It was sitting on a branch that does not ship
+for a day; that is the cost the integration gate exists to keep small.
+
+## Correction to the snapshot above
+
+**"Still to do" item 2 is stale — the three admin routes are implemented.**
+`GET /admin/compliance-logs`, `/admin/driver-trips/summary` and
+`/admin/driver-earnings/:id` exist at `admin.controller.ts:151,156,161` via
+`0699fb5`. They no longer 404. What is *not* confirmed is that integration tests
+cover them — if you want an item there, that is the item. Do not re-implement the
+routes.
+
+## Your next item is unchanged, and it is now the only thing on the critical path
+
+**Prove the migrations.** The baseline is on the release branch now, which means
+the missing platform schema is no longer a branch-integration problem — it is
+purely the proof that is missing. Nothing else in Phase 1 or Phase 8 can start
+until an empty database has actually been built from these files.
+
+One thing changed in your favour: `eb60e8d` added a `migration:run` step to
+`backend-ci.yml` against the Postgres service container, so **run 1 (empty
+database → clean) will now be demonstrated automatically on the next PR**. That
+does not close the item. Runs 2 and 3 — the second-run no-op, and a copy of
+production — still need you, and still need the console output posted. "It ran"
+is not evidence.

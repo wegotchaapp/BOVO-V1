@@ -21,25 +21,34 @@ forward from an earlier audit. Where a claim is *not* re-verified it says so.
 | `docs/APP_STORE_SUBMISSION.md` | store mechanics | Yes — Phase 7 |
 | `DECISIONS.md` / `CONTRACTS.md` / `FINDINGS.md` | coordination ledgers | Yes |
 
-> **Codex: start at Phase 0.** It is not optional and it is not yours to skip —
-> two of its four items block every other phase, and one of them is holding your
-> own 15 commits out of the build.
+> **Phase 0 is now mostly closed** (2026-09-01): the stranded commits are
+> cherry-picked and Codex's 15 commits are integrated. What remains there is
+> Sushant's — approve the push, and decide the stray clone and `mockup-sandbox`.
+>
+> **Codex: your next item is P1-1.** The baseline is on the release branch now,
+> and it is still the only thing standing between this build and a database that
+> can be created from empty.
 
 ---
 
-## 1. Verified status — measured 2026-08-31
+## 1. Verified status — re-measured 2026-09-01
 
-Run on `feat/mobile-api-v1` @ `19fd3d7` unless stated.
+Run on `feat/mobile-api-v1` @ `00c3e8a`, after the Phase 0 integration, with
+`npm ci` run in `backend/` and `admin/` so the merged lockfiles are what was
+actually tested.
 
 | Gate | Result | Note |
 | --- | --- | --- |
-| `backend: npx jest src --runInBand --forceExit` | **8 suites / 95 tests pass** | Up from 88. **Hangs without `--forceExit`** — open-handle leak, see P0-7 |
-| `admin: npm run lint` | **clean** | Was 77 errors on 2026-08-30. Closed |
-| `admin: npm run build` | **passes** | 360 KB JS / 23 KB CSS |
-| `mobile/artifacts/mobile: tsc --noEmit` | **clean** | The app itself typechecks |
-| `backend: npm audit --omit=dev` | **1 critical, 10 high**, 25 moderate, 1 low | Codex's patches are on its branch, **not integrated** |
-| `admin: npm audit --omit=dev` | **3 high**, 1 moderate | Same — patch exists, not integrated |
-| Platform base migration on `feat` | **absent** | Exists on `codex/prod-readiness` as `1746284000000-InitialTypeormBaseline.ts`, **unproven** |
+| `backend: npx jest src --runInBand --forceExit` | **10 suites / 99 tests pass** | Up from 95. Codex's CORS and JWT-strategy specs. **Still hangs without `--forceExit`** — see P5-2 |
+| `backend: npm run build` | **passes** | |
+| `backend: npm run format:check` | **clean** | The Prettier gate is now enforced in CI (`5c75c60`) |
+| `backend: npm run lint` | **821 errors** | Down from 842 on `main`. Deliberately non-blocking in both workflows; the backlog is `no-unsafe-*` in weather, trust_safety and payments |
+| `admin: npm run lint` | **clean** | |
+| `admin: npm run build` | **passes** | 370.99 kB JS / 23.58 kB CSS |
+| `mobile/artifacts/mobile: tsc --noEmit` | **clean** | Re-run after both cherry-picks and the merge |
+| `backend: npm audit --omit=dev` | **0 vulnerabilities** | Was 1 critical, 10 high, 25 moderate, 1 low. Closed by integrating `25ac35d` |
+| `admin: npm audit --omit=dev` | **0 vulnerabilities** | Was 3 high, 1 moderate. Closed by integrating `d5ac8d3` |
+| Platform base migration on `feat` | **present**, still **unproven** | `1746284000000-InitialTypeormBaseline.ts` merged. It has never been run against a database — P1-1 is unchanged |
 | Admin route gaps (3) | **implemented** on `feat` | `admin.controller.ts:151,156,161` via `0699fb5`. Integration tests not confirmed |
 | `/health` | **Postgres only** | Redis/BullMQ still unchecked |
 | `eas.json` | **placeholders** | `YOUR_APPLE_ID_EMAIL`, `YOUR_APP_STORE_CONNECT_APP_ID`, `YOUR_APPLE_TEAM_ID`; `extra.eas.projectId` is null |
@@ -48,56 +57,77 @@ Run on `feat/mobile-api-v1` @ `19fd3d7` unless stated.
 unconfirmed): mobile dependency audit counts, and the `mockup-sandbox` workspace
 build failure.
 
+**No runtime testing was done at any point.** Every row above is a build, a
+typecheck, a test run or an audit. No server was started and no screen opened.
+
 ---
 
 ## Phase 0 — Repository hygiene · BLOCKING EVERYTHING
 
 Nothing below Phase 0 can be trusted while the work is spread across three trees.
 
-### P0-1. Two working copies have diverged · owner: **Claude**, approval: **Sushant**
+### P0-1. Two working copies have diverged · owner: **Claude**, approval: **Sushant** · **mostly done 2026-09-01**
 
-There are two independent clones, both on `feat/mobile-api-v1`, both clean, both
-unpushed, sharing ancestor `1965b15`:
-
-| Tree | Ahead of origin | Contains |
-| --- | --- | --- |
-| `~/Desktop/TheBovogo App` | **26 commits** | the whole Claude/Codex pass, `workflow/`, the registered Codex worktree |
-| `~/Desktop/Bovogo VS/BOVO-V1` | **2 commits** | `d81ba6b` Safety Tips copy, `425c6df` ID/selfie verification copy |
-
-Neither contains the other's head. `Bovogo VS/BOVO-V1` is a **separate clone**
+Two independent clones, both on `feat/mobile-api-v1`, sharing ancestor `1965b15`,
+neither containing the other's head. `Bovogo VS/BOVO-V1` is a **separate clone**
 (HTTPS remote), not a registered worktree, and has no `workflow/` directory — so
-whoever worked there could not see the operating agreement.
+whoever worked there could not see the operating agreement. That is the likely
+root cause, rather than carelessness.
 
-Two commits of real product work are stranded. Both touch files in **Claude's
-lane** (`mobile/**`, `identity.controller.ts`).
+Both stranded commits were read in full and cherry-picked cleanly onto this tree:
 
-**Do:** cherry-pick `d81ba6b` and `425c6df` onto `~/Desktop/TheBovogo App`,
-re-run the mobile typecheck, then **delete or archive the second clone** so it
-cannot diverge again. One canonical tree, plus the registered worktree.
+| Commit | Now | Touches |
+| --- | --- | --- |
+| `d81ba6b` → `75e5a4f` | on `feat` | Safety Tips: silent recording, "follow your position", number masking |
+| `425c6df` → `fb46f57` | on `feat` | `verify.tsx` hardcoding ID and selfie to done; the two fake `kyc/*` routes |
 
-*Done when:* `git -C "$HOME/Desktop/TheBovogo App" log` contains both commits,
-mobile typecheck is clean, and the stray clone is gone.
+Mobile typecheck clean afterwards; backend tests still green.
 
-### P0-2. Integrate the 15 Codex commits · owner: **Claude**
+**Outstanding — needs Sushant.** The stray clone at `~/Desktop/Bovogo VS/BOVO-V1`
+still exists and can still diverge again. Deleting someone's working copy is not
+an agent's call: **archive or delete it, and say which.** Everything in it is now
+on `feat/mobile-api-v1`, so nothing is lost either way.
 
-`codex/prod-readiness` @ `eb60e8d` is 15 commits ahead of the integration branch
-and carries work the release depends on: the TypeORM baseline, CORS enforcement,
-the Prettier gate, AWS SDK v3, Sentry removal, and **both dependency patch sets**.
+*Done when:* the stray clone is gone or archived. The cherry-picks and the
+typecheck are already satisfied.
 
-Until this integrates, §1's audit numbers stand and the migration story does not
-exist on the branch that ships.
+### P0-2. Integrate the 15 Codex commits · owner: **Claude** · **done 2026-09-01**
 
-**Do:** integrate per `AGENT_OPERATING_AGREEMENT.md` §10 — review, certify
-migrations and contracts against the mobile client, run combined gates.
+Merged as `00c3e8a`. `git rev-list --count feat/mobile-api-v1..codex/prod-readiness`
+is now `0`, and the §1 gates above were re-run on the merge result.
 
-*Done when:* `git rev-list --count feat/mobile-api-v1..codex/prod-readiness` is
-`0`, all §1 gates re-run green, and `CONTRACTS.md` has a row for any changed
-response shape.
+Reviewed before merging, per `AGENT_OPERATING_AGREEMENT.md` §10:
 
-### P0-3. Nothing is pushed · owner: **Sushant** approves, **Claude** executes
+- `cd6de43` adds `tax_blocked` to the JWT strategy's `select`. The column is real
+  (`user.entity.ts:153`, and both migrations that create it) — worth checking,
+  because the spec mocks the repository, so a missing column would not have
+  failed a test, it would have 500'd every authenticated request in production.
+- `b67a747` moves the three mobile-api services and profiles to AWS SDK v3.
+  Credentials are passed only when both are set, which is right for instance
+  roles, and the `AKIA`-prefix guard before a real upload survives.
+- `eb60e8d` creates `uuid-ossp` first, and its timestamp sorts before the mobile
+  migrations, so `users` exists before anything `ALTER`s it. It also adds a
+  `migration:run` step to `backend-ci.yml`, which will prove the empty-database
+  case on the next PR. **It has still never been run** — P1-1 stands.
+- `d5ac8d3` / `25ac35d` are the dependency patches, and they land: both audits
+  are now zero.
 
-`origin/feat/mobile-api-v1` is still at `1965b15`. **26+ commits exist only on
-this Mac.** A disk failure loses the entire pass.
+Two conflicts, both resolved toward the newer intent: `identity.controller.ts`
+(kept `fb46f57`'s deletion of the fake `kyc/*` routes over Codex's reformat of
+them, and dropped the orphaned `Body` import) and `FINDINGS.md` (took Codex's
+`applied` status on the UUID-default row, kept the open CORS row).
+
+**No `CONTRACTS.md` row is required.** Nothing in the merge changes a response
+shape the mobile client reads: the two deleted `kyc/*` routes sat outside the
+`/api` namespace and had no callers anywhere in the repo, and the added JWT
+fields are internal to `request.user`.
+
+### P0-3. Nothing is pushed · owner: **Sushant** approves, **Claude** executes · **still open, and now the largest single risk**
+
+`origin/feat/mobile-api-v1` is still at `1965b15`. As of 2026-09-01 this tree is
+**45 commits ahead of it**, and that now includes everything Codex did as well —
+the two clones have been consolidated into one, which means one disk failure
+loses the entire pass rather than part of it.
 
 Per the agreement §11, neither agent pushes without explicit approval. Ask for it
 early — this is the cheapest risk reduction available.

@@ -47,25 +47,25 @@ jobs:
           echo "Allowlisting $(echo "$ALLOWED_ORIGINS" | tr ',' '\n' | grep -c .) origin(s)."
 
       - name: Load production .env
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          REDIS_URL: ${{ secrets.REDIS_URL }}
+          JWT_SECRET: ${{ secrets.JWT_SECRET }}
+          STRIPE_SECRET_KEY: ${{ secrets.STRIPE_SECRET_KEY }}
+          APP_ENV: production
+          APP_URL: ${{ secrets.APP_URL }}
+          ALLOWED_ORIGINS: ${{ secrets.ALLOWED_ORIGINS }}
+          LOG_LEVEL: warn
+          TWILIO_ACCOUNT_SID: ${{ secrets.TWILIO_ACCOUNT_SID }}
+          TWILIO_AUTH_TOKEN: ${{ secrets.TWILIO_AUTH_TOKEN }}
+          TWILIO_PHONE_NUMBER: ${{ secrets.TWILIO_PHONE_NUMBER }}
+          TWILIO_VERIFY_SERVICE_SID: ${{ secrets.TWILIO_VERIFY_SERVICE_SID }}
+          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
         run: |
           cp .env.example .env
-          sed -i "s|DATABASE_URL=.*|DATABASE_URL=${{ secrets.DATABASE_URL }}|" .env
-          sed -i "s|REDIS_URL=.*|REDIS_URL=${{ secrets.REDIS_URL }}|" .env
-          sed -i "s|JWT_SECRET=.*|JWT_SECRET=${{ secrets.JWT_SECRET }}|" .env
-          sed -i "s|STRIPE_SECRET_KEY=.*|STRIPE_SECRET_KEY=${{ secrets.STRIPE_SECRET_KEY }}|" .env
-          sed -i "s|SENTRY_DSN=.*|SENTRY_DSN=${{ secrets.SENTRY_DSN }}|" .env
-          sed -i "s|SENTRY_AUTH_TOKEN=.*|SENTRY_AUTH_TOKEN=${{ secrets.SENTRY_AUTH_TOKEN }}|" .env
-          sed -i "s|APP_ENV=.*|APP_ENV=production|" .env
-          sed -i "s|APP_URL=.*|APP_URL=${{ secrets.APP_URL }}|" .env
-          sed -i "s|ALLOWED_ORIGINS=.*|ALLOWED_ORIGINS=${{ secrets.ALLOWED_ORIGINS }}|" .env
-          sed -i "s|LOG_LEVEL=.*|LOG_LEVEL=warn|" .env
-          sed -i "s|TWILIO_ACCOUNT_SID=.*|TWILIO_ACCOUNT_SID=${{ secrets.TWILIO_ACCOUNT_SID }}|" .env
-          sed -i "s|TWILIO_AUTH_TOKEN=.*|TWILIO_AUTH_TOKEN=${{ secrets.TWILIO_AUTH_TOKEN }}|" .env
-          sed -i "s|TWILIO_PHONE_NUMBER=.*|TWILIO_PHONE_NUMBER=${{ secrets.TWILIO_PHONE_NUMBER }}|" .env
-          sed -i "s|TWILIO_VERIFY_SERVICE_SID=.*|TWILIO_VERIFY_SERVICE_SID=${{ secrets.TWILIO_VERIFY_SERVICE_SID }}|" .env
-          sed -i "s|RESEND_API_KEY=.*|RESEND_API_KEY=${{ secrets.RESEND_API_KEY }}|" .env
-          sed -i "s|AWS_ACCESS_KEY_ID=.*|AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }}|" .env
-          sed -i "s|AWS_SECRET_ACCESS_KEY=.*|AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }}|" .env
+          node scripts/write-deploy-env.cjs .env
 
       - name: TypeScript Check
         run: npx tsc --noEmit

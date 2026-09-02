@@ -62,3 +62,14 @@ Thumbs.db
 .vscode/*
 !.vscode/extensions.json
 *.swp
+
+# ── Agent tooling ──────────────────────────────────────────────────────────
+# Vendored third-party agent skills, restorable from skills-lock.json via
+# `npx skills add`. .claude/skills holds symlinks into .agents/, so the two
+# must be ignored together or the committed links would dangle.
+.agents/
+.claude/skills/
+.claude/settings.local.json
+# Codex's local MCP/runtime config. Tracked config would dirty the tree every
+# time the agent rewrites it, which muddies the diffs it is meant to produce.
+.codex/

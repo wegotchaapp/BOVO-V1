@@ -2,7 +2,6 @@ import { Feather } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
-  Alert,
   Keyboard,
   KeyboardAvoidingView,
   Modal,
@@ -16,15 +15,26 @@ import {
   View,
 } from "react-native";
 
-import { CARD_SHADOW } from "@/constants/colors";
+import { Alert } from "@/lib/alert";
+
+import { CARD_SHADOW, GOLD_ON_DARK } from "@/constants/colors";
 import { ALL_CITY_OPTIONS, MVP_CITIES, isMvpCity } from "@/data/cities";
 import { filterNeighborhoods, getNeighborhoods } from "@/data/locations";
 import { useColors } from "@/hooks/useColors";
-import { calculateSuggestedPrice, getDistanceMiles } from "@/lib/pricing";
+import {
+  adventureTotal,
+  formatUsd,
+  getDistanceMiles,
+  seatPrice,
+} from "@/lib/pricing";
 import { showAlert, showSuccess } from "@/lib/alert";
 import { createTrip } from "@/lib/trips";
 
 const MAX_MESSAGE = 500;
+/** Route rail geometry — the connector is positioned from these, so they must agree
+    with `inputDot` (10px) and the from/to button heights. */
+const DOT_R = 5;
+const ROUTE_GAP = 8;
 const MAX_SEATS = 6;
 const MAX_LUGGAGE = 6;
 
@@ -232,14 +242,14 @@ function DriverTripCard({
         <View style={{ flex: 1 }}>
           <View style={styles.tripNameRow}>
             <Text style={[styles.tripName, { color: colors.foreground }]}>{driverName}</Text>
-            <View style={[styles.topBadge, { backgroundColor: "#FEF3E2" }]}>
-              <Feather name="award" size={9} color="#C4954A" />
-              <Text style={[styles.topBadgeText, { color: "#C4954A" }]}>Top Voyager</Text>
+            <View style={[styles.topBadge, { backgroundColor: "#C4954A" }]}>
+              <Feather name="award" size={9} color="#111210" />
+              <Text style={[styles.topBadgeText, { color: "#111210" }]}>Top Voyager</Text>
             </View>
           </View>
           <View style={styles.tripMetaRow}>
             <Feather name="star" size={10} color="#C4954A" />
-            <Text style={[styles.tripMetaText, { color: colors.mutedForeground }]}>4.9 · 12 trips · Just now</Text>
+            <Text style={[styles.tripMetaText, { color: colors.mutedForeground }]}>4.9 · 12 adventures · Just now</Text>
           </View>
         </View>
       </View>
@@ -268,13 +278,12 @@ function DriverTripCard({
 
       {/* Bottom chips */}
       <View style={styles.chipRow}>
+        {/* One chip, not two — a departure is a single fact. */}
         <View style={[styles.chip, { backgroundColor: colors.muted }]}>
           <Feather name="calendar" size={11} color={colors.mutedForeground} />
-          <Text style={[styles.chipText, { color: colors.foreground }]}>{date}</Text>
-        </View>
-        <View style={[styles.chip, { backgroundColor: colors.muted }]}>
-          <Feather name="clock" size={11} color={colors.mutedForeground} />
-          <Text style={[styles.chipText, { color: colors.foreground }]}>{time}</Text>
+          <Text style={[styles.chipText, { color: colors.foreground }]}>
+            {date} · {time}
+          </Text>
         </View>
         <View style={[styles.chip, { backgroundColor: colors.muted }]}>
           <Feather name="users" size={11} color={colors.mutedForeground} />
@@ -285,7 +294,9 @@ function DriverTripCard({
           <Text style={[styles.chipText, { color: colors.foreground }]}>{luggage} bag{luggage !== 1 ? "s" : ""}</Text>
         </View>
         <View style={[styles.chip, { backgroundColor: "#F0FAF4" }]}>
-          <Text style={[styles.chipPrice, { color: colors.primary }]}>${pricePerSeat}/seat</Text>
+          <Text style={[styles.chipPrice, { color: colors.primary }]}>
+            {formatUsd(pricePerSeat)}/seat
+          </Text>
         </View>
       </View>
     </View>
@@ -312,6 +323,18 @@ export default function PostTrip() {
   const [submitting, setSubmitting] = useState(false);
   const [touched, setTouched] = useState(false);
 
+  // The from/to buttons grow when a neighbourhood is chosen; the connector length
+  // is derived from these rather than hard-coded so it stays attached to both dots.
+  const fromH = fromNeighborhood ? 60 : 50;
+  const toH = toNeighborhood ? 60 : 50;
+
+  function swapRoute() {
+    setFromCity(toCity);
+    setToCity(fromCity);
+    setFromNeighborhood(toNeighborhood);
+    setToNeighborhood(fromNeighborhood);
+  }
+
   const [pickerTarget, setPickerTarget] = useState<"from" | "to" | null>(null);
   const [pickerStep, setPickerStep] = useState<"city" | "neighborhood">("city");
   const [pickerSearch, setPickerSearch] = useState("");
@@ -323,9 +346,14 @@ export default function PostTrip() {
   const [calendarOpen, setCalendarOpen] = useState(false);
   const [calendarMonth, setCalendarMonth] = useState(() => new Date(date.getFullYear(), date.getMonth(), 1));
 
-  // Auto-calculated price (uses shared IRS utility)
+  // Flat cost-share: $32.40 a seat on every route, so the Voyager knows what
+  // they'll recover before they post and the price never moves.
   const miles = getDistanceMiles(fromCity, toCity);
-  const pricePerSeat = useMemo(() => calculateSuggestedPrice(fromCity, toCity, seats), [fromCity, toCity, seats]);
+  const pricePerSeat = useMemo(() => seatPrice(fromCity, toCity), [fromCity, toCity]);
+  const totalForAdventure = useMemo(
+    () => adventureTotal(fromCity, toCity, seats),
+    [fromCity, toCity, seats],
+  );
 
   // Display strings for the location buttons and preview card
   const displayFrom = fromCity
@@ -401,12 +429,12 @@ export default function PostTrip() {
       });
       await showSuccess(
         "Adventure Posted!",
-        "Your trip is now live on the feed. Sailors can reply to join.",
+        "Your adventure is now live on the feed. Sailors can reply to join.",
         () => router.replace("/(tabs)"),
       );
     } catch (err) {
       await showAlert(
-        "Couldn't post trip",
+        "Couldn't post adventure",
         err instanceof Error ? err.message : "Please try again in a moment.",
       );
     } finally {
@@ -481,70 +509,102 @@ export default function PostTrip() {
           keyboardShouldPersistTaps="handled"
           keyboardDismissMode="on-drag"
         >
-          {/* IRS notice */}
+          {/* Cost-share notice */}
           <View style={[styles.notice, { backgroundColor: colors.secondary }]}>
             <Feather name="navigation" size={14} color={colors.primary} />
             <Text style={[styles.noticeText, { color: colors.primary }]}>
-              Price auto-calculated: (miles × $0.67 × 0.75) ÷ seats. You may not charge above actual costs.
+              Every seat is a flat {formatUsd(pricePerSeat)} cost-share. Bovogo is a
+              cost-sharing platform: you recover travel costs, not profit.
             </Text>
           </View>
 
           {/* Composer card */}
           <View style={[styles.card, CARD_SHADOW]}>
-            <Field label="From Location" error={errors.from}>
-              <TouchableOpacity
-                style={[
-                  styles.inputBtn,
-                  {
-                    backgroundColor: colors.muted,
-                    borderColor: errors.from ? colors.destructive : "transparent",
-                    borderWidth: errors.from ? 1.5 : 0,
-                    height: fromNeighborhood ? 60 : 50,
-                  },
-                ]}
-                onPress={() => openPicker("from")}
-              >
-                <View style={[styles.inputDot, { backgroundColor: colors.primary }]} />
-                <View style={{ flex: 1 }}>
-                  <Text style={[styles.inputText, { color: fromCity ? colors.foreground : colors.mutedForeground }]}>
-                    {fromCity || "Select city…"}
-                  </Text>
-                  {fromNeighborhood ? (
-                    <Text style={[styles.inputNeighborhood, { color: colors.mutedForeground }]}>
-                      {fromNeighborhood}
-                    </Text>
-                  ) : null}
-                </View>
-                <Feather name="chevron-down" size={16} color={colors.mutedForeground} />
-              </TouchableOpacity>
-            </Field>
+            {/* One route, not two fields. The forest dot, connector and gold dot are the
+                brand's fixed route treatment, so the two ends are joined rather than
+                stacked as unrelated inputs — and joining them is what makes a swap
+                affordance make sense. */}
+            <Field label="Route" error={errors.from || errors.to}>
+              <View style={styles.routeRow}>
+                <View style={styles.routeStack}>
+                  <View
+                    style={[
+                      styles.routeConnector,
+                      {
+                        backgroundColor: colors.border,
+                        top: fromH / 2 + DOT_R,
+                        height: fromH / 2 + ROUTE_GAP + toH / 2 - DOT_R * 2,
+                      },
+                    ]}
+                  />
 
-            <Field label="To Location" error={errors.to}>
-              <TouchableOpacity
-                style={[
-                  styles.inputBtn,
-                  {
-                    backgroundColor: colors.muted,
-                    borderColor: errors.to ? colors.destructive : "transparent",
-                    borderWidth: errors.to ? 1.5 : 0,
-                    height: toNeighborhood ? 60 : 50,
-                  },
-                ]}
-                onPress={() => openPicker("to")}
-              >
-                <View style={[styles.inputDot, { backgroundColor: colors.accent }]} />
-                <View style={{ flex: 1 }}>
-                  <Text style={[styles.inputText, { color: toCity ? colors.foreground : colors.mutedForeground }]}>
-                    {toCity || "Select city…"}
-                  </Text>
-                  {toNeighborhood ? (
-                    <Text style={[styles.inputNeighborhood, { color: colors.mutedForeground }]}>
-                      {toNeighborhood}
-                    </Text>
-                  ) : null}
+                  <TouchableOpacity
+                    style={[
+                      styles.inputBtn,
+                      {
+                        backgroundColor: colors.muted,
+                        borderColor: errors.from ? colors.destructive : "transparent",
+                        borderWidth: errors.from ? 1.5 : 0,
+                        height: fromH,
+                      },
+                    ]}
+                    onPress={() => openPicker("from")}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Origin, ${fromCity || "not set"}`}
+                  >
+                    <View style={[styles.inputDot, { backgroundColor: colors.primary }]} />
+                    <View style={{ flex: 1 }}>
+                      <Text style={[styles.inputText, { color: fromCity ? colors.foreground : colors.mutedForeground }]}>
+                        {fromCity || "Select city…"}
+                      </Text>
+                      {fromNeighborhood ? (
+                        <Text style={[styles.inputNeighborhood, { color: colors.mutedForeground }]}>
+                          {fromNeighborhood}
+                        </Text>
+                      ) : null}
+                    </View>
+                    <Feather name="chevron-down" size={16} color={colors.mutedForeground} />
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={[
+                      styles.inputBtn,
+                      {
+                        backgroundColor: colors.muted,
+                        borderColor: errors.to ? colors.destructive : "transparent",
+                        borderWidth: errors.to ? 1.5 : 0,
+                        height: toH,
+                        marginTop: ROUTE_GAP,
+                      },
+                    ]}
+                    onPress={() => openPicker("to")}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Destination, ${toCity || "not set"}`}
+                  >
+                    <View style={[styles.inputDot, { backgroundColor: colors.accent }]} />
+                    <View style={{ flex: 1 }}>
+                      <Text style={[styles.inputText, { color: toCity ? colors.foreground : colors.mutedForeground }]}>
+                        {toCity || "Select city…"}
+                      </Text>
+                      {toNeighborhood ? (
+                        <Text style={[styles.inputNeighborhood, { color: colors.mutedForeground }]}>
+                          {toNeighborhood}
+                        </Text>
+                      ) : null}
+                    </View>
+                    <Feather name="chevron-down" size={16} color={colors.mutedForeground} />
+                  </TouchableOpacity>
                 </View>
-                <Feather name="chevron-down" size={16} color={colors.mutedForeground} />
-              </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[styles.swapBtn, { backgroundColor: colors.secondary }]}
+                  onPress={swapRoute}
+                  accessibilityRole="button"
+                  accessibilityLabel="Swap origin and destination"
+                >
+                  <Feather name="repeat" size={16} color={colors.primary} />
+                </TouchableOpacity>
+              </View>
             </Field>
 
             <Field label="Post" error={errors.message}>
@@ -572,35 +632,42 @@ export default function PostTrip() {
               </Text>
             </Field>
 
-            <Field label="Date of Travel" error={errors.date}>
-              <TouchableOpacity
-                style={[
-                  styles.inputBtn,
-                  {
-                    backgroundColor: colors.muted,
-                    borderColor: errors.date ? colors.destructive : "transparent",
-                    borderWidth: errors.date ? 1.5 : 0,
-                  },
-                ]}
-                onPress={() => setCalendarOpen(true)}
-              >
-                <Feather name="calendar" size={16} color={colors.primary} />
-                <Text style={[styles.inputText, { color: colors.foreground }]}>{formatDate(date)}</Text>
-                <Feather name="chevron-down" size={16} color={colors.mutedForeground} />
-              </TouchableOpacity>
-            </Field>
+            {/* Date and time share one field — a departure is one fact, and the brand
+                rule is that the two never appear apart. */}
+            <Field label="When" error={errors.date}>
+              <View style={styles.whenRow}>
+                <TouchableOpacity
+                  style={[
+                    styles.inputBtn,
+                    styles.whenTile,
+                    {
+                      backgroundColor: colors.muted,
+                      borderColor: errors.date ? colors.destructive : "transparent",
+                      borderWidth: errors.date ? 1.5 : 0,
+                    },
+                  ]}
+                  onPress={() => setCalendarOpen(true)}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Date of travel, ${formatDate(date)}`}
+                >
+                  <Feather name="calendar" size={16} color={colors.primary} />
+                  <Text style={[styles.inputText, { color: colors.foreground }]} numberOfLines={1}>
+                    {formatDate(date)}
+                  </Text>
+                </TouchableOpacity>
 
-            <Field label="Estimated Start Time" error="">
-              <TouchableOpacity
-                style={[styles.inputBtn, { backgroundColor: colors.muted }]}
-                onPress={() => setTimePickerOpen(true)}
-              >
-                <Feather name="clock" size={16} color={colors.primary} />
-                <Text style={[styles.inputText, { color: colors.foreground }]}>
-                  {WHEEL_HOURS[wheelHour]}:{WHEEL_MINUTES[wheelMinute]} {WHEEL_PERIODS[wheelPeriod]}
-                </Text>
-                <Feather name="chevron-down" size={16} color={colors.mutedForeground} />
-              </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.inputBtn, styles.whenTile, { backgroundColor: colors.muted }]}
+                  onPress={() => setTimePickerOpen(true)}
+                  accessibilityRole="button"
+                  accessibilityLabel="Departure time"
+                >
+                  <Feather name="clock" size={16} color={colors.primary} />
+                  <Text style={[styles.inputText, { color: colors.foreground }]} numberOfLines={1}>
+                    {WHEEL_HOURS[wheelHour]}:{WHEEL_MINUTES[wheelMinute]} {WHEEL_PERIODS[wheelPeriod]}
+                  </Text>
+                </TouchableOpacity>
+              </View>
             </Field>
 
             <View style={[styles.stepperRow, { borderTopColor: colors.border }]}>
@@ -612,17 +679,28 @@ export default function PostTrip() {
               <Stepper value={luggage} min={0} max={MAX_LUGGAGE} onChange={setLuggage} colors={colors} ariaLabel="luggage spaces" />
             </View>
 
-            {/* Auto-calculated price */}
+            {/* Flat seat price */}
             <View style={[styles.priceRow, { borderTopColor: colors.border }]}>
               <View style={{ flex: 1 }}>
                 <Text style={[styles.stepperLabel, { color: colors.foreground }]}>Amount Per Seat</Text>
                 <Text style={[styles.priceCalc, { color: colors.mutedForeground }]}>
-                  {miles > 0 ? `${miles} mi × $0.67 × 0.75 ÷ ${seats} = ` : "Choose two different cities to calculate"}
-                  {miles > 0 ? <Text style={{ fontFamily: "Inter_600SemiBold" }}>auto</Text> : null}
+                  {miles > 0 ? (
+                    <>
+                      {miles} mi · {seats} seat{seats === 1 ? "" : "s"} ={" "}
+                      <Text style={{ fontFamily: "Inter_600SemiBold" }}>
+                        {formatUsd(totalForAdventure)}
+                      </Text>{" "}
+                      if full
+                    </>
+                  ) : (
+                    "Choose two different cities to see your cost-share"
+                  )}
                 </Text>
               </View>
               <View style={[styles.priceBadge, { backgroundColor: "#F0FAF4" }]}>
-                <Text style={[styles.priceBadgeText, { color: colors.primary }]}>${pricePerSeat}/seat</Text>
+                <Text style={[styles.priceBadgeText, { color: colors.primary }]}>
+                  {formatUsd(pricePerSeat)}/seat
+                </Text>
               </View>
             </View>
 
@@ -670,7 +748,7 @@ export default function PostTrip() {
             to={displayTo || "To"}
             date={formatDate(date)}
             time={`${WHEEL_HOURS[wheelHour]}:${WHEEL_MINUTES[wheelMinute]} ${WHEEL_PERIODS[wheelPeriod]}`}
-            message={messageTrimmed || "Your trip message will appear here…"}
+            message={messageTrimmed || "Your message will appear here…"}
             seats={seats}
             luggage={luggage}
             pricePerSeat={pricePerSeat}
@@ -949,6 +1027,9 @@ const styles = StyleSheet.create({
   card: { backgroundColor: "#fff", borderRadius: 22, padding: 20, gap: 16 },
   field: { gap: 6 },
   fieldLabel: { fontSize: 13, fontFamily: "Inter_600SemiBold", letterSpacing: -0.1 },
+  whenRow: { flexDirection: "row", gap: 10 },
+  /** Each half of the When pair; gap on inputBtn is 12, tightened here for the narrower tile. */
+  whenTile: { flex: 1, gap: 8, paddingHorizontal: 12 },
   errorText: { fontSize: 12, fontFamily: "Inter_500Medium", marginTop: 2 },
 
   inputBtn: {
@@ -960,6 +1041,17 @@ const styles = StyleSheet.create({
     height: 50,
   },
   inputDot: { width: 10, height: 10, borderRadius: 5 },
+  routeRow: { flexDirection: "row", alignItems: "center", gap: 10 },
+  routeStack: { flex: 1, position: "relative" },
+  /** Sits under the dots: 14px button padding + 5px to the dot's centre, minus half a hairline. */
+  routeConnector: { position: "absolute", left: 18, width: 1.5, borderRadius: 1 },
+  swapBtn: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    alignItems: "center",
+    justifyContent: "center",
+  },
   inputText: { flex: 1, fontSize: 15, fontFamily: "Inter_500Medium" },
 
   textarea: {
@@ -1129,7 +1221,7 @@ const styles = StyleSheet.create({
   },
   wheelTitle: { fontSize: 15, fontFamily: "Inter_600SemiBold", color: "#F8F7F3", letterSpacing: -0.2 },
   wheelCancelText: { fontSize: 15, fontFamily: "Inter_400Regular", color: "rgba(248,247,243,0.45)" },
-  wheelDoneText: { fontSize: 15, fontFamily: "Inter_700Bold", color: "#C4954A" },
+  wheelDoneText: { fontSize: 15, fontFamily: "Inter_700Bold", color: GOLD_ON_DARK },
   wheelBody: {
     flexDirection: "row",
     alignItems: "center",
@@ -1162,7 +1254,7 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   wheelPreviewLabel: { fontSize: 13, fontFamily: "Inter_400Regular", color: "rgba(248,247,243,0.45)" },
-  wheelPreviewValue: { fontSize: 22, fontFamily: "Inter_700Bold", color: "#C4954A", letterSpacing: -0.5 },
+  wheelPreviewValue: { fontSize: 22, fontFamily: "Inter_700Bold", color: GOLD_ON_DARK, letterSpacing: -0.5 },
 
   // Refund disclaimer
   refundNotice: { flexDirection: "row", alignItems: "flex-start", gap: 9, padding: 14, borderRadius: 14, borderWidth: 1, marginTop: 4 },

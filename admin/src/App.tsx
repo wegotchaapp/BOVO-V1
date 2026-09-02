@@ -12,6 +12,7 @@ import AuditLogPage from './pages/AuditLog';
 import SystemConfigPage from './pages/SystemConfig';
 import TrustSafetyPage from './pages/TrustSafety';
 import DriverDocsPage from './pages/DriverDocs';
+import VehicleReviewPage from './pages/VehicleReview';
 import NotificationsPage from './pages/Notifications';
 import SubscriptionsPage from './pages/Subscriptions';
 import SupportTicketsPage from './pages/SupportTickets';
@@ -40,6 +41,7 @@ export default function App() {
           <Route path="config" element={<SystemConfigPage />} />
           <Route path="trust-safety" element={<TrustSafetyPage />} />
           <Route path="driver-docs" element={<DriverDocsPage />} />
+          <Route path="vehicle-review" element={<VehicleReviewPage />} />
           <Route path="notifications" element={<NotificationsPage />} />
           <Route path="subscriptions" element={<SubscriptionsPage />} />
           <Route path="support-tickets" element={<SupportTicketsPage />} />

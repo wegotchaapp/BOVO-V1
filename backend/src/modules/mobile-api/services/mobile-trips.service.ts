@@ -6,8 +6,8 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { ConfigService } from '@nestjs/config';
-import { FindOptionsWhere, ILike, In, Repository } from 'typeorm';
-import * as AWS from 'aws-sdk';
+import { Between, FindOptionsWhere, ILike, In, Repository } from 'typeorm';
+import { PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
 import * as fs from 'fs';
 import * as path from 'path';
 import { randomUUID } from 'crypto';
@@ -24,6 +24,8 @@ import { CreateTripBody, CreateReplyBody } from '../dto/mobile.dto';
 import { driverSummary, replyToDto, tripToDto } from '../mobile.mappers';
 import { findPublicReplyPii } from '../pii-guard';
 import { MobileEmailNotificationsService } from './mobile-email-notifications.service';
+import { seatPriceForRoute } from '../mobile-pricing';
+import { MobileVehiclesService } from './mobile-vehicles.service';
 
 const UPLOADS_DIR = path.join(process.cwd(), 'uploads');
 const START_VIDEO_BUCKET = 'bovogo-trip-videos';
@@ -49,9 +51,21 @@ export interface UploadedVideoFile {
   size: number;
 }
 
+/** "Silver Toyota Camry" — what a Sailor looks for at the kerb. */
+function describeVehicle(v: {
+  color?: string | null;
+  make?: string | null;
+  model?: string | null;
+}): string | null {
+  const parts = [v.color, v.make, v.model]
+    .map((p) => (p ?? '').trim())
+    .filter(Boolean);
+  return parts.length ? parts.join(' ') : null;
+}
+
 @Injectable()
 export class MobileTripsService {
-  private readonly s3: AWS.S3;
+  private readonly s3: S3Client;
 
   constructor(
     private readonly config: ConfigService,
@@ -70,18 +84,34 @@ export class MobileTripsService {
     @InjectRepository(MobileTripGroupMember)
     private readonly groupMembers: Repository<MobileTripGroupMember>,
     private readonly emailNotifications: MobileEmailNotificationsService,
+    private readonly vehiclesService: MobileVehiclesService,
   ) {
-    this.s3 = new AWS.S3({
-      accessKeyId: this.config.get('AWS_ACCESS_KEY_ID'),
-      secretAccessKey: this.config.get('AWS_SECRET_ACCESS_KEY'),
-      region: this.config.get('AWS_REGION'),
+    const accessKeyId = this.config.get<string>('AWS_ACCESS_KEY_ID');
+    const secretAccessKey = this.config.get<string>('AWS_SECRET_ACCESS_KEY');
+    this.s3 = new S3Client({
+      region: this.config.get<string>('AWS_REGION'),
+      ...(accessKeyId && secretAccessKey
+        ? { credentials: { accessKeyId, secretAccessKey } }
+        : {}),
     });
   }
 
-  async list(from?: string, to?: string) {
+  async list(from?: string, to?: string, date?: string) {
     const where: FindOptionsWhere<MobileTrip> = { status: 'active' };
     if (from) where.from_city = ILike(from);
     if (to) where.to_city = ILike(to);
+
+    // Narrow to the requested calendar day, local to the server. An unparseable
+    // date is ignored rather than returning nothing — a bad param should not
+    // look identical to "no adventures on this route".
+    if (date) {
+      const start = new Date(`${date}T00:00:00`);
+      if (!Number.isNaN(start.getTime())) {
+        const end = new Date(start);
+        end.setDate(end.getDate() + 1);
+        where.departure_at = Between(start, end);
+      }
+    }
 
     const rows = await this.trips.find({
       where,
@@ -149,7 +179,12 @@ export class MobileTripsService {
       trip: tripToDto(
         trip,
         driverSummary(
-          driver ?? { id: trip.driver_id, name: 'Voyager', rating: 5, trips: 0 },
+          driver ?? {
+            id: trip.driver_id,
+            name: 'Voyager',
+            rating: 5,
+            trips: 0,
+          },
         ),
         replies.length,
       ),
@@ -163,6 +198,11 @@ export class MobileTripsService {
   }
 
   async create(driverId: string, dto: CreateTripBody) {
+    // A Voyager may only post once their vehicle is fully documented: VIN,
+    // seat/door counts, all five photos, insurance and registration. Enforced
+    // here rather than only in the UI so it cannot be bypassed via the API.
+    const vehicle = await this.vehiclesService.assertReadyToDrive(driverId);
+
     const departure = new Date(dto.departureAt);
     if (Number.isNaN(departure.getTime())) {
       throw new BadRequestException('Invalid departureAt timestamp');
@@ -181,9 +221,16 @@ export class MobileTripsService {
       departure_at: departure,
       seats_available: dto.seatsAvailable,
       luggage_space: dto.luggageSpace ?? 0,
-      price_per_seat: dto.pricePerSeat.toFixed(2),
+      // Server-authoritative: the client's pricePerSeat is ignored so a
+      // Voyager cannot post a seat above the cost-share ceiling.
+      price_per_seat: seatPriceForRoute(dto.fromCity, dto.toCity).toFixed(2),
       note: dto.note ?? '',
-      car: dto.car ?? null,
+      // Posting is already gated on a fully documented vehicle, so the car is
+      // known here. It used to come only from the client, which never sent it —
+      // leaving every trip with an empty car, so Sailors saw "Vehicle" on
+      // tracking and "—" on the adventure detail and had nothing to identify at
+      // pickup. The client may still override it.
+      car: dto.car?.trim() || describeVehicle(vehicle),
       pref_smoking: dto.preferences?.smoking ?? false,
       pref_pets: dto.preferences?.pets ?? false,
       pref_music: dto.preferences?.music ?? true,
@@ -268,7 +315,7 @@ export class MobileTripsService {
     }
     if (!trip.start_video_url) {
       throw new BadRequestException(
-        'You must record a video of your car before starting the ride.',
+        'You must record a video of your car before starting the adventure.',
       );
     }
     if (trip.status !== 'in_progress') {
@@ -310,15 +357,15 @@ export class MobileTripsService {
       !!awsKey && !!awsSecret && /^AKIA[0-9A-Z]{16}$/.test(awsKey);
 
     if (hasRealAwsCreds) {
-      await this.s3
-        .putObject({
+      await this.s3.send(
+        new PutObjectCommand({
           Bucket: START_VIDEO_BUCKET,
           Key: key,
           Body: buffer,
           ContentType: mimeType,
           ACL: 'private',
-        })
-        .promise();
+        }),
+      );
       return;
     }
 
@@ -399,20 +446,39 @@ export class MobileTripsService {
     return { ok: true };
   }
 
+  /**
+   * Reply counts, computed in the database. Loading the reply rows themselves
+   * would mean pulling 10,000 records into memory to produce 50 integers on a
+   * busy feed.
+   */
+  private replyCountsFor(
+    tripIds: string[],
+  ): Promise<{ trip_id: string; count: string }[]> {
+    if (tripIds.length === 0) return Promise.resolve([]);
+    return this.replies
+      .createQueryBuilder('r')
+      .select('r.trip_id', 'trip_id')
+      .addSelect('COUNT(*)', 'count')
+      .where('r.trip_id IN (:...tripIds)', { tripIds })
+      .groupBy('r.trip_id')
+      .getRawMany();
+  }
+
   private async decorate(rows: MobileTrip[]) {
     if (rows.length === 0) return [];
     const driverIds = [...new Set(rows.map((r) => r.driver_id))];
-    const drivers = await this.users.find({ where: { id: In(driverIds) } });
-    const driverById = new Map(drivers.map((d) => [d.id, d]));
-
     const tripIds = rows.map((r) => r.id);
-    const replyRows = await this.replies.find({
-      where: { trip_id: In(tripIds) },
-    });
-    const counts = new Map<string, number>();
-    for (const r of replyRows) {
-      counts.set(r.trip_id, (counts.get(r.trip_id) ?? 0) + 1);
-    }
+
+    // Independent queries — issue them together rather than back to back, so
+    // the feed costs one round-trip's latency instead of two.
+    const [drivers, countRows] = await Promise.all([
+      this.users.find({ where: { id: In(driverIds) } }),
+      this.replyCountsFor(tripIds),
+    ]);
+    const driverById = new Map(drivers.map((d) => [d.id, d]));
+    const counts = new Map<string, number>(
+      countRows.map((r) => [r.trip_id, Number(r.count)]),
+    );
 
     return rows.map((t) => {
       const d = driverById.get(t.driver_id);

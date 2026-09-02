@@ -1,24 +1,36 @@
-import { useState, useEffect } from 'react';
-import api from '../lib/api';
+import { useState, useEffect, useCallback } from 'react';
+import api, { getErrorMessage } from '../lib/api';
 import { ErrorNotice, EmptyState } from '../components/QueryState';
 
+interface ComplianceLog {
+  id: string;
+  user_id?: string;
+  rule: string;
+  action: string;
+  details?: string;
+  triggered_at: string;
+}
+
 export default function ComplianceLogsPage() {
-  const [logs, setLogs] = useState<any[]>([]);
+  const [logs, setLogs] = useState<ComplianceLog[]>([]);
   const [rule, setRule] = useState('');
   const [userId, setUserId] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const fetch = () => {
+  const fetch = useCallback(() => {
     setLoading(true);
     setError(null);
     api.get('/admin/compliance-logs', { params: { rule: rule || undefined, user_id: userId || undefined } })
       .then((r) => setLogs(r.data))
-      .catch((e: any) => setError(e?.response?.data?.message || e?.message || 'Could not load this data.'))
+      .catch((e: unknown) => setError(getErrorMessage(e, 'Could not load this data.')))
       .finally(() => setLoading(false));
-  };
+  }, [rule, userId]);
 
-  useEffect(() => { fetch(); }, [rule]);
+  useEffect(() => {
+    const timeoutId = window.setTimeout(fetch, 0);
+    return () => window.clearTimeout(timeoutId);
+  }, [fetch]);
 
   return (
     <div>
@@ -53,7 +65,7 @@ export default function ComplianceLogsPage() {
               </tr>
             </thead>
             <tbody>
-              {logs.map((l: any) => (
+              {logs.map((l) => (
                 <tr key={l.id} className="border-b border-border text-ink hover:bg-card">
                   <td className="py-3 px-2 text-xs font-mono">{l.user_id?.slice(0, 12)}...</td>
                   <td className="py-3 px-2">

@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { getTrips } from '../lib/api';
+import { useState, useEffect, useCallback } from 'react';
+import { getErrorMessage, getTrips } from '../lib/api';
 import { ErrorNotice, EmptyState } from '../components/QueryState';
 
 interface Trip {
@@ -23,16 +23,19 @@ export default function TripsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
-  const fetch = () => {
+  const fetch = useCallback(() => {
     setLoading(true);
     setError('');
     getTrips({ status: status || undefined, page })
       .then((res) => { setTrips(res.trips || []); setTotal(res.total || 0); })
-      .catch((e) => { setError(e?.response?.data?.message || e?.message || 'Failed to load trips'); console.error(e); })
+      .catch((e: unknown) => { setError(getErrorMessage(e, 'Failed to load trips')); console.error(e); })
       .finally(() => setLoading(false));
-  };
+  }, [page, status]);
 
-  useEffect(() => { fetch(); }, [page, status]);
+  useEffect(() => {
+    const timeoutId = window.setTimeout(fetch, 0);
+    return () => window.clearTimeout(timeoutId);
+  }, [fetch]);
 
   const pages = Math.ceil(total / 20);
 

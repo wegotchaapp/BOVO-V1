@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { getPayments } from '../lib/api';
+import { useState, useEffect, useCallback } from 'react';
+import { getPayments, getErrorMessage } from '../lib/api';
 import { ErrorNotice, EmptyState } from '../components/QueryState';
 
 interface Payment {
@@ -19,16 +19,19 @@ export default function PaymentsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const fetch = () => {
+  const fetch = useCallback(() => {
     setLoading(true);
     setError(null);
     getPayments({ page })
       .then((res) => { setPayments(res.payments); setTotal(res.total); })
-      .catch((e: any) => setError(e?.response?.data?.message || e?.message || 'Could not load this data.'))
+      .catch((e: unknown) => setError(getErrorMessage(e, 'Could not load this data.')))
       .finally(() => setLoading(false));
-  };
+  }, [page]);
 
-  useEffect(() => { fetch(); }, [page]);
+  useEffect(() => {
+    const timeoutId = window.setTimeout(fetch, 0);
+    return () => window.clearTimeout(timeoutId);
+  }, [fetch]);
 
   const pages = Math.ceil(total / 20);
 

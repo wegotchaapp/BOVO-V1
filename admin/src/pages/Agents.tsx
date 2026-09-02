@@ -1,22 +1,33 @@
-import { useState, useEffect } from 'react';
-import { getSupportAgents, createSupportAgent, toggleSupportAgent } from '../lib/api';
+import { useState, useEffect, useCallback } from 'react';
+import { getSupportAgents, createSupportAgent, getErrorMessage, toggleSupportAgent } from '../lib/api';
 import { ErrorNotice, EmptyState } from '../components/QueryState';
 
+interface SupportAgent {
+  id: string;
+  name: string;
+  email: string;
+  role: string;
+  created_at: string;
+}
+
 export default function AgentsPage() {
-  const [agents, setAgents] = useState<any[]>([]);
+  const [agents, setAgents] = useState<SupportAgent[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [msg, setMsg] = useState('');
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({ name: '', email: '', password: '', role: 'agent' });
 
-  const fetch = () => {
+  const fetch = useCallback(() => {
     setLoading(true);
     setError(null);
-    getSupportAgents().then(setAgents).catch((e: any) => setError(e?.response?.data?.message || e?.message || 'Could not load this data.')).finally(() => setLoading(false));
-  };
+    getSupportAgents().then(setAgents).catch((e: unknown) => setError(getErrorMessage(e, 'Could not load this data.'))).finally(() => setLoading(false));
+  }, []);
 
-  useEffect(() => { fetch(); }, []);
+  useEffect(() => {
+    const timeoutId = window.setTimeout(fetch, 0);
+    return () => window.clearTimeout(timeoutId);
+  }, [fetch]);
 
   const handleCreate = async () => {
     if (!form.name || !form.email || !form.password) { setMsg('All fields required'); setTimeout(() => setMsg(''), 3000); return; }
@@ -26,8 +37,8 @@ export default function AgentsPage() {
       setShowForm(false);
       setForm({ name: '', email: '', password: '', role: 'agent' });
       fetch();
-    } catch (e: any) {
-      setMsg(e.response?.data?.message || 'Failed to create agent');
+    } catch (e: unknown) {
+      setMsg(getErrorMessage(e, 'Failed to create agent'));
     }
     setTimeout(() => setMsg(''), 3000);
   };
@@ -82,7 +93,7 @@ export default function AgentsPage() {
               </tr>
             </thead>
             <tbody>
-              {agents.map((a: any) => (
+              {agents.map((a) => (
                 <tr key={a.id} className="border-b border-border text-ink hover:bg-card">
                   <td className="py-3 px-2">{a.name}</td>
                   <td className="py-3 px-2 text-ink-soft">{a.email}</td>

@@ -1,5 +1,18 @@
-import { Controller, Get, Post, Param, UseGuards, Request, Query } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
+import {
+  Controller,
+  Get,
+  Post,
+  Param,
+  UseGuards,
+  Request,
+  Query,
+} from '@nestjs/common';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiBearerAuth,
+  ApiQuery,
+} from '@nestjs/swagger';
 import { AuthGuard } from '@nestjs/passport';
 import { DriverTripsService } from './driver-trips.service';
 
@@ -41,6 +54,10 @@ export class DriverTripsController {
     @Query('startDate') startDate: string,
     @Query('endDate') endDate: string,
   ) {
-    return this.driverTripsService.getDriverEarningsByPeriod(req.user.sub, startDate, endDate);
+    return this.driverTripsService.getDriverEarningsByPeriod(
+      req.user.sub,
+      startDate,
+      endDate,
+    );
   }
 }

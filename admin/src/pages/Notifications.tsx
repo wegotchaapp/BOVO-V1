@@ -1,12 +1,16 @@
 import { useState } from 'react';
-import { broadcastNotification } from '../lib/api';
+import { broadcastNotification, getErrorMessage } from '../lib/api';
+
+interface BroadcastResult {
+  recipientCount: number;
+}
 
 export default function NotificationsPage() {
   const [title, setTitle] = useState('');
   const [body, setBody] = useState('');
   const [role, setRole] = useState('');
   const [sending, setSending] = useState(false);
-  const [result, setResult] = useState<any>(null);
+  const [result, setResult] = useState<BroadcastResult | null>(null);
   const [error, setError] = useState('');
 
   const handleSend = async () => {
@@ -16,8 +20,8 @@ export default function NotificationsPage() {
       const r = await broadcastNotification(title, body, role || undefined);
       setResult(r);
       setTitle(''); setBody('');
-    } catch (e: any) {
-      setError(e.response?.data?.message || 'Failed to send');
+    } catch (e: unknown) {
+      setError(getErrorMessage(e, 'Failed to send'));
     }
     setSending(false);
   };

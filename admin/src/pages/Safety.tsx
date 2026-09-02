@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { getSosAlerts, getIncidents } from '../lib/api';
+import { getSosAlerts, getErrorMessage, getIncidents } from '../lib/api';
 import { ErrorNotice } from '../components/QueryState';
 
 interface SosEvent {
@@ -42,13 +42,16 @@ export default function SafetyPage() {
         setIncidents(inc.incidents);
         setTotalIncidents(inc.total);
       })
-      .catch((e: any) =>
-        setError(e?.response?.data?.message || e?.message || 'Could not load safety data.'),
+      .catch((e: unknown) =>
+        setError(getErrorMessage(e, 'Could not load safety data.')),
       )
       .finally(() => setLoading(false));
   }, [incidentPage, incidentFilter]);
 
-  useEffect(load, [load]);
+  useEffect(() => {
+    const timeoutId = window.setTimeout(load, 0);
+    return () => window.clearTimeout(timeoutId);
+  }, [load]);
 
   const incPages = Math.ceil(totalIncidents / 20);
 

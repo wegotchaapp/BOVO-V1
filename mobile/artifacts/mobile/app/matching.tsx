@@ -17,22 +17,100 @@ import Animated, {
   withTiming,
 } from "react-native-reanimated";
 
+import { useAsyncResource } from "@/hooks/useAsyncResource";
 import { useColors } from "@/hooks/useColors";
 import { CARD_SHADOW } from "@/constants/colors";
+import { getTrip } from "@/lib/trips";
+import { getMyPreferences } from "@/lib/preferences";
+import type { Trip } from "@/data/trips";
 
-const MATCH_POINTS = [
-  { icon: "wind", label: "Non-smoking", match: true },
-  { icon: "music", label: "Background music", match: true },
-  { icon: "thermometer", label: "AC preferred", match: true },
-  { icon: "message-square", label: "Moderate talker", match: true },
-  { icon: "heart", label: "No pets", match: true },
-  { icon: "map-pin", label: "No extra stops", match: false },
-];
+interface MatchPoint {
+  icon: string;
+  label: string;
+  match: boolean;
+}
+
+/**
+ * Only four preferences exist on both sides — an adventure carries smoking, pets,
+ * music and ac, and the Sailor answers the same four (plus talk and food, which a
+ * Voyager never states, so they are left out rather than guessed at).
+ *
+ * A Sailor's answer is only capable of clashing when it is a firm one. "Love to
+ * chat" or "Anything goes" tolerates whatever the Voyager set, so it always
+ * matches; "No pets" does not.
+ */
+function comparePreferences(
+  trip: Trip,
+  answers: Record<string, string>,
+): MatchPoint[] {
+  const p = trip.preferences;
+  const points: MatchPoint[] = [];
+
+  if (answers.smoke) {
+    const wantsSmokeFree = answers.smoke === "No, never";
+    points.push({
+      icon: "wind",
+      label: p.smoking ? "Smoking allowed" : "Non-smoking",
+      match: !wantsSmokeFree || !p.smoking,
+    });
+  }
+  if (answers.music) {
+    const wantsSilence = answers.music === "Silence is golden";
+    points.push({
+      icon: "music",
+      label: p.music ? "Music on" : "Quiet cabin",
+      match: !wantsSilence || !p.music,
+    });
+  }
+  if (answers.pets) {
+    const wantsNoPets = answers.pets === "No pets";
+    points.push({
+      icon: "heart",
+      label: p.pets ? "Pets welcome" : "No pets",
+      match: !wantsNoPets || !p.pets,
+    });
+  }
+  if (answers.ac) {
+    const wantsAc = answers.ac === "Always on";
+    points.push({
+      icon: "thermometer",
+      label: p.ac ? "AC on" : "AC off",
+      match: !wantsAc || p.ac,
+    });
+  }
+  return points;
+}
 
 export default function Matching() {
   const colors = useColors();
   const router = useRouter();
   const { tripId } = useLocalSearchParams<{ tripId?: string }>();
+
+  /**
+   * "Could not load the adventure" and "you have not set any preferences" used
+   * to collapse into one null, so a dropped request told the Sailor to set
+   * preferences they may already have set — and setting them changed nothing,
+   * because the trip was what failed. The hook keeps the two apart by
+   * construction.
+   */
+  const match = useAsyncResource(
+    async () => {
+      const [t, prefs] = await Promise.all([
+        getTrip(tripId!).then((r) => r.trip),
+        // Preferences are a nicety: never having set any is a real, expected
+        // state, and must not read as a failed load.
+        getMyPreferences().then((r) => r.preferences).catch(() => ({})),
+      ]);
+      return { trip: t, points: comparePreferences(t, prefs ?? {}) };
+    },
+    { deps: [tripId], enabled: Boolean(tripId) },
+  );
+
+  const trip = match.data?.trip ?? null;
+  const points = match.data?.points ?? null;
+  const loading = match.phase === "loading";
+  const loadFailed = match.phase === "failed";
+
   const scoreScale = useSharedValue(0.6);
   const opacity = useSharedValue(0);
   const translateY = useSharedValue(24);
@@ -42,6 +120,31 @@ export default function Matching() {
     opacity.value = withDelay(200, withTiming(1, { duration: 500 }));
     translateY.value = withDelay(200, withSpring(0, { damping: 15 }));
   }, []);
+
+  const scored = points && points.length > 0;
+  const matched = points?.filter((p) => p.match).length ?? 0;
+  const score = scored ? Math.round((matched / points!.length) * 100) : null;
+  const voyagerFirstName = trip?.driver?.name?.split(" ")[0] ?? "your Voyager";
+
+  function verdict(): string {
+    if (loadFailed) return "Couldn't load this adventure";
+    if (score === null) return "Set your preferences";
+    if (score === 100) return "Everything lines up";
+    if (score >= 60) return "Mostly a good fit";
+    return "A few differences";
+  }
+
+  function verdictSub(): string {
+    if (loadFailed) {
+      return "Check your connection and pull to try again — your preferences are fine.";
+    }
+    if (score === null) {
+      return "Answer a few questions about how you like to travel and we'll compare them with each adventure.";
+    }
+    return score === 100
+      ? `You and ${voyagerFirstName} want the same things on the road.`
+      : `${matched} of ${points!.length} of your preferences match ${voyagerFirstName}'s.`;
+  }
 
   const scoreStyle = useAnimatedStyle(() => ({
     transform: [{ scale: scoreScale.value }],
@@ -67,23 +170,28 @@ export default function Matching() {
         <View style={styles.scoreSection}>
           <Animated.View style={[styles.scoreRing, scoreStyle, { borderColor: colors.primary }]}>
             <View style={[styles.scoreInner, { backgroundColor: colors.secondary }]}>
-              <Text style={[styles.scoreNum, { color: colors.primary }]}>95%</Text>
+              <Text style={[styles.scoreNum, { color: colors.primary }]}>
+                {loading ? "…" : score === null ? "—" : `${score}%`}
+              </Text>
               <Text style={[styles.scoreLabel, { color: colors.mutedForeground }]}>Match</Text>
             </View>
           </Animated.View>
 
           <Animated.View style={[styles.scoreTextBlock, contentStyle]}>
-            <Text style={[styles.matchTitle, { color: colors.foreground }]}>Excellent Match!</Text>
+            <Text style={[styles.matchTitle, { color: colors.foreground }]}>
+              {loading ? "Comparing…" : verdict()}
+            </Text>
             <Text style={[styles.matchSub, { color: colors.mutedForeground }]}>
-              You and John D. are highly compatible travel partners.
+              {loading ? "" : verdictSub()}
             </Text>
           </Animated.View>
         </View>
 
+        {scored ? (
         <Animated.View style={[styles.pointsCard, CARD_SHADOW, contentStyle]}>
           <Text style={[styles.pointsTitle, { color: colors.foreground }]}>Compatibility Details</Text>
           <View style={styles.points}>
-            {MATCH_POINTS.map((p) => (
+            {(points ?? []).map((p) => (
               <View key={p.label} style={styles.pointRow}>
                 <View
                   style={[
@@ -107,27 +215,57 @@ export default function Matching() {
             ))}
           </View>
         </Animated.View>
+        ) : null}
 
+        {/* Unscored, this screen asks you to set your preferences and used to
+            offer no way to do it — the only buttons were pay and browse away.
+            Preferences stay optional, so payment is still one tap. */}
         <Animated.View style={[styles.actions, contentStyle]}>
-          <TouchableOpacity
-            style={[styles.primaryBtn, { backgroundColor: colors.primary }]}
-            onPress={() =>
-              router.push({ pathname: "/payment", params: tripId ? { tripId } : {} })
-            }
-            activeOpacity={0.88}
-          >
-            <Text style={styles.primaryBtnText}>Continue to Payment</Text>
-            <Feather name="arrow-right" size={16} color="#fff" />
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.secondaryBtn, { backgroundColor: colors.secondary }]}
-            onPress={() => router.replace("/(tabs)")}
-            activeOpacity={0.88}
-          >
-            <Text style={[styles.secondaryBtnText, { color: colors.primary }]}>
-              Browse Other Rides
-            </Text>
-          </TouchableOpacity>
+          {scored ? (
+            <>
+              <TouchableOpacity
+                style={[styles.primaryBtn, { backgroundColor: colors.primary }]}
+                onPress={() =>
+                  router.push({ pathname: "/payment", params: tripId ? { tripId } : {} })
+                }
+                activeOpacity={0.88}
+              >
+                <Text style={styles.primaryBtnText}>Continue to Payment</Text>
+                <Feather name="arrow-right" size={16} color="#fff" />
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.secondaryBtn, { backgroundColor: colors.secondary }]}
+                onPress={() => router.replace("/(tabs)")}
+                activeOpacity={0.88}
+              >
+                <Text style={[styles.secondaryBtnText, { color: colors.primary }]}>
+                  Browse other adventures
+                </Text>
+              </TouchableOpacity>
+            </>
+          ) : (
+            <>
+              <TouchableOpacity
+                style={[styles.primaryBtn, { backgroundColor: colors.primary }]}
+                onPress={() => router.push("/preferences" as any)}
+                activeOpacity={0.88}
+              >
+                <Text style={styles.primaryBtnText}>Set your preferences</Text>
+                <Feather name="arrow-right" size={16} color="#fff" />
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.secondaryBtn, { backgroundColor: colors.secondary }]}
+                onPress={() =>
+                  router.push({ pathname: "/payment", params: tripId ? { tripId } : {} })
+                }
+                activeOpacity={0.88}
+              >
+                <Text style={[styles.secondaryBtnText, { color: colors.primary }]}>
+                  Continue to Payment
+                </Text>
+              </TouchableOpacity>
+            </>
+          )}
         </Animated.View>
       </View>
     </SafeAreaView>

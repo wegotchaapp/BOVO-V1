@@ -2,8 +2,8 @@ import { Feather } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import React, { useEffect, useRef, useState } from "react";
 import {
-  Alert,
   Animated,
+  Linking,
   Modal,
   Platform,
   Pressable,
@@ -15,9 +15,20 @@ import {
   View,
 } from "react-native";
 
+import { Alert } from "@/lib/alert";
+
 import { useColors } from "@/hooks/useColors";
-import { CARD_SHADOW } from "@/constants/colors";
-import { triggerSos } from "@/lib/safety";
+import { useAuth } from "@/context/AuthContext";
+import { CARD_SHADOW, INK_ON_MUTED } from "@/constants/colors";
+import {
+  MANUAL_CALL_911_MESSAGE,
+  getSosLocation,
+  hasLocationPermission,
+  triggerSos,
+  type SosLocationFailure,
+  type SosOutcome,
+} from "@/lib/safety";
+import { shareLiveLocation } from "@/lib/share";
 
 const HOLD_DURATION = 3000;
 const COUNTDOWN_SECONDS = 10;
@@ -25,6 +36,13 @@ const COUNTDOWN_SECONDS = 10;
 export default function Safety() {
   const colors = useColors();
   const router = useRouter();
+  const { user } = useAuth();
+  const emergencyName = user?.emergencyName?.trim() ?? "";
+  const emergencyPhone = user?.emergencyPhone?.trim() ?? "";
+  const [sharing, setSharing] = useState(false);
+  // Checked without prompting, so the gap is visible before an emergency rather
+  // than discovered during one.
+  const [locationBlocked, setLocationBlocked] = useState(false);
 
   const holdProgress = useRef(new Animated.Value(0)).current;
   const holdAnim = useRef<Animated.CompositeAnimation | null>(null);
@@ -75,13 +93,84 @@ export default function Safety() {
     // Auto-texts the emergency contact with live location, then opens the 911
     // text composer and dialer (the OS requires one tap from the user).
     try {
-      await triggerSos();
+      // Reported through onResult rather than the resolved promise: the 911
+      // handoff that follows can navigate away or background the app, and this
+      // has to reach the user either way.
+      await triggerSos({
+        onResult: reportSosOutcome,
+        onNoLocation: reportNoLocation,
+        onManualCall: () => Alert.alert("Call 911 yourself", MANUAL_CALL_911_MESSAGE),
+      });
     } catch {
       Alert.alert(
         "SOS",
         "We couldn't open your phone's dialer automatically. Please call 911 directly.",
       );
     }
+  }
+
+  /**
+   * Known before any network call, so this is the one warning guaranteed to be
+   * on screen before the 911 handoff takes the app away.
+   */
+  function reportNoLocation(reason: SosLocationFailure) {
+    setLocationBlocked(reason === "permission_denied");
+    Alert.alert(
+      "No responders were sent",
+      reason === "permission_denied"
+        ? "Bovogo couldn't get your location, so we couldn't dispatch anyone. Your phone's 911 call is still the fastest route — turn on location access to let us dispatch next time."
+        : "We couldn't get a location fix, so we couldn't dispatch anyone. Call 911 yourself now.",
+    );
+  }
+
+  function reportSosOutcome(result: SosOutcome) {
+    setLocationBlocked(result.locationReason === "permission_denied");
+
+    // Already reported by reportNoLocation, before the handoff.
+    if (result.locationReason) return;
+
+    // Dispatch needs coordinates — Noonlight cannot open an alarm without them
+    // — so without a location nobody is sent. That is the one outcome the user
+    // must not be left assuming went the other way.
+    if (!result.dispatched) {
+      Alert.alert(
+        "No responders were sent",
+        "We couldn't reach the dispatch service. Call 911 yourself now.",
+      );
+      return;
+    }
+
+    // Say so when the contact was not reached. Believing someone has been
+    // alerted when they have not is worse than knowing you are on your own.
+    if (!result.contactNotified) {
+      Alert.alert(
+        "Your emergency contact wasn't alerted",
+        result.reason === "no_emergency_contact"
+          ? "You haven't saved one yet. Reach someone directly, then add a contact in the Safety Center."
+          : "We couldn't get the message out. Call them directly if you can.",
+      );
+    }
+  }
+
+  async function openLocationSettings() {
+    // Asking again is a no-op once the OS has recorded a denial, so send the
+    // user to Settings when the prompt is spent.
+    const granted = await hasLocationPermission();
+    if (granted) {
+      setLocationBlocked(false);
+      return;
+    }
+    const fresh = await getSosLocation();
+    if (fresh.coord) {
+      setLocationBlocked(false);
+      return;
+    }
+    Linking.openSettings().catch(() => {
+      Alert.alert(
+        "Turn on location",
+        "Open Settings, find Bovogo, and allow location access so an SOS can dispatch responders.",
+      );
+    });
   }
 
   function cancelSOS() {
@@ -95,7 +184,34 @@ export default function Safety() {
     return () => { clearInterval(countdownRef.current!); };
   }, []);
 
+  useEffect(() => {
+    let cancelled = false;
+    hasLocationPermission().then((granted) => {
+      if (!cancelled) setLocationBlocked(!granted);
+    });
+    return () => { cancelled = true; };
+  }, []);
+
   const progressDeg = holdProgress.interpolate({ inputRange: [0, 1], outputRange: ["0deg", "360deg"] });
+
+  /** Real OS share sheet carrying an actual GPS fix, not a canned message. */
+  async function handleShareLive() {
+    if (sharing) return;
+    setSharing(true);
+    try {
+      const shared = await shareLiveLocation({ contactName: emergencyName });
+      if (!shared) {
+        Alert.alert(
+          "Location unavailable",
+          "We couldn't get a GPS fix. Check that location access is enabled for Bovogo and try again.",
+        );
+      }
+    } catch (e: any) {
+      Alert.alert("Couldn't share", e?.message ?? "Please try again.");
+    } finally {
+      setSharing(false);
+    }
+  }
 
   const actions = [
     {
@@ -109,28 +225,30 @@ export default function Safety() {
     {
       icon: "share-2",
       title: "Share Live Adventure",
-      subtitle: "Send your route + ETA to a contact",
-      onPress: () => Alert.alert("Share Adventure", "Sharing your live adventure link with your emergency contact."),
+      subtitle: sharing ? "Getting your location…" : "Send your route + ETA to a contact",
+      onPress: handleShareLive,
       color: colors.primary,
       bg: colors.secondary,
     },
     {
       icon: "phone",
-      title: "Emergency Contacts",
-      subtitle: "3 contacts added and ready",
-      onPress: () => Alert.alert("Emergency Contacts", "Contact management available in Settings."),
-      color: colors.primary,
-      bg: colors.secondary,
+      title: "Emergency Contact",
+      // Reflects the contact actually on file rather than a hardcoded count.
+      subtitle: emergencyName
+        ? `${emergencyName} · ${emergencyPhone || "no number saved"}`
+        : "None saved — tap to add one",
+      onPress: () => router.push("/emergency-contact" as any),
+      // This row goes amber precisely to flag the missing contact, so the glyph
+      // is carrying state, not decoration. #D97706 is 2.90:1 on the pale fill,
+      // under the 3:1 floor; this is 3.79:1.
+      color: emergencyName ? colors.primary : "#C2620A",
+      bg: emergencyName ? colors.secondary : "#FEF3E2",
     },
     {
       icon: "book-open",
       title: "Safety Tips",
       subtitle: "Best practices for safe carpooling",
-      onPress: () =>
-        Alert.alert(
-          "Safety Tips",
-          "1. Verify driver's ID before boarding.\n2. Share your trip with a trusted contact.\n3. Sit in the back seat.\n4. Trust your instincts — cancel if uncomfortable.\n5. Keep your phone charged.",
-        ),
+      onPress: () => router.push("/safety-tips" as any),
       color: colors.primary,
       bg: colors.secondary,
     },
@@ -186,9 +304,29 @@ export default function Safety() {
             </Pressable>
           </View>
 
+          {/* The contact half of this promise is only true if one is saved, and
+              the row two below already says when none is. `notifyEmergencyContacts`
+              alerts opted-in contacts, so with none it tells nobody. */}
           <Text style={[styles.sosNote, { color: colors.mutedForeground }]}>
-            Alerts your emergency contacts + Bovogo safety team
+            {emergencyName
+              ? `Texts and calls 911 with your location, and alerts ${emergencyName}.`
+              : "Texts and calls 911 with your location. Add an emergency contact below and we'll alert them too."}
           </Text>
+
+          {/* Without coordinates no alarm can be opened, so this is worth
+              knowing now rather than in the middle of an emergency. */}
+          {locationBlocked && (
+            <TouchableOpacity
+              style={[styles.locationWarning, { backgroundColor: "#FEF3E2" }]}
+              onPress={openLocationSettings}
+              activeOpacity={0.85}
+            >
+              <Feather name="map-pin" size={15} color="#7A5A1E" />
+              <Text style={[styles.locationWarningText, { color: "#7A5A1E" }]}>
+                Location is off, so an SOS can't dispatch responders. Tap to turn it on.
+              </Text>
+            </TouchableOpacity>
+          )}
         </View>
 
         <View style={styles.actions}>
@@ -213,10 +351,29 @@ export default function Safety() {
           ))}
         </View>
 
-        <View style={[styles.notice, { backgroundColor: colors.secondary }]}>
-          <Feather name="shield" size={14} color={colors.primary} />
-          <Text style={[styles.noticeText, { color: colors.primary }]}>
-            Bovogo monitors all live trips for safety. GPS tracking is active during your ride.
+        {/* Stated conditionally: with location off there is no GPS tracking to
+            speak of, and claiming otherwise directly contradicts the warning
+            further up this same screen. */}
+        <View
+          style={[
+            styles.notice,
+            { backgroundColor: locationBlocked ? colors.muted : colors.secondary },
+          ]}
+        >
+          <Feather
+            name={locationBlocked ? "shield-off" : "shield"}
+            size={14}
+            color={locationBlocked ? INK_ON_MUTED : colors.primary}
+          />
+          <Text
+            style={[
+              styles.noticeText,
+              { color: locationBlocked ? INK_ON_MUTED : colors.primary },
+            ]}
+          >
+            {locationBlocked
+              ? "Bovogo monitors live adventures for safety, but GPS tracking is off on this device."
+              : "Bovogo monitors live adventures for safety. GPS tracking is active during your adventure."}
           </Text>
         </View>
       </ScrollView>
@@ -232,8 +389,13 @@ export default function Safety() {
             <Text style={styles.sosModalSub}>
               Your emergency contacts will be notified in {countdown} second{countdown !== 1 ? "s" : ""}.
             </Text>
-            <Text style={styles.sosModalSub} numberOfLines={1}>
-              Your GPS location is being shared.
+            {/* Same unconditional-claim problem the footer had: with location
+                off there is no fix to share, and this is the screen where a
+                false reassurance costs the most. */}
+            <Text style={styles.sosModalSub} numberOfLines={2}>
+              {locationBlocked
+                ? "Location is off — no GPS position will be sent."
+                : "Your GPS location is being shared."}
             </Text>
             <TouchableOpacity style={styles.cancelSOS} onPress={cancelSOS}>
               <Text style={styles.cancelSOSText}>Cancel — I'm Safe</Text>
@@ -295,6 +457,21 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(0,0,0,0.2)",
   },
   holdProgressFill: { height: 6 },
+  locationWarning: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    borderRadius: 14,
+    marginTop: 14,
+  },
+  locationWarningText: {
+    flex: 1,
+    fontSize: 13,
+    fontFamily: "Inter_500Medium",
+    lineHeight: 18,
+  },
   sosNote: { fontSize: 12, fontFamily: "Inter_400Regular", textAlign: "center" },
   actions: { gap: 12 },
   actionItem: {

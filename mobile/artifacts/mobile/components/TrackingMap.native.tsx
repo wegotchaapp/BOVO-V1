@@ -60,6 +60,8 @@ export default function TrackingMap({
         primaryColor={primaryColor}
         accentColor={accentColor}
         onRouteInfo={onRouteInfo}
+        // The tracking screen draws its own progress pill over the map.
+        showProgressRow={false}
         style={styles.map}
       />
     </View>

@@ -122,7 +122,9 @@ export class UpdateVehicleDto {
 }
 
 export class VehiclePhotoDto {
-  @ApiProperty({ enum: ['front_exterior', 'rear_exterior', 'driver_side', 'interior'] })
+  @ApiProperty({
+    enum: ['front_exterior', 'rear_exterior', 'driver_side', 'interior'],
+  })
   @IsString()
   photo_type!: string;
 

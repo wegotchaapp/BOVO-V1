@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Profile - Bovogo</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "background": "#faf9f5",
+                        "outline": "#727974",
+                        "on-tertiary": "#ffffff",
+                        "inverse-surface": "#2f312e",
+                        "surface-bright": "#faf9f5",
+                        "tertiary-fixed-dim": "#f1be6e",
+                        "tertiary-container": "#4c3200",
+                        "sage-secondary": "#67736a",
+                        "primary": "#03271a",
+                        "secondary-container": "#d9e6db",
+                        "on-primary": "#ffffff",
+                        "inverse-primary": "#aacfbb",
+                        "on-secondary": "#ffffff",
+                        "error-container": "#ffdad6",
+                        "tertiary": "#301e00",
+                        "surface-cream": "#f8f7f3",
+                        "primary-container": "#1b3d2f",
+                        "on-secondary-container": "#5b675e",
+                        "error": "#ba1a1a",
+                        "sky-scrim": "rgba(0, 0, 0, 0.4)",
+                        "on-primary-container": "#84a895",
+                        "surface-dim": "#dbdad6",
+                        "primary-fixed-dim": "#aacfbb",
+                        "surface-container": "#efeeea",
+                        "primary-fixed": "#c5ebd7",
+                        "secondary-fixed-dim": "#bdcabf",
+                        "on-tertiary-fixed": "#281800",
+                        "card-white": "#ffffff",
+                        "gold-accent": "#c4954a",
+                        "on-surface": "#1b1c1a",
+                        "on-primary-fixed-variant": "#2c4d3f",
+                        "on-tertiary-fixed-variant": "#614000",
+                        "surface-container-high": "#e9e8e4",
+                        "surface-container-low": "#f4f4f0",
+                        "surface-container-highest": "#e3e2df",
+                        "on-tertiary-container": "#c7984d",
+                        "on-secondary-fixed": "#131e17",
+                        "secondary-fixed": "#d9e6db",
+                        "secondary": "#556159",
+                        "outline-variant": "#c1c8c2",
+                        "inverse-on-surface": "#f2f1ed",
+                        "on-background": "#1b1c1a",
+                        "on-primary-fixed": "#002115",
+                        "surface": "#faf9f5",
+                        "on-surface-variant": "#414844",
+                        "on-error": "#ffffff",
+                        "surface-container-lowest": "#ffffff",
+                        "tertiary-fixed": "#ffddaf",
+                        "surface-tint": "#436556",
+                        "forest-ink": "#1b3d2f",
+                        "on-error-container": "#93000a",
+                        "on-secondary-fixed-variant": "#3e4941",
+                        "surface-variant": "#e3e2df"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "16px",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "card-padding": "20px",
+                        "base": "4px",
+                        "gap-standard": "14px",
+                        "screen-padding": "22px",
+                        "section-margin": "24px"
+                    },
+                    "fontFamily": {
+                        "label-md": ["Inter"],
+                        "body-md": ["Inter"],
+                        "headline-lg": ["Inter"],
+                        "headline-md": ["Inter"],
+                        "display-lg": ["Inter"],
+                        "sky-header": ["Inter"]
+                    },
+                    "fontSize": {
+                        "label-md": ["12px", { "lineHeight": "16px", "fontWeight": "500" }],
+                        "body-md": ["14px", { "lineHeight": "20px", "fontWeight": "400" }],
+                        "headline-lg": ["19px", { "lineHeight": "24px", "fontWeight": "600" }],
+                        "headline-md": ["16px", { "lineHeight": "22px", "fontWeight": "600" }],
+                        "display-lg": ["26px", { "lineHeight": "32px", "letterSpacing": "-0.5px", "fontWeight": "700" }],
+                        "sky-header": ["19px", { "lineHeight": "24px", "fontWeight": "600" }]
+                    },
+                    "boxShadow": {
+                        "soft": "0 12px 24px -8px rgba(0, 0, 0, 0.07)"
+                    }
+                }
+            }
+        }
+    </script>
+<style type="text/tailwindcss">
+        @layer utilities {
+            .bg-cream { @apply bg-[#f8f7f3]; }
+            .pb-safe { padding-bottom: env(safe-area-inset-bottom); }
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-surface-cream text-on-surface antialiased min-h-screen pb-32">
+<!-- Top App Bar equivalent -->
+<header class="w-full top-0 sticky z-40 bg-surface-cream flex items-center justify-center px-screen-padding h-16 w-full">
+<h1 class="font-display-lg text-display-lg text-primary">Profile</h1>
+</header>
+<main class="px-screen-padding flex flex-col gap-gap-standard mt-2">
+<!-- Identity Card -->
+<section class="bg-card-white rounded-xl shadow-soft p-card-padding flex flex-col items-center">
+<div class="w-24 h-24 rounded-full bg-surface-container-highest flex items-center justify-center mb-4 relative overflow-hidden">
+<img class="absolute inset-0 w-full h-full object-cover" data-alt="A close up portrait photography of a person smiling softly with warm sunset lighting casting a glow on their face. The background is slightly blurred with creamy and forest green tones, creating an inviting, open, and calm atmosphere consistent with modern lifestyle photography. The mood is welcoming and trustworthy, shot on a high quality portrait lens." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDKccThG5Zo1sI-9VB9O3ZPCpD8N4cw4DzQBUls-C5nkTwdMKX2gf4XbpYb48QEeBKXB_KgxjXt6RNV_qWKcvzn5QYjkLpG1lnbbuQUwUe9uP1bILp7u8GSw-zwIi0mut565AzwmDPNpVpoUsC7tK_HApm0Px0l9LNjj-2NKKuoRk2HGYcCRW6_IN3VfuX0gDyKcF3JZ8Ecy3UkS8hqoolroHZOpv0j6IkwsmBwPAouEZif-0bHUx70KdpcTm2hl65sKWMh08oZSyk"/>
+</div>
+<h2 class="font-display-lg text-display-lg text-forest-ink mb-3">Sushant</h2>
+<div class="flex flex-wrap gap-2 justify-center mb-6">
+<span class="inline-flex items-center gap-1 px-3 py-1 bg-secondary-container text-forest-ink rounded-full font-label-md text-label-md">
+<span class="material-symbols-outlined text-[14px]">check_circle</span>
+                    Verified Voyager
+                </span>
+<span class="inline-flex items-center px-3 py-1 bg-gold-accent text-on-surface rounded-full font-label-md text-label-md">
+                    Founding Member
+                </span>
+</div>
+<div class="w-full flex justify-between items-center px-2 py-4 border-t border-surface-variant">
+<div class="flex flex-col items-center text-center px-2">
+<span class="font-headline-lg text-headline-lg text-forest-ink">12</span>
+<span class="font-label-md text-label-md text-sage-secondary">Adventures</span>
+</div>
+<div class="w-px h-8 bg-surface-variant"></div>
+<div class="flex flex-col items-center text-center px-2">
+<span class="font-headline-lg text-headline-lg text-forest-ink">5.0</span>
+<span class="font-label-md text-label-md text-sage-secondary">Rating</span>
+</div>
+<div class="w-px h-8 bg-surface-variant"></div>
+<div class="flex flex-col items-center text-center px-2">
+<span class="font-headline-lg text-headline-lg text-forest-ink">Austin, TX</span>
+<span class="font-label-md text-label-md text-sage-secondary">Region</span>
+</div>
+</div>
+</section>
+<!-- Upsell Card -->
+<section class="bg-card-white rounded-xl shadow-soft p-card-padding border border-gold-accent flex flex-col gap-4">
+<div class="flex justify-between items-start">
+<h3 class="font-headline-lg text-headline-lg text-forest-ink w-3/4">Unlock the full Bovogo experience</h3>
+<span class="material-symbols-outlined text-gold-accent text-3xl">workspace_premium</span>
+</div>
+<ul class="flex flex-col gap-3 my-2">
+<li class="flex items-center gap-3">
+<span class="material-symbols-outlined text-gold-accent text-xl">check</span>
+<span class="font-body-md text-body-md text-on-surface">Free trip cancellation</span>
+</li>
+<li class="flex items-center gap-3">
+<span class="material-symbols-outlined text-gold-accent text-xl">check</span>
+<span class="font-body-md text-body-md text-on-surface">Priority match in queue</span>
+</li>
+<li class="flex items-center gap-3">
+<span class="material-symbols-outlined text-gold-accent text-xl">check</span>
+<span class="font-body-md text-body-md text-on-surface">Premium Voyager badge</span>
+</li>
+</ul>
+<p class="font-label-md text-label-md text-sage-secondary mb-1">Currently on Free</p>
+<button class="w-full bg-forest-ink text-on-primary py-3 rounded-lg font-headline-md text-headline-md transition-opacity hover:opacity-90 active:scale-95 duration-150">
+                Manage subscription
+            </button>
+</section>
+<!-- Settings Group A -->
+<section class="bg-card-white rounded-xl shadow-soft flex flex-col overflow-hidden">
+<a class="flex items-center justify-between p-4 hover:bg-surface-container-low transition-colors active:bg-surface-container-high border-b border-surface-variant" href="#">
+<div class="flex items-center gap-4">
+<div class="w-10 h-10 rounded-full bg-surface-cream flex items-center justify-center text-forest-ink">
+<span class="material-symbols-outlined">explore</span>
+</div>
+<div>
+<h4 class="font-headline-md text-headline-md text-on-surface">My Adventures</h4>
+<p class="font-label-md text-label-md text-sage-secondary">View your upcoming and past trips</p>
+</div>
+</div>
+<span class="material-symbols-outlined text-sage-secondary">chevron_right</span>
+</a>
+<a class="flex items-center justify-between p-4 hover:bg-surface-container-low transition-colors active:bg-surface-container-high border-b border-surface-variant" href="#">
+<div class="flex items-center gap-4">
+<div class="w-10 h-10 rounded-full bg-surface-cream flex items-center justify-center text-forest-ink">
+<span class="material-symbols-outlined">directions_car</span>
+</div>
+<div>
+<h4 class="font-headline-md text-headline-md text-on-surface">My Vehicle</h4>
+<p class="font-label-md text-label-md text-sage-secondary">Manage your registered car</p>
+</div>
+</div>
+<span class="material-symbols-outlined text-sage-secondary">chevron_right</span>
+</a>
+<a class="flex items-center justify-between p-4 hover:bg-surface-container-low transition-colors active:bg-surface-container-high" href="#">
+<div class="flex items-center gap-4">
+<div class="w-10 h-10 rounded-full bg-surface-cream flex items-center justify-center text-forest-ink">
+<span class="material-symbols-outlined">add_circle</span>
+</div>
+<div>
+<h4 class="font-headline-md text-headline-md text-on-surface">Post an Adventure</h4>
+<p class="font-label-md text-label-md text-sage-secondary">Announce your next drive</p>
+</div>
+</div>
+<span class="material-symbols-outlined text-sage-secondary">chevron_right</span>
+</a>
+</section>
+<!-- Settings Group B -->
+<section class="bg-card-white rounded-xl shadow-soft flex flex-col overflow-hidden">
+<a class="flex items-center justify-between p-4 hover:bg-surface-container-low transition-colors active:bg-surface-container-high border-b border-surface-variant" href="#">
+<div class="flex items-center gap-4">
+<div class="w-10 h-10 rounded-full bg-surface-cream flex items-center justify-center text-forest-ink">
+<span class="material-symbols-outlined">notifications</span>
+</div>
+<div>
+<h4 class="font-headline-md text-headline-md text-on-surface">Notifications</h4>
+<p class="font-label-md text-label-md text-sage-secondary">Manage alerts</p>
+</div>
+</div>
+<span class="material-symbols-outlined text-sage-secondary">chevron_right</span>
+</a>
+<a class="flex items-center justify-between p-4 hover:bg-surface-container-low transition-colors active:bg-surface-container-high" href="#">
+<div class="flex items-center gap-4">
+<div class="w-10 h-10 rounded-full bg-surface-cream flex items-center justify-center text-forest-ink">
+<span class="material-symbols-outlined">help</span>
+</div>
+<div>
+<h4 class="font-headline-md text-headline-md text-on-surface">Help &amp; Support</h4>
+<p class="font-label-md text-label-md text-sage-secondary">Get assistance with your journeys</p>
+</div>
+</div>
+<span class="material-symbols-outlined text-sage-secondary">chevron_right</span>
+</a>
+</section>
+<!-- Settings Group C -->
+<section class="bg-card-white rounded-xl shadow-soft flex flex-col overflow-hidden mb-6">
+<button class="flex items-center justify-between p-4 hover:bg-surface-container-low transition-colors active:bg-surface-container-high border-b border-surface-variant w-full text-left">
+<span class="font-headline-md text-headline-md text-forest-ink">Log Out</span>
+<span class="material-symbols-outlined text-forest-ink">logout</span>
+</button>
+<button class="flex items-center justify-between p-4 hover:bg-surface-container-low transition-colors active:bg-surface-container-high w-full text-left">
+<span class="font-headline-md text-headline-md text-[#c0392b]">Delete Account</span>
+<span class="material-symbols-outlined text-[#c0392b]">delete_forever</span>
+</button>
+</section>
+</main>
+<!-- Bottom Navigation from JSON -->
+<nav class="fixed bottom-0 w-full z-50 rounded-t-xl bg-card-white shadow-[0_-4px_12px_rgba(0,0,0,0.07)] flex justify-around items-center h-20 px-4 pb-safe md:hidden shadow-lg">
+<a class="flex flex-col items-center justify-center text-sage-secondary hover:opacity-80 transition-opacity active:scale-90 duration-150 w-16" href="#">
+<span class="material-symbols-outlined text-[24px] mb-1">home</span>
+<span class="font-label-md text-label-md">Home</span>
+</a>
+<a class="flex flex-col items-center justify-center text-sage-secondary hover:opacity-80 transition-opacity active:scale-90 duration-150 w-16" href="#">
+<span class="material-symbols-outlined text-[24px] mb-1">explore</span>
+<span class="font-label-md text-label-md">Adventures</span>
+</a>
+<a class="flex flex-col items-center justify-center text-sage-secondary hover:opacity-80 transition-opacity active:scale-90 duration-150 w-16" href="#">
+<span class="material-symbols-outlined text-[24px] mb-1">chat_bubble</span>
+<span class="font-label-md text-label-md">Messages</span>
+</a>
+<a class="flex flex-col items-center justify-center text-primary font-bold hover:opacity-80 transition-opacity active:scale-90 duration-150 w-16" href="#">
+<span class="material-symbols-outlined text-[24px] mb-1" style="font-variation-settings: 'FILL' 1;">person</span>
+<span class="font-label-md text-label-md">Profile</span>
+</a>
+</nav>
+</body></html>

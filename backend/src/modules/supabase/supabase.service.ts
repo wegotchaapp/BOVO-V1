@@ -1,4 +1,8 @@
-import { Injectable, OnModuleInit, InternalServerErrorException } from '@nestjs/common';
+import {
+  Injectable,
+  OnModuleInit,
+  InternalServerErrorException,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 
@@ -13,7 +17,9 @@ export class SupabaseService implements OnModuleInit {
     const serviceKey = this.config.get<string>('SUPABASE_SERVICE_ROLE_KEY');
 
     if (!url || !serviceKey) {
-      throw new InternalServerErrorException('SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY must be set');
+      throw new InternalServerErrorException(
+        'SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY must be set',
+      );
     }
 
     this.adminClient = createClient(url, serviceKey, {

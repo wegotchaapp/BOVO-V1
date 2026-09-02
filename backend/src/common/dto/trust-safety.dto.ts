@@ -1,4 +1,13 @@
-import { IsString, IsNotEmpty, IsOptional, IsEnum, IsNumber, IsUrl, MaxLength, Min } from 'class-validator';
+import {
+  IsString,
+  IsNotEmpty,
+  IsOptional,
+  IsEnum,
+  IsNumber,
+  IsUrl,
+  MaxLength,
+  Min,
+} from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { ReportCategory, ModerationActionType } from '../../common/enums';
 

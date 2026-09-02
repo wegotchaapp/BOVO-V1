@@ -102,10 +102,7 @@ export class AdminController {
   }
 
   @Post('subscriptions/:userId/trial')
-  overrideTrial(
-    @Param('userId') userId: string,
-    @Body('days') days: number,
-  ) {
+  overrideTrial(@Param('userId') userId: string, @Body('days') days: number) {
     return this.admin.overrideTrial(userId, days);
   }
 
@@ -126,17 +123,44 @@ export class AdminController {
   }
 
   @Patch('driver-docs/vehicles/:id/verify')
-  verifyVehicle(
+  verifyVehicle(@Param('id') id: string, @Body('approved') approved: boolean) {
+    return this.admin.verifyVehicle(id, approved);
+  }
+
+  // Mobile vehicle review — the fleet Sailors actually ride in.
+  @Get('vehicle-review')
+  vehicleReviewQueue(@Query('status') status?: string) {
+    return this.admin.vehicleReviewQueue(status || 'pending_review');
+  }
+
+  @Patch('vehicle-review/:id')
+  reviewMobileVehicle(
     @Param('id') id: string,
     @Body('approved') approved: boolean,
+    @Body('note') note?: string,
   ) {
-    return this.admin.verifyVehicle(id, approved);
+    return this.admin.reviewMobileVehicle(id, approved, note);
   }
 
   // Audit
   @Get('audit')
   audit(@Query() q: any) {
     return this.admin.listAudit(q);
+  }
+
+  @Get('compliance-logs')
+  complianceLogs(@Query() q: { rule?: string; user_id?: string }) {
+    return this.admin.listComplianceLogs(q);
+  }
+
+  @Get('driver-trips/summary')
+  driverTripsSummary() {
+    return this.admin.driverTripsSummary();
+  }
+
+  @Get('driver-earnings/:id')
+  driverEarnings(@Param('id') id: string) {
+    return this.admin.driverEarnings(id);
   }
 
   // Support tickets

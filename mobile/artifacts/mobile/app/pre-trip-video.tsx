@@ -114,12 +114,14 @@ export default function PreTripVideoScreen() {
       await startTrip(tripId);
       await showSuccess(
         "Adventure Started!",
-        "Your vehicle video is saved and the ride is underway. Safe travels!",
+        "Your vehicle video is saved and the adventure is underway. Log each Sailor's odometer reading as you pick them up. Safe travels!",
+        // Straight to the manifest — the odometer log is the Voyager's main job
+        // during the drive.
         () =>
-          router.replace({ pathname: "/tracking/[id]", params: { id: tripId } }),
+          router.replace({ pathname: "/manifest/[tripId]", params: { tripId } }),
       );
     } catch (err: any) {
-      await showAlert("Couldn't start the ride", err?.message || "Please try again.");
+      await showAlert("Couldn't start the adventure", err?.message || "Please try again.");
     } finally {
       setUploading(false);
     }
@@ -209,7 +211,7 @@ export default function PreTripVideoScreen() {
                 activeOpacity={0.85}
               >
                 <Feather name="check" size={16} color="#fff" />
-                <Text style={styles.primaryBtnText}>Use Video & Start Ride</Text>
+                <Text style={styles.primaryBtnText}>Use Video & Start Adventure</Text>
               </TouchableOpacity>
             </View>
           )}

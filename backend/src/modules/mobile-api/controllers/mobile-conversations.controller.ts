@@ -36,11 +36,7 @@ export class MobileConversationsController {
 
   @Post()
   open(@MobileAuthUser() user: MobileUser, @Body() dto: OpenConversationBody) {
-    return this.conversations.openWith(
-      user.id,
-      dto.otherUserId,
-      dto.tripLabel,
-    );
+    return this.conversations.openWith(user.id, dto.otherUserId, dto.tripLabel);
   }
 
   @Get(':id')

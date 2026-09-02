@@ -69,8 +69,28 @@ import { MobileApiModule } from './modules/mobile-api/mobile-api.module';
           config.get<string>('NODE_ENV') !== 'production',
         logging: config.get<string>('NODE_ENV') !== 'production',
         extra: {
-          max: 20,
-          idleTimeoutMillis: 30000,
+          /**
+           * Connections per app instance. Supabase's DIRECT connection
+           * (port 5432) has a hard project-wide cap, so `max × instances` must
+           * stay under it. For real traffic, point DATABASE_URL at the
+           * Supavisor pooler on port 6543 (transaction mode) and keep 5432 for
+           * migrations only — that is what lets instances scale horizontally.
+           */
+          max: Number(config.get<string>('DATABASE_POOL_MAX') ?? 20),
+          idleTimeoutMillis: 30_000,
+          /** Fail fast when the pool is saturated instead of queueing forever. */
+          connectionTimeoutMillis: 10_000,
+          /**
+           * A runaway query must not pin a connection indefinitely — that is
+           * how one slow endpoint takes down every other one under load.
+           */
+          statement_timeout: Number(
+            config.get<string>('DATABASE_STATEMENT_TIMEOUT_MS') ?? 15_000,
+          ),
+          query_timeout: Number(
+            config.get<string>('DATABASE_STATEMENT_TIMEOUT_MS') ?? 15_000,
+          ),
+          application_name: 'bovogo-api',
         },
       }),
     }),

@@ -5,7 +5,8 @@ import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 
 import { useColors } from "@/hooks/useColors";
 import { CARD_SHADOW } from "@/constants/colors";
-import { formatTripTime, type Trip } from "@/data/trips";
+import { formatTripDate, formatTripTime, type Trip } from "@/data/trips";
+import { formatUsd } from "@/lib/pricing";
 
 interface TripCardProps {
   trip: Trip;
@@ -55,18 +56,21 @@ export default function TripCard({ trip, onPress }: TripCardProps) {
     >
       <View style={styles.topRow}>
         <View style={styles.timeBlock}>
+          {/* Date as well as time. The card previously showed only a time, so a
+              result from a different day was indistinguishable from one on the
+              day the Sailor searched for. */}
           <Text style={[styles.time, { color: colors.mutedForeground }]}>
-            {formatTripTime(trip.departureAt)}
+            {formatTripDate(trip.departureAt)} · {formatTripTime(trip.departureAt)}
           </Text>
           {trip.driver.isTopDriver && (
-            <View style={[styles.topBadge, { backgroundColor: "#FEF3E2" }]}>
-              <Feather name="award" size={10} color="#C4954A" />
-              <Text style={[styles.topBadgeText, { color: "#C4954A" }]}>Top Voyager</Text>
+            <View style={[styles.topBadge, { backgroundColor: "#C4954A" }]}>
+              <Feather name="award" size={10} color="#111210" />
+              <Text style={[styles.topBadgeText, { color: "#111210" }]}>Top Voyager</Text>
             </View>
           )}
         </View>
         <View style={styles.priceBlock}>
-          <Text style={[styles.price, { color: colors.primary }]}>${trip.pricePerSeat}</Text>
+          <Text style={[styles.price, { color: colors.primary }]}>{formatUsd(trip.pricePerSeat)}</Text>
           <Text style={[styles.perSeat, { color: colors.mutedForeground }]}>per seat</Text>
         </View>
       </View>

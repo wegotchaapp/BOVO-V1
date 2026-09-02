@@ -6,11 +6,41 @@ import { RefreshToken } from './entities/refresh-token.entity';
 import { Verification, BackgroundCheck } from './entities/identity.entities';
 import { Profile, Vehicle } from './entities/profile.entities';
 import { Trip, TripPreference, TripZone } from './entities/trip.entities';
-import { Booking, BookingLuggage, BookingStatusLog } from './entities/booking.entities';
-import { Payment, Payout, Refund, InsurancePolicy } from './entities/payment.entities';
-import { TripPing, SosEvent, Report, ModerationAction, Suspension, Incident } from './entities/safety.entities';
-import { ChatConversation, ChatMessage, ChatBlock, CallRecord, Rating } from './entities/chat.entities';
-import { Conversation, Message, NotificationLog, EmergencyContact, Device } from './entities/communication.entities';
+import {
+  Booking,
+  BookingLuggage,
+  BookingStatusLog,
+} from './entities/booking.entities';
+import {
+  Payment,
+  Payout,
+  Refund,
+  InsurancePolicy,
+} from './entities/payment.entities';
+import {
+  TripPing,
+  SosEvent,
+  Report,
+  ModerationAction,
+  Suspension,
+  Incident,
+  DeviationEvent,
+  Appeal,
+} from './entities/safety.entities';
+import {
+  ChatConversation,
+  ChatMessage,
+  ChatBlock,
+  CallRecord,
+} from './entities/chat.entities';
+import {
+  Conversation,
+  Message,
+  NotificationLog,
+  NotificationPreference,
+  EmergencyContact,
+  Device,
+} from './entities/communication.entities';
 import { AuditEvent } from './entities/audit.entity';
 import { SavedSearch } from './entities/saved-search.entity';
 import { DriverTrip } from './entities/driver-trip.entity';
@@ -19,20 +49,33 @@ import { SupportTicket } from './entities/support-ticket.entity';
 import { SupportTicketMessage } from './entities/support-ticket-message.entity';
 import { SupportSession } from './entities/support-session.entity';
 import { UserSession } from './entities/user-session.entity';
-import { TripGroup, TripGroupMember, TripGroupMessage, TripGroupPickupApproval } from './entities/trip-group.entity';
+import {
+  TripGroup,
+  TripGroupMember,
+  TripGroupMessage,
+  TripGroupPickupApproval,
+} from './entities/trip-group.entity';
 import { TripReply, TripReplyRead } from './entities/trip-reply.entity';
 import { ComplianceLog } from './entities/compliance-log.entity';
 import {
   MobileUser,
+  MobileVehicle,
   MobileSession,
   MobileTrip,
   MobileTripReply,
   MobileTripReplyRead,
   MobileBooking,
+  MobileRating,
   MobileTripGroup,
   MobileTripGroupMember,
   MobileTripGroupMessage,
   MobileDriverTrip,
+  MobileConversation,
+  MobileDirectMessage,
+  MobileSosEvent,
+  MobileDeviationEvent,
+  MobileLiveLocation,
+  MobileOdometerReading,
 } from '../modules/mobile-api/entities/mobile.entities';
 
 export const AppDataSource = new DataSource({
@@ -67,14 +110,16 @@ export const AppDataSource = new DataSource({
     ModerationAction,
     Suspension,
     Incident,
+    DeviationEvent,
+    Appeal,
     ChatConversation,
     ChatMessage,
     ChatBlock,
     CallRecord,
-    Rating,
     Conversation,
     Message,
     NotificationLog,
+    NotificationPreference,
     EmergencyContact,
     Device,
     AuditEvent,
@@ -93,18 +138,32 @@ export const AppDataSource = new DataSource({
     TripReplyRead,
     ComplianceLog,
     MobileUser,
+    MobileVehicle,
     MobileSession,
     MobileTrip,
     MobileTripReply,
     MobileTripReplyRead,
     MobileBooking,
+    MobileRating,
     MobileTripGroup,
     MobileTripGroupMember,
     MobileTripGroupMessage,
     MobileDriverTrip,
+    MobileConversation,
+    MobileDirectMessage,
+    MobileLiveLocation,
+    MobileOdometerReading,
+    MobileSosEvent,
+    MobileDeviationEvent,
   ],
   // __filename ends in .js when compiled, .ts when running under ts-node.
   // This resolves to the correct migration files in both environments.
-  migrations: [path.join(__dirname, 'migrations', __filename.endsWith('.js') ? '*.js' : '*.ts')],
+  migrations: [
+    path.join(
+      __dirname,
+      'migrations',
+      __filename.endsWith('.js') ? '*.js' : '*.ts',
+    ),
+  ],
   logging: true,
 });

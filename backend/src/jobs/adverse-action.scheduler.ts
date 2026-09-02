@@ -51,9 +51,7 @@ export class AdverseActionScheduler implements OnModuleInit {
         check.final_adverse_notice_sent_at = new Date().toISOString();
         await this.bgCheckRepo.save(check);
 
-        this.logger.log(
-          `Final adverse notice sent for user ${check.user_id}`,
-        );
+        this.logger.log(`Final adverse notice sent for user ${check.user_id}`);
       } catch (error) {
         this.logger.error(
           `Failed to send final adverse notice for user ${check.user_id}: ${error}`,

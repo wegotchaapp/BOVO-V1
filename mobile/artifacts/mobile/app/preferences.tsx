@@ -3,7 +3,6 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
   ActivityIndicator,
-  Alert,
   Platform,
   SafeAreaView,
   ScrollView,
@@ -12,6 +11,8 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+
+import { Alert } from "@/lib/alert";
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -47,7 +48,7 @@ const QUESTIONS: Question[] = [
     id: "talk",
     icon: "message-square",
     question: "How talkative are you?",
-    subtext: "During the ride",
+    subtext: "During the adventure",
     options: [
       { label: "Quiet, please", emoji: "🤫" },
       { label: "Just the basics", emoji: "💬" },

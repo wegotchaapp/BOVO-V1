@@ -3,7 +3,6 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
   ActivityIndicator,
-  Alert,
   Platform,
   SafeAreaView,
   ScrollView,
@@ -12,6 +11,8 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+
+import { Alert } from "@/lib/alert";
 import { StripeProvider, useStripe } from "@/lib/stripeNative";
 
 import { useColors } from "@/hooks/useColors";
@@ -23,6 +24,14 @@ import {
   computeServiceFee,
   prepareBooking,
 } from "@/lib/bookings";
+import {
+  formatUsd,
+  INSURANCE_PREMIUM_PER_SEAT,
+  LUGGAGE_INSURANCE_PREMIUM,
+  LUGGAGE_SURCHARGE,
+  LUGGAGE_TIER_LABELS,
+  type LuggageTier,
+} from "@/lib/pricing";
 import type { Trip } from "@/data/trips";
 
 const PAYMENT_METHODS = [
@@ -58,6 +67,10 @@ function formatDate(iso: string): string {
   return `${date} · ${time}`;
 }
 
+function round2(n: number): number {
+  return Math.round(n * 100) / 100;
+}
+
 function cityShort(c: string): string {
   return c.replace(/, TX$/, "").replace(/, AR$/, "");
 }
@@ -79,7 +92,7 @@ function PaymentBody() {
     let cancelled = false;
     if (!tripId) {
       setTripLoading(false);
-      setTripError("No trip selected. Please pick a trip first.");
+      setTripError("No adventure selected. Pick one first.");
       return;
     }
     setTripLoading(true);
@@ -93,7 +106,7 @@ function PaymentBody() {
       })
       .catch((err) => {
         if (!cancelled) {
-          setTripError(err?.message || "Couldn't load trip.");
+          setTripError(err?.message || "Couldn't load the adventure.");
           setTripLoading(false);
         }
       });
@@ -103,9 +116,27 @@ function PaymentBody() {
   }, [tripId]);
 
   const seats = 1;
-  const subtotal = trip ? Number(trip.pricePerSeat) * seats : 0;
+  // Trip insurance starts ON — the Sailor must actively remove it.
+  const [insuranceOn, setInsuranceOn] = useState(true);
+  const [luggageTier, setLuggageTier] = useState<LuggageTier>("carry_on");
+  const [luggageCoverOn, setLuggageCoverOn] = useState(false);
+
+  const seatCost = trip ? Number(trip.pricePerSeat) : 0;
+  const seatSubtotal = round2(seatCost * seats);
+  const surcharge = LUGGAGE_SURCHARGE[luggageTier];
+  const insuranceCost = insuranceOn ? round2(INSURANCE_PREMIUM_PER_SEAT * seats) : 0;
+  const luggageCoverPrice = LUGGAGE_INSURANCE_PREMIUM[luggageTier];
+  const luggageCoverAvailable = luggageCoverPrice > 0;
+  const luggageCoverCost = luggageCoverOn && luggageCoverAvailable ? luggageCoverPrice : 0;
+
+  const subtotal = round2(seatSubtotal + surcharge + insuranceCost + luggageCoverCost);
   const fee = computeServiceFee(subtotal);
-  const total = Math.round((subtotal + fee) * 100) / 100;
+  const total = round2(subtotal + fee);
+
+  // Carry-on has no cover to sell, so drop any stale selection.
+  useEffect(() => {
+    if (!luggageCoverAvailable && luggageCoverOn) setLuggageCoverOn(false);
+  }, [luggageCoverAvailable, luggageCoverOn]);
 
   async function handlePay() {
     if (!trip || paying) return;
@@ -116,6 +147,9 @@ function PaymentBody() {
           tripId: trip.id,
           seats,
           paymentMethod: selected,
+          luggageTier,
+          insuranceOptedIn: insuranceOn,
+          luggageInsuranceOptedIn: luggageCoverOn && luggageCoverAvailable,
         });
 
         if (prepared.clientSecret && Platform.OS !== "web") {
@@ -159,6 +193,9 @@ function PaymentBody() {
           tripId: trip.id,
           seats,
           paymentMethod: selected,
+          luggageTier,
+          insuranceOptedIn: insuranceOn,
+          luggageInsuranceOptedIn: luggageCoverOn && luggageCoverAvailable,
         });
         router.replace({
           pathname: "/booking-confirmed",
@@ -222,10 +259,12 @@ function PaymentBody() {
         </View>
 
         <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+          {/* The label belongs on the cream above the card, not flush inside its
+              top edge — its own horizontal padding was always written for that. */}
+          <Text style={[styles.sectionLabel, { color: colors.mutedForeground }]}>
+            ADVENTURE SUMMARY
+          </Text>
           <View style={[styles.summaryCard, CARD_SHADOW]}>
-            <Text style={[styles.sectionLabel, { color: colors.mutedForeground }]}>
-              ADVENTURE SUMMARY
-            </Text>
             <View style={styles.summaryRows}>
               {[
                 { label: "Route", value: route },
@@ -252,12 +291,99 @@ function PaymentBody() {
             <View style={[styles.totalBlock, { borderTopColor: colors.border }]}>
               <View style={styles.totalRow}>
                 <Text style={[styles.totalLabel, { color: colors.mutedForeground }]}>
-                  Subtotal
+                  {seats} seat{seats === 1 ? "" : "s"} × {formatUsd(seatCost)}
                 </Text>
                 <Text style={[styles.totalValue, { color: colors.foreground }]}>
-                  ${subtotal.toFixed(2)}
+                  ${seatSubtotal.toFixed(2)}
                 </Text>
               </View>
+
+              {surcharge > 0 ? (
+                <View style={styles.totalRow}>
+                  <Text style={[styles.totalLabel, { color: colors.mutedForeground }]}>
+                    Luggage — {LUGGAGE_TIER_LABELS[luggageTier].title}
+                  </Text>
+                  <Text style={[styles.totalValue, { color: colors.foreground }]}>
+                    ${surcharge.toFixed(2)}
+                  </Text>
+                </View>
+              ) : null}
+
+              {/* Trip insurance is default-on. Per the pricing spec the line
+                  must be visible before capture with an adjacent Remove that
+                  works on one tap — no confirmation modal. */}
+              {insuranceOn ? (
+                <View style={styles.totalRow}>
+                  <View style={styles.insuranceLabelBlock}>
+                    <Text style={[styles.totalLabel, { color: colors.foreground }]}>
+                      Trip insurance — {formatUsd(INSURANCE_PREMIUM_PER_SEAT)}
+                      {seats > 1 ? ` × ${seats}` : ""}
+                    </Text>
+                    <Text style={[styles.insuranceDetail, { color: colors.mutedForeground }]}>
+                      Covers accidental injury and luggage loss during your trip.
+                    </Text>
+                    <TouchableOpacity
+                      onPress={() => setInsuranceOn(false)}
+                      hitSlop={10}
+                      accessibilityRole="button"
+                      accessibilityLabel="Remove trip insurance"
+                    >
+                      <Text style={[styles.removeLink, { color: colors.destructive }]}>
+                        Remove
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+                  <Text style={[styles.totalValue, { color: colors.foreground }]}>
+                    ${insuranceCost.toFixed(2)}
+                  </Text>
+                </View>
+              ) : (
+                <TouchableOpacity
+                  style={styles.totalRow}
+                  onPress={() => setInsuranceOn(true)}
+                  accessibilityRole="button"
+                  accessibilityLabel="Add trip insurance"
+                >
+                  <View style={styles.insuranceLabelBlock}>
+                    <Text style={[styles.totalLabel, { color: colors.mutedForeground }]}>
+                      Trip insurance
+                    </Text>
+                    <Text style={[styles.insuranceDetail, { color: colors.mutedForeground }]}>
+                      You're travelling without cover.
+                    </Text>
+                  </View>
+                  <Text style={[styles.removeLink, { color: colors.primary }]}>Add</Text>
+                </TouchableOpacity>
+              )}
+
+              {luggageCoverAvailable ? (
+                <TouchableOpacity
+                  style={styles.totalRow}
+                  onPress={() => setLuggageCoverOn((v) => !v)}
+                  accessibilityRole="button"
+                  accessibilityLabel={
+                    luggageCoverOn ? "Remove luggage cover" : "Add luggage cover"
+                  }
+                >
+                  <View style={styles.insuranceLabelBlock}>
+                    <Text style={[styles.totalLabel, { color: colors.mutedForeground }]}>
+                      Luggage cover — {formatUsd(luggageCoverPrice)}
+                    </Text>
+                    <Text style={[styles.insuranceDetail, { color: colors.mutedForeground }]}>
+                      Optional protection for your bags.
+                    </Text>
+                  </View>
+                  <Text
+                    style={[
+                      styles.removeLink,
+                      { color: luggageCoverOn ? colors.destructive : colors.primary },
+                    ]}
+                  >
+                    {luggageCoverOn ? "Remove" : "Add"}
+                  </Text>
+                </TouchableOpacity>
+              ) : null}
+
               <View style={styles.totalRow}>
                 <Text style={[styles.totalLabel, { color: colors.mutedForeground }]}>
                   Bovogo fee
@@ -276,25 +402,73 @@ function PaymentBody() {
           </View>
 
           <Text style={[styles.sectionLabel, { color: colors.mutedForeground }]}>
+            WHAT ARE YOU BRINGING?
+          </Text>
+          <View style={styles.luggageList}>
+            {(Object.keys(LUGGAGE_TIER_LABELS) as LuggageTier[]).map((tier) => {
+              const active = tier === luggageTier;
+              const price = LUGGAGE_SURCHARGE[tier];
+              return (
+                <TouchableOpacity
+                  key={tier}
+                  style={[
+                    styles.luggageOption,
+                    {
+                      backgroundColor: active ? colors.secondary : colors.card,
+                      borderColor: active ? colors.primary : colors.border,
+                    },
+                  ]}
+                  onPress={() => setLuggageTier(tier)}
+                  activeOpacity={0.8}
+                >
+                  <View
+                    style={[styles.radio, { borderColor: active ? colors.primary : colors.border }]}
+                  >
+                    {active ? (
+                      <View style={[styles.radioDot, { backgroundColor: colors.primary }]} />
+                    ) : null}
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={[styles.luggageTitle, { color: colors.foreground }]}>
+                      {LUGGAGE_TIER_LABELS[tier].title}
+                    </Text>
+                    <Text style={[styles.luggageDetail, { color: colors.mutedForeground }]}>
+                      {LUGGAGE_TIER_LABELS[tier].detail}
+                    </Text>
+                  </View>
+                  <Text style={[styles.luggagePrice, { color: colors.foreground }]}>
+                    {price === 0 ? "Included" : `+${formatUsd(price)}`}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+          <Text style={[styles.luggageNote, { color: colors.mutedForeground }]}>
+            The luggage surcharge goes entirely to your Voyager — it covers the extra
+            fuel and the trunk space they're giving up.
+          </Text>
+
+          <Text style={[styles.sectionLabel, { color: colors.mutedForeground }]}>
             PAYMENT METHOD
           </Text>
           <View style={styles.methodList}>
-            {PAYMENT_METHODS.map((method) => (
+            {PAYMENT_METHODS.map((method, i) => (
+              <React.Fragment key={method.id}>
+                {i > 0 ? <View style={styles.methodDivider} /> : null}
               <TouchableOpacity
-                key={method.id}
                 style={[
                   styles.methodCard,
                   {
+                    // One card, divided rows: the radio carries the selection, so
+                    // the row only tints rather than growing its own border.
                     backgroundColor:
-                      selected === method.id ? colors.secondary : colors.card,
-                    borderColor:
-                      selected === method.id ? colors.primary : colors.border,
-                    borderWidth: selected === method.id ? 2 : 1,
+                      selected === method.id ? colors.secondary : "transparent",
                   },
-                  CARD_SHADOW,
                 ]}
                 onPress={() => setSelected(method.id)}
                 activeOpacity={0.8}
+                accessibilityRole="radio"
+                accessibilityState={{ selected: selected === method.id }}
               >
                 <View
                   style={[
@@ -332,6 +506,7 @@ function PaymentBody() {
                   </View>
                 )}
               </TouchableOpacity>
+              </React.Fragment>
             ))}
           </View>
 
@@ -396,7 +571,13 @@ const styles = StyleSheet.create({
   headerBtn: { width: 40, height: 40, borderRadius: 20, alignItems: "center", justifyContent: "center" },
   headerTitle: { fontSize: 17, fontFamily: "Inter_600SemiBold" },
   content: { paddingHorizontal: 20, gap: 14, paddingBottom: 24 },
-  summaryCard: { backgroundColor: "#fff", borderRadius: 20, overflow: "hidden" },
+  summaryCard: {
+    backgroundColor: "#fff",
+    borderRadius: 16,
+    overflow: "hidden",
+    borderWidth: 1,
+    borderColor: "#EEEAE3",
+  },
   sectionLabel: {
     fontSize: 11,
     fontFamily: "Inter_600SemiBold",
@@ -404,27 +585,51 @@ const styles = StyleSheet.create({
     marginBottom: 6,
     paddingHorizontal: 4,
   },
-  summaryRows: { padding: 18 },
+  summaryRows: { padding: 20, gap: 8 },
   summaryRow: { flexDirection: "row", justifyContent: "space-between", paddingVertical: 10 },
   rowDiv: { height: 1 },
   rowLabel: { fontSize: 14, fontFamily: "Inter_400Regular" },
   rowValue: { fontSize: 14, fontFamily: "Inter_500Medium" },
-  totalBlock: { borderTopWidth: 1, padding: 18, gap: 8 },
+  totalBlock: { borderTopWidth: 1, padding: 20, gap: 14 },
+  insuranceLabelBlock: { flex: 1, paddingRight: 12, gap: 3 },
+  insuranceDetail: { fontSize: 12, fontFamily: "Inter_400Regular", lineHeight: 17 },
+  removeLink: { fontSize: 12, fontFamily: "Inter_600SemiBold" },
+  luggageList: { gap: 10, marginBottom: 10 },
+  luggageOption: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    padding: 14,
+    borderRadius: 16,
+    borderWidth: 1.5,
+  },
+  radio: { width: 22, height: 22, borderRadius: 11, borderWidth: 2, alignItems: "center", justifyContent: "center" },
+  radioDot: { width: 10, height: 10, borderRadius: 5 },
+  luggageTitle: { fontSize: 14, fontFamily: "Inter_600SemiBold" },
+  luggageDetail: { fontSize: 12, fontFamily: "Inter_400Regular", marginTop: 2 },
+  luggagePrice: { fontSize: 13, fontFamily: "Inter_600SemiBold" },
+  luggageNote: { fontSize: 11, fontFamily: "Inter_400Regular", lineHeight: 17, marginBottom: 18 },
   totalRow: { flexDirection: "row", justifyContent: "space-between" },
   totalLabel: { fontSize: 14, fontFamily: "Inter_400Regular" },
   totalValue: { fontSize: 14, fontFamily: "Inter_500Medium" },
   grandTotalRow: { marginTop: 4 },
-  grandLabel: { fontSize: 16, fontFamily: "Inter_700Bold" },
-  grandValue: { fontSize: 20, fontFamily: "Inter_700Bold" },
-  methodList: { gap: 10 },
-  methodCard: {
+  grandLabel: { fontSize: 16, fontFamily: "Inter_600SemiBold" },
+  grandValue: { fontSize: 26, fontFamily: "Inter_700Bold", letterSpacing: -0.5 },
+  methodList: {
+    backgroundColor: "#fff",
     borderRadius: 16,
-    padding: 16,
+    borderWidth: 1,
+    borderColor: "#EEEAE3",
+    overflow: "hidden",
+  },
+  methodCard: {
+    padding: 20,
     flexDirection: "row",
     alignItems: "center",
-    gap: 14,
+    gap: 16,
   },
-  methodIcon: { width: 44, height: 44, borderRadius: 14, alignItems: "center", justifyContent: "center" },
+  methodDivider: { height: 1, backgroundColor: "#EEEAE3" },
+  methodIcon: { width: 40, height: 40, borderRadius: 12, alignItems: "center", justifyContent: "center" },
   methodInfo: { flex: 1, gap: 3 },
   methodLabel: { fontSize: 15, fontFamily: "Inter_500Medium" },
   methodSub: { fontSize: 12, fontFamily: "Inter_400Regular" },
@@ -435,10 +640,10 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "flex-start",
     gap: 8,
-    padding: 12,
-    borderRadius: 12,
+    paddingHorizontal: 4,
+    paddingTop: 4,
   },
-  stripeNoteText: { flex: 1, fontSize: 12, fontFamily: "Inter_400Regular", lineHeight: 18 },
+  stripeNoteText: { flex: 1, fontSize: 12, fontFamily: "Inter_400Regular", lineHeight: 17 },
   footer: {
     paddingHorizontal: 20,
     paddingVertical: 16,

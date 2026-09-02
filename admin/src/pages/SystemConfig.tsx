@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { getConfig, updateConfig } from '../lib/api';
+import { getConfig, getErrorMessage, updateConfig } from '../lib/api';
 import { ErrorNotice } from '../components/QueryState';
 
 const FIELDS = [
@@ -13,7 +13,7 @@ const FIELDS = [
 ];
 
 export default function SystemConfigPage() {
-  const [config, setConfig] = useState<Record<string, any>>({});
+  const [config, setConfig] = useState<Record<string, string | number>>({});
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState('');
@@ -25,13 +25,16 @@ export default function SystemConfigPage() {
     setError(null);
     getConfig()
       .then(setConfig)
-      .catch((e: any) =>
-        setError(e?.response?.data?.message || e?.message || 'Could not load the configuration.'),
+      .catch((e: unknown) =>
+        setError(getErrorMessage(e, 'Could not load the configuration.')),
       )
       .finally(() => setLoading(false));
   }, []);
 
-  useEffect(load, [load]);
+  useEffect(() => {
+    const timeoutId = window.setTimeout(load, 0);
+    return () => window.clearTimeout(timeoutId);
+  }, [load]);
 
   const handleSave = async () => {
     setSaving(true); setMsg('');
@@ -39,8 +42,8 @@ export default function SystemConfigPage() {
       const result = await updateConfig(config);
       setConfig(result);
       setMsg('Saved successfully');
-    } catch (e: any) {
-      setMsg(e.response?.data?.message || 'Save failed');
+    } catch (e: unknown) {
+      setMsg(getErrorMessage(e, 'Save failed'));
     }
     setSaving(false);
   };

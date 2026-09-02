@@ -15,14 +15,14 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useColors } from "@/hooks/useColors";
-import { CARD_SHADOW } from "@/constants/colors";
+import { CARD_SHADOW, INK_ON_MUTED } from "@/constants/colors";
 import {
   listMyConversations,
   type Conversation,
 } from "@/lib/conversations";
 import { listMyGroups, type TripGroupSummary } from "@/lib/groups";
 
-function Avatar({ name, size = 50 }: { name: string; size?: number }) {
+function Avatar({ name, size = 52 }: { name: string; size?: number }) {
   const colors = useColors();
   const initials = name
     .split(" ")
@@ -38,18 +38,11 @@ function Avatar({ name, size = 50 }: { name: string; size?: number }) {
           width: size,
           height: size,
           borderRadius: size / 2,
-          backgroundColor: colors.secondary,
+          backgroundColor: colors.primary,
         },
       ]}
     >
-      <Text
-        style={[
-          styles.avatarText,
-          { color: colors.primary, fontSize: size * 0.34 },
-        ]}
-      >
-        {initials}
-      </Text>
+      <Text style={[styles.avatarText, { fontSize: size * 0.36 }]}>{initials}</Text>
     </View>
   );
 }
@@ -58,63 +51,63 @@ function cityShort(c: string): string {
   return c.replace(/, TX$/, "").replace(/, AR$/, "");
 }
 
-function GroupCard({
+function formatDay(iso: string): string {
+  return new Date(iso).toLocaleDateString("en-US", {
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+  });
+}
+
+function GroupRow({
   group,
+  last,
   onPress,
 }: {
   group: TripGroupSummary;
+  last: boolean;
   onPress: () => void;
 }) {
   const colors = useColors();
-  const avatarColors = [colors.primary, colors.accent, "#1A7A4A"];
   return (
     <TouchableOpacity
-      style={[styles.groupCard, CARD_SHADOW]}
+      style={[styles.row, !last && { borderBottomWidth: 1, borderBottomColor: colors.border }]}
       onPress={onPress}
-      activeOpacity={0.88}
+      activeOpacity={0.75}
     >
-      <View style={styles.groupTop}>
-        <View style={styles.routePill}>
-          <Feather name="map-pin" size={11} color={colors.primary} />
-          <Text style={[styles.routeText, { color: colors.primary }]} numberOfLines={1}>
+      <View style={[styles.tile, { backgroundColor: colors.muted }]}>
+        <Feather name="truck" size={22} color={colors.primary} />
+      </View>
+      <View style={styles.rowBody}>
+        <View style={styles.rowTop}>
+          <Text style={[styles.rowTitle, { color: colors.foreground }]} numberOfLines={1}>
             {cityShort(group.fromCity)} → {cityShort(group.toCity)}
           </Text>
+          {/* The departure is its own element rather than the tail of the
+              route string, so a long route can never truncate the date away. */}
+          <Text style={[styles.rowWhen, { color: colors.mutedForeground }]}>
+            {formatDay(group.departureAt)}
+          </Text>
         </View>
-        {group.pickupLocked && (
-          <View style={[styles.lockedPill, { backgroundColor: "#EBF2ED" }]}>
-            <Feather name="check-circle" size={10} color={colors.primary} />
-            <Text style={[styles.lockedPillText, { color: colors.primary }]}>Hub set</Text>
+        <View style={styles.rowBottom}>
+          {/* Hub state lives in the subtitle, the way the design writes it —
+              as a second pill it squeezed the preview down to three characters. */}
+          <Text
+            style={[styles.rowSub, { color: colors.mutedForeground }]}
+            numberOfLines={1}
+          >
+            {group.latestMessage ||
+              (group.pickupLocked
+                ? `Hub set${group.pickupHub ? ` — ${group.pickupHub.storeName}` : ""}`
+                : "No messages yet")}
+          </Text>
+          <View style={[styles.tag, { backgroundColor: "#fff", borderColor: colors.border }]}>
+            <Feather name="users" size={11} color={colors.mutedForeground} />
+            <Text style={[styles.tagText, { color: colors.mutedForeground }]}>
+              {group.memberCount} Sailor{group.memberCount === 1 ? "" : "s"}
+            </Text>
           </View>
-        )}
-      </View>
-      <Text style={[styles.groupLatest, { color: colors.foreground }]} numberOfLines={2}>
-        {group.latestMessage || "Pickup planning discussion..."}
-      </Text>
-      <View style={styles.groupBottom}>
-        <View style={styles.avatarStack}>
-          {avatarColors.slice(0, Math.min(3, group.memberCount)).map((c, i) => (
-            <View
-              key={i}
-              style={[
-                styles.stackAvatar,
-                {
-                  backgroundColor: c,
-                  marginLeft: i === 0 ? 0 : -10,
-                  zIndex: 3 - i,
-                },
-              ]}
-            />
-          ))}
         </View>
-        <Text style={[styles.memberCount, { color: colors.mutedForeground }]}>
-          {group.memberCount} member{group.memberCount === 1 ? "" : "s"}
-        </Text>
-        <Feather
-          name="chevron-right"
-          size={16}
-          color={colors.mutedForeground}
-          style={{ marginLeft: "auto" }}
-        />
       </View>
     </TouchableOpacity>
   );
@@ -131,6 +124,7 @@ export default function MessagesTab() {
   const [convLoading, setConvLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [query, setQuery] = useState("");
+  const [tab, setTab] = useState<"direct" | "groups">("direct");
 
   const loadAll = useCallback(async (opts?: { silent?: boolean }) => {
     if (!opts?.silent) {
@@ -196,34 +190,30 @@ export default function MessagesTab() {
     });
   }, [conversations, q]);
 
-  function renderConversation(item: Conversation) {
+  function renderConversation(item: Conversation, last: boolean) {
     return (
       <TouchableOpacity
         key={item.id}
-        style={[styles.item, { borderBottomColor: colors.border }]}
+        style={[styles.row, !last && { borderBottomWidth: 1, borderBottomColor: colors.border }]}
         onPress={() =>
           router.push({ pathname: "/chat/[id]", params: { id: item.id } })
         }
         activeOpacity={0.75}
       >
-        <View style={styles.avatarWrap}>
-          <Avatar name={item.userName} />
-          {item.unread && (
-            <View style={[styles.unreadDot, { backgroundColor: colors.primary }]} />
-          )}
-        </View>
-        <View style={styles.content}>
-          <View style={styles.topRow}>
+        <Avatar name={item.userName} />
+        <View style={styles.rowBody}>
+          <View style={styles.rowTop}>
             <Text
               style={[
-                styles.name,
+                styles.rowTitle,
                 { color: colors.foreground },
                 item.unread && { fontFamily: "Inter_700Bold" },
               ]}
+              numberOfLines={1}
             >
               {item.userName}
             </Text>
-            <Text style={[styles.time, { color: colors.mutedForeground }]}>
+            <Text style={[styles.rowWhen, { color: colors.mutedForeground }]}>
               {item.time}
             </Text>
           </View>
@@ -235,18 +225,24 @@ export default function MessagesTab() {
               </Text>
             </View>
           ) : null}
-          <Text
-            style={[
-              styles.lastMsg,
-              {
-                color: item.unread ? colors.foreground : colors.mutedForeground,
-              },
-              item.unread && { fontFamily: "Inter_500Medium" },
-            ]}
-            numberOfLines={1}
-          >
-            {item.lastMessage || "No messages yet"}
-          </Text>
+          <View style={styles.rowBottom}>
+            <Text
+              style={[
+                styles.rowSub,
+                { color: item.unread ? colors.foreground : colors.mutedForeground },
+                item.unread && { fontFamily: "Inter_500Medium" },
+              ]}
+              numberOfLines={1}
+            >
+              {item.lastMessage || "No messages yet"}
+            </Text>
+            {/* Gold, as the design draws it. It reinforces an unread state the
+                row already carries in the name's weight and the preview's ink,
+                so it is decorative rather than the sole indicator. */}
+            {item.unread && (
+              <View style={[styles.unreadDot, { backgroundColor: colors.accent }]} />
+            )}
+          </View>
         </View>
       </TouchableOpacity>
     );
@@ -284,6 +280,27 @@ export default function MessagesTab() {
             </TouchableOpacity>
           ) : null}
         </View>
+
+        {/* The design's segmented switch: one list at a time, not two stacked. */}
+        <View style={[styles.tabRow, { backgroundColor: colors.muted }]}>
+          {(["direct", "groups"] as const).map((t) => (
+            <TouchableOpacity
+              key={t}
+              style={[styles.tabBtn, tab === t && { backgroundColor: colors.primary }]}
+              onPress={() => setTab(t)}
+            >
+              <Text
+                style={[
+                  styles.tabText,
+                  { color: tab === t ? "#fff" : INK_ON_MUTED },
+                  tab === t && { fontFamily: "Inter_600SemiBold" },
+                ]}
+              >
+                {t === "direct" ? "Direct" : "Adventure Groups"}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
       </View>
 
       <ScrollView
@@ -299,52 +316,41 @@ export default function MessagesTab() {
           />
         }
       >
-        <View style={styles.sectionHeader}>
-          <Text style={[styles.sectionTitle, { color: colors.foreground }]}>
-            Adventure Groups
-          </Text>
-        </View>
-
-        {groupsLoading ? (
-          <View style={styles.groupsLoading}>
-            <ActivityIndicator size="small" color={colors.primary} />
-          </View>
-        ) : filteredGroups.length === 0 ? (
-          <View style={[styles.emptyGroups, { backgroundColor: colors.muted }]}>
-            <Feather name="users" size={20} color={colors.mutedForeground} />
-            <View style={{ flex: 1 }}>
-              <Text style={[styles.emptyGroupsTitle, { color: colors.foreground }]}>
-                {q ? "No matching groups" : "No trip groups yet"}
+        {tab === "groups" ? (
+          groupsLoading ? (
+            <View style={styles.listLoading}>
+              <ActivityIndicator size="small" color={colors.primary} />
+            </View>
+          ) : filteredGroups.length === 0 ? (
+            <View style={styles.empty}>
+              <View style={[styles.emptyIcon, { backgroundColor: colors.secondary }]}>
+                <Feather name="users" size={32} color={colors.primary} />
+              </View>
+              <Text style={[styles.emptyTitle, { color: colors.foreground }]}>
+                {q ? "No matching groups" : "No adventure groups yet"}
               </Text>
-              <Text style={[styles.emptyGroupsSub, { color: colors.mutedForeground }]}>
+              <Text style={[styles.emptySub, { color: colors.mutedForeground }]}>
                 {q
                   ? "Try a different search."
                   : "After you book a seat, your private Adventure group chat appears here."}
               </Text>
             </View>
-          </View>
-        ) : (
-          <View style={styles.groupsList}>
-            {filteredGroups.map((g) => (
-              <GroupCard
-                key={g.id}
-                group={g}
-                onPress={() =>
-                  router.push({ pathname: "/group/[id]", params: { id: g.id } })
-                }
-              />
-            ))}
-          </View>
-        )}
-
-        <View style={[styles.sectionHeader, { marginTop: 18 }]}>
-          <Text style={[styles.sectionTitle, { color: colors.foreground }]}>
-            Direct messages
-          </Text>
-        </View>
-
-        {convLoading ? (
-          <View style={styles.groupsLoading}>
+          ) : (
+            <View style={[styles.listCard, CARD_SHADOW]}>
+              {filteredGroups.map((g, i) => (
+                <GroupRow
+                  key={g.id}
+                  group={g}
+                  last={i === filteredGroups.length - 1}
+                  onPress={() =>
+                    router.push({ pathname: "/group/[id]", params: { id: g.id } })
+                  }
+                />
+              ))}
+            </View>
+          )
+        ) : convLoading ? (
+          <View style={styles.listLoading}>
             <ActivityIndicator size="small" color={colors.primary} />
           </View>
         ) : filteredConversations.length === 0 ? (
@@ -362,7 +368,11 @@ export default function MessagesTab() {
             </Text>
           </View>
         ) : (
-          filteredConversations.map(renderConversation)
+          <View style={[styles.listCard, CARD_SHADOW]}>
+            {filteredConversations.map((c, i) =>
+              renderConversation(c, i === filteredConversations.length - 1),
+            )}
+          </View>
         )}
       </ScrollView>
     </View>
@@ -371,122 +381,72 @@ export default function MessagesTab() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  header: { paddingHorizontal: 22, paddingBottom: 12, gap: 14 },
+  header: { paddingHorizontal: 22, paddingBottom: 14, gap: 14 },
   heading: { fontSize: 28, fontFamily: "Inter_700Bold", letterSpacing: -0.5 },
   searchBar: {
     flexDirection: "row",
     alignItems: "center",
     gap: 10,
-    paddingHorizontal: 14,
-    paddingVertical: Platform.OS === "ios" ? 10 : 4,
-    borderRadius: 14,
-    borderWidth: 1.5,
+    paddingHorizontal: 18,
+    paddingVertical: Platform.OS === "ios" ? 12 : 5,
+    borderRadius: 999,
+    borderWidth: 1,
   },
-  searchInput: { flex: 1, fontSize: 14, fontFamily: "Inter_400Regular", paddingVertical: 6 },
-  sectionHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    paddingHorizontal: 22,
-    paddingTop: 12,
-    paddingBottom: 10,
-  },
-  sectionTitle: { fontSize: 17, fontFamily: "Inter_700Bold", letterSpacing: -0.3 },
-  groupsLoading: { paddingVertical: 20, alignItems: "center" },
-  emptyGroups: {
+  searchInput: { flex: 1, fontSize: 15, fontFamily: "Inter_400Regular", paddingVertical: 7 },
+  tabRow: { flexDirection: "row", borderRadius: 999, padding: 4 },
+  tabBtn: { flex: 1, paddingVertical: 11, borderRadius: 999, alignItems: "center" },
+  tabText: { fontSize: 14, fontFamily: "Inter_500Medium" },
+
+  listLoading: { paddingVertical: 24, alignItems: "center" },
+
+  // One card of divided rows, as the design draws it.
+  listCard: {
     marginHorizontal: 22,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-    padding: 14,
-    borderRadius: 14,
-  },
-  emptyGroupsTitle: { fontSize: 14, fontFamily: "Inter_600SemiBold" },
-  emptyGroupsSub: {
-    fontSize: 12,
-    fontFamily: "Inter_400Regular",
-    marginTop: 2,
-    lineHeight: 17,
-  },
-  groupsList: { paddingHorizontal: 22, gap: 10 },
-  groupCard: {
     backgroundColor: "#fff",
-    borderRadius: 16,
-    padding: 14,
-    gap: 10,
+    borderRadius: 18,
+    overflow: "hidden",
   },
-  groupTop: {
+  row: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
-    gap: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 16,
+    gap: 14,
+    minHeight: 84,
   },
-  routePill: {
+  tile: {
+    width: 52,
+    height: 52,
+    borderRadius: 14,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  avatar: { alignItems: "center", justifyContent: "center" },
+  avatarText: { color: "#fff", fontFamily: "Inter_600SemiBold" },
+  rowBody: { flex: 1, gap: 5 },
+  rowTop: { flexDirection: "row", alignItems: "baseline", gap: 10 },
+  rowTitle: { flex: 1, fontSize: 17, fontFamily: "Inter_600SemiBold", letterSpacing: -0.2 },
+  rowWhen: { fontSize: 13, fontFamily: "Inter_400Regular", flexShrink: 0 },
+  rowBottom: { flexDirection: "row", alignItems: "center", gap: 8 },
+  rowSub: { flex: 1, fontSize: 15, fontFamily: "Inter_400Regular" },
+  tag: {
     flexDirection: "row",
     alignItems: "center",
     gap: 5,
     paddingHorizontal: 10,
     paddingVertical: 5,
-    borderRadius: 20,
-    backgroundColor: "#EBF2ED",
-    flex: 1,
+    borderRadius: 999,
+    borderWidth: 1,
+    flexShrink: 0,
   },
-  routeText: { fontSize: 12, fontFamily: "Inter_600SemiBold" },
-  lockedPill: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 20,
-  },
-  lockedPillText: { fontSize: 10, fontFamily: "Inter_600SemiBold" },
-  groupLatest: { fontSize: 13, fontFamily: "Inter_500Medium", lineHeight: 18 },
-  groupBottom: { flexDirection: "row", alignItems: "center", gap: 10 },
-  avatarStack: { flexDirection: "row" },
-  stackAvatar: {
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-    borderWidth: 2,
-    borderColor: "#fff",
-  },
-  memberCount: { fontSize: 11, fontFamily: "Inter_500Medium" },
-  item: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 22,
-    paddingVertical: 14,
-    gap: 14,
-    borderBottomWidth: 1,
-  },
-  avatarWrap: { position: "relative" },
-  avatar: { alignItems: "center", justifyContent: "center" },
-  avatarText: { fontFamily: "Inter_700Bold" },
-  unreadDot: {
-    position: "absolute",
-    top: 1,
-    right: 1,
-    width: 11,
-    height: 11,
-    borderRadius: 6,
-    borderWidth: 2,
-    borderColor: "#fff",
-  },
-  content: { flex: 1, gap: 4 },
-  topRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-  },
-  name: { fontSize: 15, fontFamily: "Inter_500Medium" },
-  time: { fontSize: 12, fontFamily: "Inter_400Regular" },
+  tagText: { fontSize: 12, fontFamily: "Inter_500Medium" },
+  unreadDot: { width: 10, height: 10, borderRadius: 5, flexShrink: 0 },
   routeRow: { flexDirection: "row", alignItems: "center", gap: 4 },
-  routeTextSmall: { fontSize: 11, fontFamily: "Inter_500Medium" },
-  lastMsg: { fontSize: 13, fontFamily: "Inter_400Regular" },
+  routeTextSmall: { fontSize: 12, fontFamily: "Inter_500Medium" },
+
   empty: {
     alignItems: "center",
-    paddingTop: 40,
+    paddingTop: 48,
     gap: 14,
     paddingHorizontal: 40,
   },
@@ -498,5 +458,5 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   emptyTitle: { fontSize: 18, fontFamily: "Inter_600SemiBold" },
-  emptySub: { fontSize: 14, fontFamily: "Inter_400Regular", textAlign: "center" },
+  emptySub: { fontSize: 14, fontFamily: "Inter_400Regular", textAlign: "center", lineHeight: 20 },
 });

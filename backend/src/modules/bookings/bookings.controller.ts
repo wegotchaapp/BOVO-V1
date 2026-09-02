@@ -1,8 +1,18 @@
-import { Controller, Get, Post, Body, Param, UseGuards, Request, HttpCode, HttpStatus } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Param,
+  UseGuards,
+  Request,
+  HttpCode,
+  HttpStatus,
+} from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { AuthGuard } from '@nestjs/passport';
 import { BookingsService } from './bookings.service';
-import { CreateBookingDto, CancelBookingDto, SubmitRatingDto } from './dto/booking.dto';
+import { CreateBookingDto, CancelBookingDto } from './dto/booking.dto';
 
 @ApiTags('bookings')
 @UseGuards(AuthGuard('jwt'))
@@ -48,7 +58,11 @@ export class BookingsController {
   @Post(':id/cancel')
   @ApiBearerAuth('JWT')
   @ApiOperation({ summary: 'Cancel a booking with refund calculation' })
-  async cancelBooking(@Request() req: any, @Param('id') id: string, @Body() dto: CancelBookingDto) {
+  async cancelBooking(
+    @Request() req: any,
+    @Param('id') id: string,
+    @Body() dto: CancelBookingDto,
+  ) {
     return this.bookingsService.cancelBooking(req.user.id, id, dto);
   }
 
@@ -57,20 +71,6 @@ export class BookingsController {
   @ApiOperation({ summary: 'Mark booking as completed, schedule payout' })
   async completeBooking(@Request() req: any, @Param('id') id: string) {
     return this.bookingsService.completeBooking(id, req.user.id);
-  }
-
-  @Post(':id/rating')
-  @ApiBearerAuth('JWT')
-  @ApiOperation({ summary: 'Submit rating for a completed trip' })
-  async submitRating(@Request() req: any, @Param('id') id: string, @Body() dto: SubmitRatingDto) {
-    return this.bookingsService.submitRating(req.user.id, id, dto);
-  }
-
-  @Get(':id/rating-status')
-  @ApiBearerAuth('JWT')
-  @ApiOperation({ summary: 'Check if booking can be rated and rating status' })
-  async getRatingStatus(@Request() req: any, @Param('id') id: string) {
-    return this.bookingsService.getBookingRatingStatus(id, req.user.id);
   }
 
   @Get('my')
@@ -89,20 +89,29 @@ export class BookingsController {
 
   @Get('driver/upcoming')
   @ApiBearerAuth('JWT')
-  @ApiOperation({ summary: "Get driver's upcoming confirmed bookings with trip info" })
+  @ApiOperation({
+    summary: "Get driver's upcoming confirmed bookings with trip info",
+  })
   async getDriverUpcoming(@Request() req: any) {
     return this.bookingsService.getDriverUpcomingBookings(req.user.id);
   }
 
   @Post(':id/video-check')
   @ApiBearerAuth('JWT')
-  @ApiOperation({ summary: 'Upload 360° vehicle check-in video before starting ride' })
+  @ApiOperation({
+    summary: 'Upload 360° vehicle check-in video before starting ride',
+  })
   async uploadVideoCheck(
     @Request() req: any,
     @Param('id') id: string,
     @Body() body: { base64_video: string; mime_type: string },
   ) {
-    return this.bookingsService.uploadVideoCheck(id, req.user.id, body.base64_video, body.mime_type);
+    return this.bookingsService.uploadVideoCheck(
+      id,
+      req.user.id,
+      body.base64_video,
+      body.mime_type,
+    );
   }
 
   @Get(':id')

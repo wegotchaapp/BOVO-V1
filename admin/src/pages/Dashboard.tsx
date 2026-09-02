@@ -145,7 +145,10 @@ export default function DashboardPage() {
       .finally(() => setLoading(false));
   }, []);
 
-  useEffect(load, [load]);
+  useEffect(() => {
+    const timeoutId = window.setTimeout(load, 0);
+    return () => window.clearTimeout(timeoutId);
+  }, [load]);
 
   // A failed fetch must never look like "no data".
   if (error && !data) {

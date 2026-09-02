@@ -7,8 +7,16 @@ import {
   Request,
   Query,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
-import { StripeConnectService, StripeOnboardDto } from './stripe-connect.service';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiBearerAuth,
+  ApiQuery,
+} from '@nestjs/swagger';
+import {
+  StripeConnectService,
+  StripeOnboardDto,
+} from './stripe-connect.service';
 import { AuthGuard } from '@nestjs/passport';
 
 @ApiTags('payments')
@@ -19,11 +27,10 @@ export class StripeConnectController {
   @Post('connect/onboard')
   @UseGuards(AuthGuard('jwt'))
   @ApiBearerAuth('JWT')
-  @ApiOperation({ summary: 'Create Stripe Connect Express account and onboarding link' })
-  async onboard(
-    @Request() req: any,
-    @Body() dto: StripeOnboardDto,
-  ) {
+  @ApiOperation({
+    summary: 'Create Stripe Connect Express account and onboarding link',
+  })
+  async onboard(@Request() req: any, @Body() dto: StripeOnboardDto) {
     return this.stripeConnectService.onboardDriver(req.user.id, dto);
   }
 
@@ -79,7 +86,9 @@ export class StripeConnectController {
   @Get('my-earnings')
   @UseGuards(AuthGuard('jwt'))
   @ApiBearerAuth('JWT')
-  @ApiOperation({ summary: 'Get earnings summary (weekly, monthly, YTD, pending)' })
+  @ApiOperation({
+    summary: 'Get earnings summary (weekly, monthly, YTD, pending)',
+  })
   async myEarnings(@Request() req: any) {
     return this.stripeConnectService.getMyEarnings(req.user.id);
   }
@@ -87,7 +96,9 @@ export class StripeConnectController {
   @Get('ytd-threshold-status')
   @UseGuards(AuthGuard('jwt'))
   @ApiBearerAuth('JWT')
-  @ApiOperation({ summary: 'Check cost-share compliance thresholds and guardrails' })
+  @ApiOperation({
+    summary: 'Check cost-share compliance thresholds and guardrails',
+  })
   async ytdThreshold(@Request() req: any) {
     return this.stripeConnectService.getYtdThresholdStatus(req.user.id);
   }
@@ -95,7 +106,9 @@ export class StripeConnectController {
   @Get('compliance/trip-guardrail')
   @UseGuards(AuthGuard('jwt'))
   @ApiBearerAuth('JWT')
-  @ApiOperation({ summary: 'Check if driver can post another trip (6 trips/7 days limit)' })
+  @ApiOperation({
+    summary: 'Check if driver can post another trip (6 trips/7 days limit)',
+  })
   async tripGuardrail(@Request() req: any) {
     return this.stripeConnectService.checkTripComplianceGuardrail(req.user.id);
   }

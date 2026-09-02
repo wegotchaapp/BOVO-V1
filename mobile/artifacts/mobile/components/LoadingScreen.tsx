@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from "react";
+import React, { useEffect, useMemo, useRef } from "react";
 import {
   Animated,
   Dimensions,
@@ -7,6 +7,8 @@ import {
   Text,
   View,
 } from "react-native";
+
+import { pickLoadingLine } from "@/constants/voice";
 
 const { width: SW, height: SH } = Dimensions.get("window");
 
@@ -150,6 +152,8 @@ function PulseDot({ delay }: { delay: number }) {
 
 // ─── Main loading screen ──────────────────────────────────────────────────────
 export function LoadingScreen() {
+  // Chosen once per mount so the line doesn't shuffle as the screen animates.
+  const loadingLine = useMemo(() => pickLoadingLine(), []);
   const roadOffset = useRef(new Animated.Value(0)).current;
   const vanY = useRef(new Animated.Value(0)).current;
   const vanRotate = useRef(new Animated.Value(0)).current;
@@ -263,7 +267,7 @@ export function LoadingScreen() {
 
       {/* Bottom: text + progress */}
       <Animated.View style={[s.bottom, { opacity: textOpacity }]}>
-        <Text style={s.loadingText}>Loading your adventure...</Text>
+        <Text style={s.loadingText}>{loadingLine}</Text>
         <View style={s.progressTrack}>
           <Animated.View style={[s.progressFill, { width: progress }]} />
           {/* Shimmer dot at progress tip */}

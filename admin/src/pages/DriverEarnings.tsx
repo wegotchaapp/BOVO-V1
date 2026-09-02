@@ -1,11 +1,37 @@
 import { useState, useEffect, useCallback } from 'react';
-import api from '../lib/api';
+import api, { getErrorMessage } from '../lib/api';
 import { ErrorNotice } from '../components/QueryState';
 
+interface EarningsTrip {
+  id: string;
+  driver_id?: string;
+  from_city: string;
+  to_city: string;
+  miles: number;
+  seats_booked: number;
+  gross_amount: string;
+  platform_fee: string;
+  net_amount: string;
+  completed_at: string;
+}
+
+interface DriverSummary {
+  totalDriverTrips: number;
+  totalEarnings: string;
+  recentTrips: EarningsTrip[];
+}
+
+interface DriverEarnings {
+  totalTrips: number;
+  totalGross: number;
+  totalFees: number;
+  totalNet: number;
+}
+
 export default function DriverEarningsPage() {
-  const [summary, setSummary] = useState<any>(null);
+  const [summary, setSummary] = useState<DriverSummary | null>(null);
   const [driverId, setDriverId] = useState('');
-  const [earnings, setEarnings] = useState<any>(null);
+  const [earnings, setEarnings] = useState<DriverEarnings | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -16,13 +42,16 @@ export default function DriverEarningsPage() {
     api
       .get('/admin/driver-trips/summary')
       .then((r) => setSummary(r.data))
-      .catch((e: any) =>
-        setError(e?.response?.data?.message || e?.message || 'Could not load the earnings summary.'),
+      .catch((e: unknown) =>
+        setError(getErrorMessage(e, 'Could not load the earnings summary.')),
       )
       .finally(() => setLoading(false));
   }, []);
 
-  useEffect(load, [load]);
+  useEffect(() => {
+    const timeoutId = window.setTimeout(load, 0);
+    return () => window.clearTimeout(timeoutId);
+  }, [load]);
 
   const lookupDriver = async () => {
     if (!driverId) return;
@@ -72,7 +101,7 @@ export default function DriverEarningsPage() {
                 </tr>
               </thead>
               <tbody>
-                {summary.recentTrips.map((t: any) => (
+                {summary.recentTrips.map((t) => (
                   <tr key={t.id} className="border-b border-border text-ink">
                     <td className="py-3 px-2 text-xs">{t.driver_id?.slice(0, 8)}...</td>
                     <td className="py-3 px-2">{t.from_city} → {t.to_city}</td>

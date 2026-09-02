@@ -33,7 +33,11 @@ export class MaskedCallService {
   async initiateCall(
     userId: string,
     bookingId: string,
-  ): Promise<{ proxy_number: string; target_number: string; call_sid: string }> {
+  ): Promise<{
+    proxy_number: string;
+    target_number: string;
+    call_sid: string;
+  }> {
     const booking = await this.bookingRepo.findOne({
       where: { id: bookingId },
       relations: ['trip'],
@@ -42,22 +46,30 @@ export class MaskedCallService {
     if (!booking) throw new BadRequestException('Booking not found');
 
     if (!['confirmed', 'en_route', 'in_progress'].includes(booking.status)) {
-      throw new BadRequestException('Calls are only available for active trips');
+      throw new BadRequestException(
+        'Calls are only available for active trips',
+      );
     }
 
     const driverId = booking.trip?.driver_id;
     const riderId = booking.rider_id;
 
     if (userId !== driverId && userId !== riderId) {
-      throw new BadRequestException('You are not a participant in this booking');
+      throw new BadRequestException(
+        'You are not a participant in this booking',
+      );
     }
 
     const caller = await this.userRepo.findOne({ where: { id: userId } });
-    if (!caller?.phone) throw new BadRequestException('Your phone number is not registered');
+    if (!caller?.phone)
+      throw new BadRequestException('Your phone number is not registered');
 
     const targetUserId = userId === driverId ? riderId : driverId;
-    const targetUser = await this.userRepo.findOne({ where: { id: targetUserId } });
-    if (!targetUser?.phone) throw new BadRequestException('Counterparty phone number not available');
+    const targetUser = await this.userRepo.findOne({
+      where: { id: targetUserId },
+    });
+    if (!targetUser?.phone)
+      throw new BadRequestException('Counterparty phone number not available');
 
     let proxyNumber = this.config.get('TWILIO_PROXY_NUMBER');
 
@@ -71,14 +83,17 @@ export class MaskedCallService {
 
         proxyNumber = phone.phoneNumber;
       } catch (err) {
-        this.logger.warn({ err, bookingId }, 'Failed to create Twilio proxy number');
+        this.logger.warn(
+          { err, bookingId },
+          'Failed to create Twilio proxy number',
+        );
         proxyNumber = this.twilioPhoneNumber;
       }
     }
 
     try {
       const call = await this.twilio.calls.create({
-        url: this.buildTwimlUrl(proxyNumber!, targetUser.phone),
+        url: this.buildTwimlUrl(proxyNumber, targetUser.phone),
         to: caller.phone,
         from: proxyNumber!,
         statusCallback: `${this.config.get('APP_URL')}/chat/calls/webhook/${bookingId}`,
@@ -105,7 +120,9 @@ export class MaskedCallService {
       };
     } catch (err) {
       this.logger.error({ err, bookingId }, 'Failed to initiate masked call');
-      throw new BadRequestException('Failed to initiate call. Please try again.');
+      throw new BadRequestException(
+        'Failed to initiate call. Please try again.',
+      );
     }
   }
 
@@ -124,7 +141,12 @@ export class MaskedCallService {
       }
 
       this.logger.info(
-        { bookingId, callSid: CallSid, status: CallStatus, duration: CallDuration },
+        {
+          bookingId,
+          callSid: CallSid,
+          status: CallStatus,
+          duration: CallDuration,
+        },
         'Masked call webhook received',
       );
     }

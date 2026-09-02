@@ -9,7 +9,14 @@ import {
 } from 'typeorm';
 import { Booking } from './booking.entities';
 import { User } from './user.entity';
-import { SosTriggerType, SosStatus, ReportCategory, ReportSeverity, ModerationActionType, AppealStatus } from '../../common/enums';
+import {
+  SosTriggerType,
+  SosStatus,
+  ReportCategory,
+  ReportSeverity,
+  ModerationActionType,
+  AppealStatus,
+} from '../../common/enums';
 
 @Entity('trip_pings')
 export class TripPing {

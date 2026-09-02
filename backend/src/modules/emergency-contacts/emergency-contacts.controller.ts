@@ -22,10 +22,7 @@ export class EmergencyContactsController {
   @UseGuards(AuthGuard('jwt'))
   @ApiBearerAuth('JWT')
   @ApiOperation({ summary: 'Add an emergency contact' })
-  async addContact(
-    @Request() req: any,
-    @Body() dto: AddEmergencyContactDto,
-  ) {
+  async addContact(@Request() req: any, @Body() dto: AddEmergencyContactDto) {
     return this.service.addContact(req.user.id, dto);
   }
 
@@ -41,10 +38,7 @@ export class EmergencyContactsController {
   @UseGuards(AuthGuard('jwt'))
   @ApiBearerAuth('JWT')
   @ApiOperation({ summary: 'Remove an emergency contact' })
-  async removeContact(
-    @Request() req: any,
-    @Param('id') id: string,
-  ) {
+  async removeContact(@Request() req: any, @Param('id') id: string) {
     await this.service.removeContact(req.user.id, id);
     return { message: 'Contact removed' };
   }

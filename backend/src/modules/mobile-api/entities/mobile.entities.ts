@@ -100,6 +100,36 @@ export class MobileUser {
   @Column({ type: 'timestamptz', nullable: true })
   deletion_requested_at!: Date | null;
 
+  // ─── Background check (Checkr) ──────────────────────────────────────────────
+  //
+  // The SSN is collected inside Checkr's own hosted flow and NEVER reaches
+  // Bovogo. We keep only the candidate handle, the outcome, and the last four
+  // digits Checkr returns for display. Do not add a column for the full SSN:
+  // storing it would make Bovogo the custodian of record and pull it into
+  // GLBA / state breach-notification obligations for no product benefit.
+
+  @Column({ type: 'varchar', length: 64, nullable: true })
+  checkr_candidate_id!: string | null;
+
+  @Column({ type: 'varchar', length: 24, default: 'not_started' })
+  background_check_status!:
+    | 'not_started'
+    | 'invitation_sent'
+    | 'pending'
+    | 'clear'
+    | 'consider'
+    | 'suspended';
+
+  @Column({ type: 'boolean', default: false })
+  ssn_verified!: boolean;
+
+  /** Display only, e.g. "•••• 6741". Never the full number. */
+  @Column({ type: 'varchar', length: 4, nullable: true })
+  ssn_last4!: string | null;
+
+  @Column({ type: 'timestamptz', nullable: true })
+  background_check_completed_at!: Date | null;
+
   @CreateDateColumn({ type: 'timestamptz' })
   created_at!: Date;
 }
@@ -131,8 +161,67 @@ export class MobileVehicle {
   @Column({ type: 'varchar', length: 2, default: 'TX' })
   state!: string;
 
-  @Column({ type: 'varchar', length: 32, nullable: true })
+  /**
+   * Required before the vehicle can carry Sailors. Nullable at the column level
+   * only so existing rows survive the migration — `assertReadyToDrive` treats a
+   * missing VIN as incomplete.
+   */
+  @Column({ type: 'varchar', length: 17, nullable: true })
   vin!: string | null;
+
+  /** Seats available to Sailors, excluding the Voyager's own. */
+  @Column({ type: 'int', nullable: true })
+  seat_count!: number | null;
+
+  @Column({ type: 'int', nullable: true })
+  door_count!: number | null;
+
+  // ─── Mandatory photo set ────────────────────────────────────────────────────
+  // Four exteriors plus the interior. Camera-captured, never gallery-picked, so
+  // they document the actual vehicle at registration time.
+
+  @Column({ type: 'text', nullable: true })
+  photo_front_url!: string | null;
+
+  @Column({ type: 'text', nullable: true })
+  photo_rear_url!: string | null;
+
+  @Column({ type: 'text', nullable: true })
+  photo_left_url!: string | null;
+
+  @Column({ type: 'text', nullable: true })
+  photo_right_url!: string | null;
+
+  @Column({ type: 'text', nullable: true })
+  photo_interior_url!: string | null;
+
+  // ─── Mandatory documents ────────────────────────────────────────────────────
+
+  @Column({ type: 'text', nullable: true })
+  insurance_doc_url!: string | null;
+
+  @Column({ type: 'date', nullable: true })
+  insurance_expires_at!: string | null;
+
+  @Column({ type: 'text', nullable: true })
+  registration_doc_url!: string | null;
+
+  @Column({ type: 'date', nullable: true })
+  registration_expires_at!: string | null;
+
+  /**
+   * Ops review state. `incomplete` until everything is supplied, then
+   * `pending_review` until a human approves it.
+   */
+  @Column({ type: 'varchar', length: 16, default: 'incomplete' })
+  verification_status!:
+    | 'incomplete'
+    | 'pending_review'
+    | 'approved'
+    | 'rejected';
+
+  @Column({ type: 'text', nullable: true })
+  verification_note!: string | null;
 
   @CreateDateColumn({ type: 'timestamptz' })
   created_at!: Date;
@@ -243,6 +332,16 @@ export class MobileTrip {
   @Column({ type: 'timestamptz', nullable: true })
   started_at!: Date | null;
 
+  /**
+   * Encoded Mapbox driving polyline for this adventure, fetched once and reused
+   * by every location ping so deviation checks do no network I/O.
+   */
+  @Column({ type: 'text', nullable: true })
+  route_polyline!: string | null;
+
+  @Column({ type: 'timestamptz', nullable: true })
+  route_fetched_at!: Date | null;
+
   @CreateDateColumn({ type: 'timestamptz' })
   created_at!: Date;
 }
@@ -307,6 +406,29 @@ export class MobileBooking {
   @Column({ type: 'decimal', precision: 10, scale: 2 })
   total_amount!: string;
 
+  // ─── Luggage and insurance ──────────────────────────────────────────────────
+
+  /** What the Sailor declared they're bringing; sets the surcharge tier. */
+  @Column({ type: 'varchar', length: 12, default: 'carry_on' })
+  luggage_tier!: 'carry_on' | 'standard' | 'large' | 'oversized';
+
+  /** Passes to the Voyager in full — Bovogo retains none of it. */
+  @Column({ type: 'decimal', precision: 10, scale: 2, default: 0 })
+  luggage_surcharge!: string;
+
+  /** Trip insurance is default-on; false means the Sailor actively declined. */
+  @Column({ type: 'boolean', default: true })
+  insurance_opted_in!: boolean;
+
+  @Column({ type: 'decimal', precision: 10, scale: 2, default: 0 })
+  insurance_premium!: string;
+
+  @Column({ type: 'boolean', default: false })
+  luggage_insurance_opted_in!: boolean;
+
+  @Column({ type: 'decimal', precision: 10, scale: 2, default: 0 })
+  luggage_insurance_premium!: string;
+
   @Column({ type: 'varchar', length: 12 })
   payment_method!: 'card' | 'apple' | 'venmo';
 
@@ -321,6 +443,85 @@ export class MobileBooking {
 
   @Column({ type: 'timestamptz', nullable: true })
   completed_at!: Date | null;
+
+  // ─── Odometer-verified journey ──────────────────────────────────────────────
+  // Denormalised from mobile_odometer_readings so trip completion, earnings and
+  // the admin view don't have to join. The readings table remains the evidence
+  // trail (it holds the photos).
+
+  /** Odometer reading when this Sailor boarded. */
+  @Column({ type: 'int', nullable: true })
+  pickup_miles!: number | null;
+
+  /** Odometer reading when this Sailor was dropped off. */
+  @Column({ type: 'int', nullable: true })
+  dropoff_miles!: number | null;
+
+  /** dropoff_miles − pickup_miles: the miles this Sailor was actually carried. */
+  @Column({ type: 'int', nullable: true })
+  miles_travelled!: number | null;
+
+  @Column({ type: 'timestamptz', nullable: true })
+  picked_up_at!: Date | null;
+
+  @Column({ type: 'timestamptz', nullable: true })
+  dropped_off_at!: Date | null;
+}
+
+/**
+ * A photographed odometer reading taken by the Voyager at a Sailor's pickup or
+ * dropoff. Together, a pickup/dropoff pair yields the exact miles that Sailor
+ * was carried — the evidence behind Bovogo's cost-sharing position and the
+ * source of truth for mileage on the Voyager's savings record.
+ *
+ * Rows are append-only: corrections are new readings, never edits, so the audit
+ * trail stays intact.
+ */
+@Entity('mobile_odometer_readings')
+@Index(['trip_id', 'recorded_at'])
+@Unique(['booking_id', 'kind'])
+export class MobileOdometerReading {
+  @PrimaryGeneratedColumn('uuid')
+  id!: string;
+
+  @Index()
+  @Column({ type: 'uuid' })
+  trip_id!: string;
+
+  @Index()
+  @Column({ type: 'uuid' })
+  booking_id!: string;
+
+  /** The Sailor this reading is about. */
+  @Column({ type: 'uuid' })
+  sailor_id!: string;
+
+  /** The Voyager who recorded it. */
+  @Column({ type: 'uuid' })
+  voyager_id!: string;
+
+  @Column({ type: 'varchar', length: 8 })
+  kind!: 'pickup' | 'dropoff';
+
+  /** Whole miles shown on the dashboard, as typed by the Voyager. */
+  @Column({ type: 'int' })
+  miles!: number;
+
+  /** Stored photo of the odometer backing the typed figure. */
+  @Column({ type: 'text' })
+  photo_url!: string;
+
+  @Column({ type: 'decimal', precision: 9, scale: 6, nullable: true })
+  latitude!: string | null;
+
+  @Column({ type: 'decimal', precision: 9, scale: 6, nullable: true })
+  longitude!: string | null;
+
+  @Column({ type: 'timestamptz' })
+  recorded_at!: Date;
+
+  @CreateDateColumn({ type: 'timestamptz' })
+  created_at!: Date;
 }
 
 @Entity('mobile_trip_groups')
@@ -505,4 +706,83 @@ export class MobileLiveLocation {
 
   @UpdateDateColumn({ type: 'timestamptz' })
   updated_at!: Date;
+}
+
+/**
+ * A mobile-side SOS activation.
+ *
+ * The platform's `sos_events` cannot hold these: its `user_id` is a foreign key
+ * onto the platform `users` table, and the mobile auth layer is deliberately
+ * isolated with its own `mobile_users`. This is the mobile equivalent, and it
+ * exists so a mobile SOS leaves a durable record and so a Noonlight callback
+ * has something to correlate its alarm id against.
+ */
+@Entity('mobile_sos_events')
+export class MobileSosEvent {
+  @PrimaryGeneratedColumn('uuid')
+  id!: string;
+
+  @Index()
+  @Column({ type: 'uuid' })
+  user_id!: string;
+
+  @Index()
+  @Column({ type: 'uuid', nullable: true })
+  trip_id!: string | null;
+
+  /** Mirrors the platform SosStatus values so both tables read the same way. */
+  @Column({ type: 'varchar', length: 20, default: 'active' })
+  status!: 'active' | 'dispatched' | 'resolved' | 'false_alarm';
+
+  @Column({ type: 'double precision', nullable: true })
+  latitude!: number | null;
+
+  @Column({ type: 'double precision', nullable: true })
+  longitude!: number | null;
+
+  @Index()
+  @Column({ type: 'varchar', length: 100, nullable: true })
+  noonlight_alarm_id!: string | null;
+
+  @Column({ type: 'boolean', default: false })
+  contact_notified!: boolean;
+
+  @CreateDateColumn({ type: 'timestamptz' })
+  created_at!: Date;
+}
+
+/**
+ * A mobile adventure straying from its own route.
+ *
+ * The platform `deviation_events` cannot hold these — its `booking_id` is a
+ * foreign key onto the platform `bookings` — so this is the mobile equivalent,
+ * the same split that `mobile_sos_events` exists for.
+ */
+@Entity('mobile_deviation_events')
+export class MobileDeviationEvent {
+  @PrimaryGeneratedColumn('uuid')
+  id!: string;
+
+  @Index()
+  @Column({ type: 'uuid' })
+  trip_id!: string;
+
+  @Index()
+  @Column({ type: 'uuid' })
+  user_id!: string;
+
+  @Column({ type: 'double precision' })
+  latitude!: number;
+
+  @Column({ type: 'double precision' })
+  longitude!: number;
+
+  @Column({ type: 'double precision' })
+  distance_miles!: number;
+
+  @Column({ type: 'varchar', length: 20, default: 'pending' })
+  status!: 'pending' | 'acknowledged' | 'resolved';
+
+  @CreateDateColumn({ type: 'timestamptz' })
+  created_at!: Date;
 }

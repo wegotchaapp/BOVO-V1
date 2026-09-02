@@ -2,7 +2,7 @@ name: Backend CI
 
 on:
   pull_request:
-    branches: [main]
+    branches: [main, feat/mobile-api-v1]
     paths:
       - 'backend/**'
       - '.github/workflows/backend-ci.yml'
@@ -51,6 +51,9 @@ jobs:
           cp .env.example .env
           sed -i 's|DATABASE_URL=.*|DATABASE_URL=postgresql://postgres:password@localhost:5432/wegotcha_test|' .env
 
+      - name: Formatting Check
+        run: npm run format:check
+
       - name: TypeScript Check
         run: npx tsc --noEmit
 
@@ -77,3 +80,9 @@ jobs:
 
       - name: Build
         run: npm run build
+
+      - name: Verify clean database migrations
+        run: npm run migration:run
+        env:
+          DATABASE_URL: postgresql://postgres:password@localhost:5432/wegotcha_test
+          DATABASE_SSL: false

@@ -1,4 +1,11 @@
-import { Controller, Get, Param, Query, UseGuards, ForbiddenException } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Param,
+  Query,
+  UseGuards,
+  ForbiddenException,
+} from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { AuthGuard } from '@nestjs/passport';
 import { AuditService } from './audit.service';
@@ -16,7 +23,9 @@ export class AuditController {
   @Get()
   @ApiBearerAuth('JWT')
   @Roles(UserRole.TS_AGENT, UserRole.ADMIN)
-  @ApiOperation({ summary: 'Get audit trail with filters (admin/ts_agent only)' })
+  @ApiOperation({
+    summary: 'Get audit trail with filters (admin/ts_agent only)',
+  })
   async getAuditTrail(
     @Query('actor_id') actorId?: string,
     @Query('entity_type') entityType?: string,
@@ -61,11 +70,14 @@ export class AuditController {
   }
 
   @Get('immutability-policy')
-  @ApiOperation({ summary: 'Returns the RLS policy that enforces audit log immutability' })
+  @ApiOperation({
+    summary: 'Returns the RLS policy that enforces audit log immutability',
+  })
   getImmutabilityPolicy() {
     return {
       policy: 'AUDIT_EVENTS_IMMUTABLE_RLS',
-      description: 'INSERT-only policy enforced at database level. No role, including admin or superuser, can UPDATE or DELETE audit_events records through application queries.',
+      description:
+        'INSERT-only policy enforced at database level. No role, including admin or superuser, can UPDATE or DELETE audit_events records through application queries.',
       sql: `
 -- RLS Policy: INSERT-only for audit_events table
 -- Even admins cannot UPDATE or DELETE

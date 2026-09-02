@@ -1,4 +1,11 @@
-import { IsString, IsOptional, IsEnum, IsArray, IsNumber, Min } from 'class-validator';
+import {
+  IsString,
+  IsOptional,
+  IsEnum,
+  IsArray,
+  IsNumber,
+  Min,
+} from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { ReportCategory, SosTriggerType } from '../../../common/enums';
 import { Type } from 'class-transformer';
@@ -32,7 +39,15 @@ export class ModerationActionDto {
   @IsString()
   report_id!: string;
 
-  @ApiProperty({ enum: ['dismiss', 'warning', 'temp_suspension', 'permanent_ban', 'law_enforcement_referral'] })
+  @ApiProperty({
+    enum: [
+      'dismiss',
+      'warning',
+      'temp_suspension',
+      'permanent_ban',
+      'law_enforcement_referral',
+    ],
+  })
   @IsString()
   action_type!: string;
 

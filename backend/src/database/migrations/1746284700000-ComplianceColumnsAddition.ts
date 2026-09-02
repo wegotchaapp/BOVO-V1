@@ -148,29 +148,73 @@ export class ComplianceColumnsAddition1746284700000 implements MigrationInterfac
   public async down(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.query(`DROP TABLE IF EXISTS "appeals"`);
     await queryRunner.query(`DROP TABLE IF EXISTS "deviation_events"`);
-    await queryRunner.query(`ALTER TABLE "profiles" DROP COLUMN IF EXISTS "display_name"`);
-    await queryRunner.query(`ALTER TABLE "trips" DROP COLUMN IF EXISTS "dest_lng"`);
-    await queryRunner.query(`ALTER TABLE "trips" DROP COLUMN IF EXISTS "dest_lat"`);
-    await queryRunner.query(`ALTER TABLE "trips" DROP COLUMN IF EXISTS "origin_lng"`);
-    await queryRunner.query(`ALTER TABLE "trips" DROP COLUMN IF EXISTS "origin_lat"`);
-    await queryRunner.query(`ALTER TABLE "trips" DROP COLUMN IF EXISTS "expected_arrival_time"`);
-    await queryRunner.query(`ALTER TABLE "trips" DROP COLUMN IF EXISTS "mapbox_route_polyline"`);
-    await queryRunner.query(`ALTER TABLE "bookings" DROP COLUMN IF EXISTS "last_ping_at"`);
-    await queryRunner.query(`ALTER TABLE "bookings" DROP COLUMN IF EXISTS "last_known_location"`);
-    await queryRunner.query(`ALTER TABLE "bookings" DROP COLUMN IF EXISTS "share_token"`);
-    await queryRunner.query(`ALTER TABLE "users" DROP COLUMN IF EXISTS "safe_word"`);
-    await queryRunner.query(`ALTER TABLE "sos_events" DROP COLUMN IF EXISTS "noonlight_alarm_id"`);
+    await queryRunner.query(
+      `ALTER TABLE "profiles" DROP COLUMN IF EXISTS "display_name"`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "trips" DROP COLUMN IF EXISTS "dest_lng"`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "trips" DROP COLUMN IF EXISTS "dest_lat"`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "trips" DROP COLUMN IF EXISTS "origin_lng"`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "trips" DROP COLUMN IF EXISTS "origin_lat"`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "trips" DROP COLUMN IF EXISTS "expected_arrival_time"`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "trips" DROP COLUMN IF EXISTS "mapbox_route_polyline"`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "bookings" DROP COLUMN IF EXISTS "last_ping_at"`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "bookings" DROP COLUMN IF EXISTS "last_known_location"`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "bookings" DROP COLUMN IF EXISTS "share_token"`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "users" DROP COLUMN IF EXISTS "safe_word"`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "sos_events" DROP COLUMN IF EXISTS "noonlight_alarm_id"`,
+    );
     await queryRunner.query(`DROP TABLE IF EXISTS "data_deletion_requests"`);
     await queryRunner.query(`DROP TABLE IF EXISTS "audit_events"`);
-    await queryRunner.query(`ALTER TABLE "profiles" DROP COLUMN IF EXISTS "insurance_verified"`);
-    await queryRunner.query(`ALTER TABLE "profiles" DROP COLUMN IF EXISTS "category_manually_overridden"`);
-    await queryRunner.query(`ALTER TABLE "profiles" DROP COLUMN IF EXISTS "category_assignment_reason"`);
-    await queryRunner.query(`ALTER TABLE "users" DROP COLUMN IF EXISTS "tax_notification_5k_sent"`);
-    await queryRunner.query(`ALTER TABLE "users" DROP COLUMN IF EXISTS "tax_blocked"`);
-    await queryRunner.query(`ALTER TABLE "users" DROP COLUMN IF EXISTS "w9_submitted_at"`);
-    await queryRunner.query(`ALTER TABLE "users" DROP COLUMN IF EXISTS "w9_on_file"`);
-    await queryRunner.query(`ALTER TABLE "users" DROP COLUMN IF EXISTS "ytd_gross_volume"`);
-    await queryRunner.query(`ALTER TABLE "users" DROP COLUMN IF EXISTS "biometric_consent_at"`);
-    await queryRunner.query(`ALTER TABLE "users" DROP COLUMN IF EXISTS "biometric_consent_given"`);
+    await queryRunner.query(
+      `ALTER TABLE "profiles" DROP COLUMN IF EXISTS "insurance_verified"`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "profiles" DROP COLUMN IF EXISTS "category_manually_overridden"`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "profiles" DROP COLUMN IF EXISTS "category_assignment_reason"`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "users" DROP COLUMN IF EXISTS "tax_notification_5k_sent"`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "users" DROP COLUMN IF EXISTS "tax_blocked"`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "users" DROP COLUMN IF EXISTS "w9_submitted_at"`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "users" DROP COLUMN IF EXISTS "w9_on_file"`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "users" DROP COLUMN IF EXISTS "ytd_gross_volume"`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "users" DROP COLUMN IF EXISTS "biometric_consent_at"`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "users" DROP COLUMN IF EXISTS "biometric_consent_given"`,
+    );
   }
 }

@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Bovogo - Adventure Detail</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "sage-secondary": "#67736a",
+                        "error-container": "#ffdad6",
+                        "inverse-primary": "#aacfbb",
+                        "tertiary-fixed": "#ffddaf",
+                        "surface-container": "#efeeea",
+                        "on-tertiary-fixed-variant": "#614000",
+                        "outline-variant": "#c1c8c2",
+                        "tertiary": "#301e00",
+                        "secondary-container": "#d9e6db",
+                        "error-red": "#c0392b",
+                        "on-tertiary": "#ffffff",
+                        "secondary-fixed-dim": "#bdcabf",
+                        "tertiary-container": "#4c3200",
+                        "primary": "#03271a",
+                        "surface-container-highest": "#e3e2df",
+                        "on-tertiary-container": "#c7984d",
+                        "outline": "#727974",
+                        "surface-container-lowest": "#ffffff",
+                        "inverse-surface": "#2f312e",
+                        "on-error": "#ffffff",
+                        "on-secondary": "#ffffff",
+                        "on-secondary-fixed": "#131e17",
+                        "tertiary-fixed-dim": "#f1be6e",
+                        "error": "#ba1a1a",
+                        "primary-fixed": "#c5ebd7",
+                        "primary-container": "#1b3d2f",
+                        "on-tertiary-ink": "#111210",
+                        "on-surface": "#1b1c1a",
+                        "forest-ink": "#1b3d2f",
+                        "surface-tint": "#436556",
+                        "surface-container-high": "#e9e8e4",
+                        "on-primary": "#ffffff",
+                        "secondary-fixed": "#d9e6db",
+                        "gold-fill": "#c4954a",
+                        "card-white": "#ffffff",
+                        "secondary": "#556159",
+                        "surface-variant": "#e3e2df",
+                        "surface-container-low": "#f4f4f0",
+                        "on-tertiary-fixed": "#281800",
+                        "on-primary-container": "#84a895",
+                        "on-secondary-container": "#5b675e",
+                        "on-background": "#1b1c1a",
+                        "on-primary-fixed-variant": "#2c4d3f",
+                        "surface-bright": "#faf9f5",
+                        "primary-fixed-dim": "#aacfbb",
+                        "surface-dim": "#dbdad6",
+                        "on-surface-variant": "#414844",
+                        "on-primary-fixed": "#002115",
+                        "surface": "#faf9f5",
+                        "inverse-on-surface": "#f2f1ed",
+                        "on-error-container": "#93000a",
+                        "on-secondary-fixed-variant": "#3e4941",
+                        "background": "#faf9f5"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "gap-md": "14px",
+                        "card-padding": "20px",
+                        "base": "4px",
+                        "gap-sm": "8px",
+                        "screen-padding": "22px"
+                    },
+                    "fontFamily": {
+                        "label-md": ["Inter"],
+                        "headline-md": ["Inter"],
+                        "display-lg": ["Inter"],
+                        "body-md": ["Inter"],
+                        "headline-lg": ["Inter"]
+                    },
+                    "fontSize": {
+                        "label-md": ["12px", { "lineHeight": "16px", "letterSpacing": "0.01em", "fontWeight": "500" }],
+                        "headline-md": ["16px", { "lineHeight": "22px", "fontWeight": "600" }],
+                        "display-lg": ["26px", { "lineHeight": "32px", "letterSpacing": "-0.02em", "fontWeight": "700" }],
+                        "body-md": ["14px", { "lineHeight": "20px", "fontWeight": "400" }],
+                        "headline-lg": ["19px", { "lineHeight": "24px", "fontWeight": "600" }]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        body { background-color: #f8f7f3; }
+        .card-shadow { box-shadow: 0 4px 20px -2px rgba(196, 149, 74, 0.08); }
+        .bottom-bar-shadow { box-shadow: 0 -4px 16px rgba(27, 61, 47, 0.05); }
+    </style>
+</head>
+<body class="antialiased text-on-background pb-32">
+<!-- Top Navigation (No Shell Nav per rules, task-focused page) -->
+<header class="flex justify-between items-center px-screen-padding h-16 w-full max-w-md mx-auto sticky top-0 z-40 bg-[#f8f7f3]">
+<button class="text-primary hover:opacity-80 transition-opacity active:scale-95 flex items-center justify-center p-2 -ml-2 rounded-full">
+<span class="material-symbols-outlined" data-icon="arrow_back">arrow_back</span>
+</button>
+<h1 class="font-headline-md text-headline-md text-forest-ink">Adventure Details</h1>
+<button class="text-primary hover:opacity-80 transition-opacity active:scale-95 flex items-center justify-center p-2 -mr-2 rounded-full">
+<span class="material-symbols-outlined" data-icon="ios_share">ios_share</span>
+</button>
+</header>
+<main class="w-full max-w-md mx-auto px-screen-padding flex flex-col gap-gap-md pt-2">
+<!-- Voyager Card -->
+<article class="bg-card-white rounded-[16px] p-card-padding flex items-center gap-4 card-shadow">
+<img alt="Profile photo of Voyager Marcus Ellery smiling outdoors" class="w-14 h-14 rounded-full object-cover shrink-0" src="https://lh3.googleusercontent.com/aida/AP1WRLsOb2RAsuMvODYfKhH06tqtAzXiX8cAnIdFD2Z0htLa4QImF4LmoTcwrT0JV1Ax_yKIgPG3swMVf2NPR51sBa2Vz7fpbxPD8Frebx2BstnGhETOX7yhJ2zj-IdWizKzDEOnWBfTFIyctfzm7grb2iIKBYTsxujcja0WoJU6CKzlvdz4mODJTnatXPWxBLr_U7pqqFT9NENROfv0Augtf4k5LVOBFmRxGb5DFy2pW38qs_sjpQxvdyTKmEt6"/>
+<div class="flex-1 flex flex-col items-start">
+<h2 class="font-headline-md text-headline-md text-forest-ink">Marcus Ellery</h2>
+<p class="font-body-md text-body-md text-sage-secondary mb-1">4.9 · 128 adventures</p>
+<span class="inline-flex items-center px-2 py-0.5 rounded-full bg-gold-fill text-on-tertiary-ink font-label-md text-label-md">Top Voyager</span>
+</div>
+<button class="w-10 h-10 rounded-full bg-secondary-container flex items-center justify-center shrink-0 active:scale-95 transition-transform">
+<img alt="Chat bubble icon in dark green" class="w-5 h-5" src="https://lh3.googleusercontent.com/aida/AP1WRLvAsXdf4ijzLaG9fQb4XULt7F84v7Zxt3azuYYgJihmtoKaxA2B9XdpnkXbInv-iFDc_ttG5PIMMGuaJ9IIRrkCgt-hZrADJ3Lz7RgjVYgwN5f7GXE4z-jRVpk4pWjYsm635W69ToVhjRy85VxxNL4hNoBXa4yxW162PHbQTKf_0ZKD8n7-uU2XNQkSoskYJqpuYp7fu6VOjOP4v6mqLRTTZlP7qLEvcVn_EHm6T0FarZGqQG1homXsbs8L"/>
+</button>
+</article>
+<!-- Route Card -->
+<article class="bg-card-white rounded-[16px] p-card-padding card-shadow flex gap-4 relative">
+<div class="flex flex-col items-center mt-1 w-4 shrink-0">
+<div class="w-3 h-3 rounded-full bg-forest-ink z-10"></div>
+<div class="w-px h-16 bg-forest-ink relative my-1">
+<div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-surface-container-low text-sage-secondary font-label-md text-[10px] px-1.5 py-0.5 rounded-full whitespace-nowrap border border-surface-container-highest flex items-center gap-1">
+<span class="material-symbols-outlined text-[10px]" data-icon="navigation">navigation</span> ~3 hrs
+                    </div>
+</div>
+<div class="w-3 h-3 rounded-full bg-gold-fill z-10"></div>
+</div>
+<div class="flex flex-col justify-between flex-1 py-0.5">
+<div>
+<h3 class="font-headline-md text-headline-md text-forest-ink">Dallas, TX</h3>
+<p class="font-body-md text-body-md text-sage-secondary">Fri, Sep 5 · 8:30 AM — Departure</p>
+</div>
+<div>
+<h3 class="font-headline-md text-headline-md text-forest-ink">Austin, TX</h3>
+<p class="font-body-md text-body-md text-sage-secondary">11:30 AM — Approx arrival</p>
+</div>
+</div>
+</article>
+<!-- Details Card -->
+<article class="bg-card-white rounded-[16px] p-card-padding card-shadow flex flex-col">
+<div class="flex items-center justify-between py-3 border-b border-surface-container-highest last:border-0 first:pt-0">
+<div class="flex items-center gap-3">
+<div class="w-8 h-8 rounded-lg bg-secondary-container flex items-center justify-center text-forest-ink">
+<span class="material-symbols-outlined text-lg" data-icon="group">group</span>
+</div>
+<span class="font-body-md text-body-md text-sage-secondary">Seats Available</span>
+</div>
+<span class="font-headline-md text-headline-md text-forest-ink">3</span>
+</div>
+<div class="flex items-center justify-between py-3 border-b border-surface-container-highest last:border-0">
+<div class="flex items-center gap-3">
+<div class="w-8 h-8 rounded-lg bg-secondary-container flex items-center justify-center text-forest-ink">
+<span class="material-symbols-outlined text-lg" data-icon="work">work</span>
+</div>
+<span class="font-body-md text-body-md text-sage-secondary">Luggage Space</span>
+</div>
+<span class="font-headline-md text-headline-md text-forest-ink">2 bags</span>
+</div>
+<div class="flex items-center justify-between py-3 border-b border-surface-container-highest last:border-0 last:pb-0">
+<div class="flex items-center gap-3">
+<div class="w-8 h-8 rounded-lg bg-secondary-container flex items-center justify-center text-forest-ink">
+<span class="material-symbols-outlined text-lg" data-icon="directions_car">directions_car</span>
+</div>
+<span class="font-body-md text-body-md text-sage-secondary">Vehicle</span>
+</div>
+<span class="font-headline-md text-headline-md text-forest-ink">Toyota Camry · Silver</span>
+</div>
+</article>
+<!-- Preferences Card -->
+<article class="bg-card-white rounded-[16px] p-card-padding card-shadow">
+<h3 class="font-headline-md text-headline-md text-forest-ink mb-4">Adventure Preferences</h3>
+<div class="flex flex-wrap gap-2">
+<span class="bg-secondary-container text-forest-ink px-3 py-1.5 rounded-full font-body-md text-body-md">No smoking</span>
+<span class="bg-secondary-container text-forest-ink px-3 py-1.5 rounded-full font-body-md text-body-md">Music welcome</span>
+<span class="bg-secondary-container text-forest-ink px-3 py-1.5 rounded-full font-body-md text-body-md">A/C on</span>
+<span class="bg-card-white border border-outline-variant text-sage-secondary px-3 py-1.5 rounded-full font-body-md text-body-md">Pets OK</span>
+<span class="bg-card-white border border-outline-variant text-sage-secondary px-3 py-1.5 rounded-full font-body-md text-body-md">Quiet ride</span>
+</div>
+</article>
+<!-- About Card -->
+<article class="bg-card-white rounded-[16px] p-card-padding card-shadow">
+<h3 class="font-headline-md text-headline-md text-forest-ink mb-2">About Trip</h3>
+<p class="font-body-md text-body-md text-sage-secondary leading-relaxed">Leaving from Deep Ellum, straight down I-35. Happy to make one coffee stop if anyone needs it.</p>
+</article>
+<!-- Protection Strip -->
+<div class="flex items-center justify-center gap-2 py-4 mb-4">
+<span class="material-symbols-outlined text-forest-ink" data-icon="shield">shield</span>
+<span class="font-label-md text-label-md text-forest-ink uppercase tracking-wider">Every seat includes trip protection.</span>
+</div>
+</main>
+<!-- Fixed Bottom Bar -->
+<div class="fixed bottom-0 w-full z-50 bg-card-white border-t border-surface-container-high bottom-bar-shadow">
+<div class="max-w-md mx-auto w-full px-screen-padding py-4 flex justify-between items-center">
+<div class="flex flex-col">
+<span class="font-display-lg text-[22px] font-bold text-forest-ink leading-tight">$32.40</span>
+<span class="font-body-md text-[13px] text-sage-secondary">per seat</span>
+</div>
+<button class="bg-primary-container text-on-primary px-6 py-3 rounded-full font-headline-md text-headline-md flex items-center gap-2 active:scale-95 transition-transform">
+                Request Seat
+                <span class="material-symbols-outlined" data-icon="arrow_forward">arrow_forward</span>
+</button>
+</div>
+</div>
+</body></html>

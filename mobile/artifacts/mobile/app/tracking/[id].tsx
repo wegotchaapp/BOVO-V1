@@ -3,9 +3,7 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
-  Alert,
   Animated,
-  Linking,
   Platform,
   SafeAreaView,
   Share,
@@ -15,14 +13,16 @@ import {
   View,
 } from "react-native";
 
+import { Alert } from "@/lib/alert";
+
 import TrackingMap from "@/components/TrackingMap";
 import { useColors } from "@/hooks/useColors";
 import { useTripLiveTracking } from "@/hooks/useTripLiveTracking";
 import { CARD_SHADOW } from "@/constants/colors";
 import { getBooking, type Booking } from "@/lib/bookings";
 import { cityShort, getCityCoord } from "@/lib/city-coords";
-import { triggerSos } from "@/lib/safety";
-import { phoneToTelHref } from "@/lib/tracking";
+import { MANUAL_CALL_911_MESSAGE, openDialer, triggerSos } from "@/lib/safety";
+import { normalizeDialablePhone } from "@/lib/tracking";
 
 function midpoint(
   a: { latitude: number; longitude: number },
@@ -167,7 +167,7 @@ export default function TripTracking() {
       return;
     }
     const link = mapsUrl(point.latitude, point.longitude);
-    const message = `I'm on a Bovogo adventure (${fromCity} → ${toCity}). My live location: ${link}`;
+    const message = `I'm on a Bovogo adventure (${fromCity} → ${toCity}). Where I am right now: ${link}`;
     try {
       await Share.share(
         Platform.OS === "ios"
@@ -201,6 +201,8 @@ export default function TripTracking() {
                   }
                 : null,
               tripId: booking?.tripId,
+              onManualCall: () =>
+                Alert.alert("Call 911 yourself", MANUAL_CALL_911_MESSAGE),
             });
           },
         },
@@ -209,23 +211,24 @@ export default function TripTracking() {
   }
 
   async function handleCallVoyager() {
-    const href = phoneToTelHref(driverPhone);
-    if (!href) {
+    const dialable = normalizeDialablePhone(driverPhone);
+    if (!dialable) {
       Alert.alert(
         "Phone unavailable",
         "The Voyager has not added a phone number to their profile yet.",
       );
       return;
     }
-    try {
-      const supported = await Linking.canOpenURL(href);
-      if (!supported) {
-        Alert.alert("Can't place call", "Calling is not supported on this device.");
-        return;
-      }
-      await Linking.openURL(href);
-    } catch {
-      Alert.alert("Can't place call", "Something went wrong opening the phone app.");
+    // `canOpenURL` used to guard this, but on web it always resolves `true` and
+    // `openURL` never rejects — so the guard passed, the tel: URL unloaded the
+    // running app, and neither branch below could ever report it. The returned
+    // result is the only reliable signal.
+    const result = await openDialer(dialable);
+    if (result !== "opened") {
+      Alert.alert(
+        "Call them from your phone",
+        `Dial ${driverPhone} to reach your Voyager.`,
+      );
     }
   }
 

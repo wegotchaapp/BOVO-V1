@@ -1,4 +1,10 @@
-import { Injectable, UnauthorizedException, BadRequestException, ConflictException, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  UnauthorizedException,
+  BadRequestException,
+  ConflictException,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { JwtService } from '@nestjs/jwt';
@@ -58,7 +64,10 @@ export class AuthService {
     const saved = await this.userRepo.save(user);
     await this.sendPhoneOtp(saved.phone!);
 
-    this.logger.info({ userId: saved.id, email: saved.email }, 'Pending user created, OTP sent');
+    this.logger.info(
+      { userId: saved.id, email: saved.email },
+      'Pending user created, OTP sent',
+    );
 
     return {
       userId: saved.id,
@@ -91,7 +100,12 @@ export class AuthService {
     };
   }
 
-  async register(dto: RegisterDto): Promise<{ userId: string; email: string; phone: string | null; message: string }> {
+  async register(dto: RegisterDto): Promise<{
+    userId: string;
+    email: string;
+    phone: string | null;
+    message: string;
+  }> {
     const existing = await this.userRepo.findOne({
       where: [{ email: dto.email.toLowerCase() }, { phone: dto.phone }],
     });
@@ -101,12 +115,16 @@ export class AuthService {
 
     const age = this.calculateAge(dto.dob);
     if (age < 18) {
-      throw new BadRequestException('You must be at least 18 years old to use Bovogo');
+      throw new BadRequestException(
+        'You must be at least 18 years old to use Bovogo',
+      );
     }
 
     const breached = await this.checkHibp(dto.password);
     if (breached) {
-      throw new BadRequestException('Password has been found in a data breach. Please choose a different password.');
+      throw new BadRequestException(
+        'Password has been found in a data breach. Please choose a different password.',
+      );
     }
 
     const passwordHash = await bcrypt.hash(dto.password, BCRYPT_ROUNDS);
@@ -130,13 +148,17 @@ export class AuthService {
       saved.phone ? this.sendPhoneOtp(saved.phone) : Promise.resolve(),
     ]);
 
-    this.logger.info({ userId: saved.id, email: saved.email }, 'User registered');
+    this.logger.info(
+      { userId: saved.id, email: saved.email },
+      'User registered',
+    );
 
     return {
       userId: saved.id,
       email: saved.email,
       phone: saved.phone,
-      message: 'Account created. Please verify your email and phone to proceed.',
+      message:
+        'Account created. Please verify your email and phone to proceed.',
     };
   }
 
@@ -170,7 +192,10 @@ export class AuthService {
     };
   }
 
-  async refreshToken(token: string, deviceInfo?: string): Promise<{ accessToken: string; refreshToken: string }> {
+  async refreshToken(
+    token: string,
+    deviceInfo?: string,
+  ): Promise<{ accessToken: string; refreshToken: string }> {
     const stored = await this.refreshRepo.findOne({
       where: { token, is_revoked: false },
     });
@@ -278,7 +303,9 @@ export class AuthService {
   }
 
   async forgotPassword(email: string): Promise<void> {
-    const user = await this.userRepo.findOne({ where: { email: email.toLowerCase() } });
+    const user = await this.userRepo.findOne({
+      where: { email: email.toLowerCase() },
+    });
     if (!user) {
       return;
     }
@@ -303,7 +330,9 @@ export class AuthService {
 
     const breached = await this.checkHibp(newPassword);
     if (breached) {
-      throw new BadRequestException('Password has been found in a data breach. Please choose a different password.');
+      throw new BadRequestException(
+        'Password has been found in a data breach. Please choose a different password.',
+      );
     }
 
     const passwordHash = await bcrypt.hash(newPassword, BCRYPT_ROUNDS);
@@ -315,8 +344,13 @@ export class AuthService {
     this.logger.info({ userId: user.id }, 'Password reset completed');
   }
 
-  async supabaseAuth(dto: SupabaseAuthDto, deviceInfo?: string): Promise<AuthResponseDto> {
-    const { data, error } = await this.supabase.getAdminClient().auth.getUser(dto.access_token);
+  async supabaseAuth(
+    dto: SupabaseAuthDto,
+    deviceInfo?: string,
+  ): Promise<AuthResponseDto> {
+    const { data, error } = await this.supabase
+      .getAdminClient()
+      .auth.getUser(dto.access_token);
 
     if (error || !data?.user) {
       this.logger.warn({ error }, 'Supabase token verification failed');
@@ -330,11 +364,16 @@ export class AuthService {
       throw new UnauthorizedException('Email is required for authentication');
     }
 
-    let user = await this.userRepo.findOne({ where: { email: email.toLowerCase() } });
+    let user = await this.userRepo.findOne({
+      where: { email: email.toLowerCase() },
+    });
 
     if (!user) {
       const phone = supabaseUser.phone || null;
-      const name = dto.name || supabaseUser.user_metadata?.full_name || email.split('@')[0];
+      const name =
+        dto.name ||
+        supabaseUser.user_metadata?.full_name ||
+        email.split('@')[0];
 
       user = this.userRepo.create({
         email: email.toLowerCase(),
@@ -346,7 +385,10 @@ export class AuthService {
       });
       await this.userRepo.save(user);
 
-      this.logger.info({ userId: user.id, email }, 'User created via Supabase auth');
+      this.logger.info(
+        { userId: user.id, email },
+        'User created via Supabase auth',
+      );
     } else if (user.deleted_at) {
       throw new UnauthorizedException('Account has been deactivated');
     } else {
@@ -371,7 +413,10 @@ export class AuthService {
     };
   }
 
-  async socialAuth(dto: SocialAuthDto, deviceInfo?: string): Promise<AuthResponseDto> {
+  async socialAuth(
+    dto: SocialAuthDto,
+    deviceInfo?: string,
+  ): Promise<AuthResponseDto> {
     let email: string | null = null;
     let name: string | null = null;
     let socialId: string | null = null;
@@ -390,14 +435,21 @@ export class AuthService {
       }
 
       if (!email) {
-        throw new UnauthorizedException('Could not extract email from social provider');
+        throw new UnauthorizedException(
+          'Could not extract email from social provider',
+        );
       }
     } catch (error) {
-      this.logger.error({ provider: dto.provider, error }, 'Social auth verification failed');
+      this.logger.error(
+        { provider: dto.provider, error },
+        'Social auth verification failed',
+      );
       throw new UnauthorizedException('Invalid social authentication token');
     }
 
-    let user = await this.userRepo.findOne({ where: { email: email.toLowerCase() } });
+    const user = await this.userRepo.findOne({
+      where: { email: email.toLowerCase() },
+    });
 
     if (!user) {
       throw new UnauthorizedException(
@@ -447,7 +499,25 @@ export class AuthService {
   async getProfile(userId: string) {
     const user = await this.userRepo.findOne({
       where: { id: userId },
-      select: ['id', 'email', 'phone', 'name', 'role', 'selected_role', 'is_email_verified', 'is_phone_verified', 'is_founding_member', 'background_check_status', 'subscription_tier', 'subscription_expires_at', 'created_at', 'rider_conversation_style', 'rider_music_preference', 'rider_smoking_preference', 'rider_pet_preference'],
+      select: [
+        'id',
+        'email',
+        'phone',
+        'name',
+        'role',
+        'selected_role',
+        'is_email_verified',
+        'is_phone_verified',
+        'is_founding_member',
+        'background_check_status',
+        'subscription_tier',
+        'subscription_expires_at',
+        'created_at',
+        'rider_conversation_style',
+        'rider_music_preference',
+        'rider_smoking_preference',
+        'rider_pet_preference',
+      ],
     });
 
     if (!user) {
@@ -457,14 +527,19 @@ export class AuthService {
     return user;
   }
 
-  async updateProfile(userId: string, updates: Partial<Pick<User, 'name' | 'phone'>>) {
+  async updateProfile(
+    userId: string,
+    updates: Partial<Pick<User, 'name' | 'phone'>>,
+  ) {
     const user = await this.userRepo.findOne({ where: { id: userId } });
     if (!user) {
       throw new NotFoundException('User not found');
     }
 
     if (updates.phone && updates.phone !== user.phone) {
-      const existing = await this.userRepo.findOne({ where: { phone: updates.phone } });
+      const existing = await this.userRepo.findOne({
+        where: { phone: updates.phone },
+      });
       if (existing) {
         throw new ConflictException('Phone number already in use');
       }
@@ -511,7 +586,10 @@ export class AuthService {
 
   private async checkHibp(password: string): Promise<boolean> {
     try {
-      const hash = createHash('sha1').update(password).digest('hex').toUpperCase();
+      const hash = createHash('sha1')
+        .update(password)
+        .digest('hex')
+        .toUpperCase();
       const prefix = hash.substring(0, 5);
       const suffix = hash.substring(5);
 
@@ -536,7 +614,10 @@ export class AuthService {
     let age = today.getFullYear() - birthDate.getFullYear();
     const monthDiff = today.getMonth() - birthDate.getMonth();
 
-    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+    if (
+      monthDiff < 0 ||
+      (monthDiff === 0 && today.getDate() < birthDate.getDate())
+    ) {
       age--;
     }
 
@@ -550,12 +631,18 @@ export class AuthService {
       .substring(0, 64);
   }
 
-  private async sendEmailVerification(email: string, token: string): Promise<void> {
+  private async sendEmailVerification(
+    email: string,
+    token: string,
+  ): Promise<void> {
     const resendApiKey = this.config.get<string>('RESEND_API_KEY');
     const appUrl = this.config.get<string>('APP_URL', 'http://localhost:3000');
 
     if (!resendApiKey) {
-      this.logger.warn({ email }, 'RESEND_API_KEY not configured, skipping email');
+      this.logger.warn(
+        { email },
+        'RESEND_API_KEY not configured, skipping email',
+      );
       return;
     }
 
@@ -590,7 +677,9 @@ export class AuthService {
   private async sendPhoneOtp(phone: string): Promise<void> {
     const twilioSid = this.config.get<string>('TWILIO_ACCOUNT_SID');
     const twilioToken = this.config.get<string>('TWILIO_AUTH_TOKEN');
-    const verifyServiceSid = this.config.get<string>('TWILIO_VERIFY_SERVICE_SID');
+    const verifyServiceSid = this.config.get<string>(
+      'TWILIO_VERIFY_SERVICE_SID',
+    );
 
     if (!twilioSid || !twilioToken || !verifyServiceSid) {
       this.logger.warn({ phone }, 'Twilio not configured, skipping OTP');
@@ -603,16 +692,21 @@ export class AuthService {
       const encodedServiceSid = encodeURIComponent(verifyServiceSid);
       const encodedPhone = encodeURIComponent(phone);
 
-      const auth = Buffer.from(`${encodedSid}:${encodedToken}`).toString('base64');
+      const auth = Buffer.from(`${encodedSid}:${encodedToken}`).toString(
+        'base64',
+      );
 
-      await fetch(`https://verify.twilio.com/2010-04-01/Accounts/${twilioSid}/Services/${verifyServiceSid}/Verifications`, {
-        method: 'POST',
-        headers: {
-          Authorization: `Basic ${auth}`,
-          'Content-Type': 'application/x-www-form-urlencoded',
+      await fetch(
+        `https://verify.twilio.com/2010-04-01/Accounts/${twilioSid}/Services/${verifyServiceSid}/Verifications`,
+        {
+          method: 'POST',
+          headers: {
+            Authorization: `Basic ${auth}`,
+            'Content-Type': 'application/x-www-form-urlencoded',
+          },
+          body: `To=${encodedPhone}&Channel=sms`,
         },
-        body: `To=${encodedPhone}&Channel=sms`,
-      });
+      );
 
       this.logger.info({ phone }, 'Phone OTP sent');
     } catch (error) {
@@ -623,24 +717,36 @@ export class AuthService {
   private async checkPhoneOtp(phone: string, code: string): Promise<boolean> {
     const twilioSid = this.config.get<string>('TWILIO_ACCOUNT_SID');
     const twilioToken = this.config.get<string>('TWILIO_AUTH_TOKEN');
-    const verifyServiceSid = this.config.get<string>('TWILIO_VERIFY_SERVICE_SID');
+    const verifyServiceSid = this.config.get<string>(
+      'TWILIO_VERIFY_SERVICE_SID',
+    );
 
     if (!twilioSid || !twilioToken || !verifyServiceSid) {
-      this.logger.error({ phone }, 'Twilio not configured - phone verification unavailable');
-      throw new Error('Phone verification is not available. Please configure TWILIO_VERIFY_SERVICE_SID in environment.');
+      this.logger.error(
+        { phone },
+        'Twilio not configured - phone verification unavailable',
+      );
+      throw new Error(
+        'Phone verification is not available. Please configure TWILIO_VERIFY_SERVICE_SID in environment.',
+      );
     }
 
     try {
-      const auth = Buffer.from(`${twilioSid}:${twilioToken}`).toString('base64');
+      const auth = Buffer.from(`${twilioSid}:${twilioToken}`).toString(
+        'base64',
+      );
 
-      const response = await fetch(`https://verify.twilio.com/2010-04-01/Accounts/${twilioSid}/Services/${verifyServiceSid}/VerificationCheck`, {
-        method: 'POST',
-        headers: {
-          Authorization: `Basic ${auth}`,
-          'Content-Type': 'application/x-www-form-urlencoded',
+      const response = await fetch(
+        `https://verify.twilio.com/2010-04-01/Accounts/${twilioSid}/Services/${verifyServiceSid}/VerificationCheck`,
+        {
+          method: 'POST',
+          headers: {
+            Authorization: `Basic ${auth}`,
+            'Content-Type': 'application/x-www-form-urlencoded',
+          },
+          body: `To=${encodeURIComponent(phone)}&Code=${encodeURIComponent(code)}`,
         },
-        body: `To=${encodeURIComponent(phone)}&Code=${encodeURIComponent(code)}`,
-      });
+      );
 
       const data = await response.json();
       return data.status === 'approved';
@@ -650,12 +756,18 @@ export class AuthService {
     }
   }
 
-  private async sendPasswordResetEmail(email: string, token: string): Promise<void> {
+  private async sendPasswordResetEmail(
+    email: string,
+    token: string,
+  ): Promise<void> {
     const resendApiKey = this.config.get<string>('RESEND_API_KEY');
     const appUrl = this.config.get<string>('APP_URL', 'http://localhost:3000');
 
     if (!resendApiKey) {
-      this.logger.warn({ email }, 'RESEND_API_KEY not configured, skipping reset email');
+      this.logger.warn(
+        { email },
+        'RESEND_API_KEY not configured, skipping reset email',
+      );
       return;
     }
 
@@ -682,11 +794,18 @@ export class AuthService {
         }),
       });
     } catch (error) {
-      this.logger.error({ email, error }, 'Failed to send password reset email');
+      this.logger.error(
+        { email, error },
+        'Failed to send password reset email',
+      );
     }
   }
 
-  private verifyAppleToken(token: string): { email: string | null; name: string | null; sub: string } {
+  private verifyAppleToken(token: string): {
+    email: string | null;
+    name: string | null;
+    sub: string;
+  } {
     try {
       const decoded = this.jwtService.verify(token, {
         secret: this.config.get<string>('APPLE_CLIENT_SECRET'),
@@ -703,9 +822,13 @@ export class AuthService {
     }
   }
 
-  private async verifyGoogleToken(token: string): Promise<{ email: string; name: string | null; sub: string }> {
+  private async verifyGoogleToken(
+    token: string,
+  ): Promise<{ email: string; name: string | null; sub: string }> {
     try {
-      const response = await fetch(`https://oauth2.googleapis.com/tokeninfo?id_token=${token}`);
+      const response = await fetch(
+        `https://oauth2.googleapis.com/tokeninfo?id_token=${token}`,
+      );
       const data = await response.json();
 
       if (data.error || !data.email) {
@@ -731,17 +854,25 @@ export class AuthService {
     return sanitized;
   }
 
-  async acceptBiometricConsent(userId: string): Promise<{ consent_recorded: true; accepted_at: string }> {
+  async acceptBiometricConsent(
+    userId: string,
+  ): Promise<{ consent_recorded: true; accepted_at: string }> {
     const acceptedAt = new Date().toISOString();
     await this.userRepo.update(userId, {
       biometric_consent_given: true,
       biometric_consent_at: acceptedAt,
     });
-    this.logger.info({ userId }, 'Biometric consent recorded (Texas BUIA compliance)');
+    this.logger.info(
+      { userId },
+      'Biometric consent recorded (Texas BUIA compliance)',
+    );
     return { consent_recorded: true, accepted_at: acceptedAt };
   }
 
-  async switchRole(userId: string, selected_role: 'rider' | 'driver' | 'both'): Promise<{ selected_role: string }> {
+  async switchRole(
+    userId: string,
+    selected_role: 'rider' | 'driver' | 'both',
+  ): Promise<{ selected_role: string }> {
     await this.userRepo.update(userId, { selected_role });
     this.logger.info({ userId, selected_role }, 'User role switched');
     return { selected_role };

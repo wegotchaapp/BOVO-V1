@@ -137,10 +137,7 @@ export class AdverseActionService {
         this.logger.info({ to: payload.to }, 'Email sent successfully');
       }
     } catch (error) {
-      this.logger.error(
-        { to: payload.to, error },
-        'Failed to send email',
-      );
+      this.logger.error({ to: payload.to, error }, 'Failed to send email');
     }
   }
 
@@ -190,7 +187,11 @@ export class AdverseActionService {
     `;
   }
 
-  private preAdverseEmailHtml(user: User, deadline: string, candidateId: string): string {
+  private preAdverseEmailHtml(
+    user: User,
+    deadline: string,
+    candidateId: string,
+  ): string {
     return `
       <div style="font-family: -apple-system, sans-serif; max-width: 600px; margin: 0 auto;">
         <h1 style="color: #ff6b35;">Important: Pre-Adverse Action Notice</h1>

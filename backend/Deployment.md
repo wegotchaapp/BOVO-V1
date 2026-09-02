@@ -60,7 +60,6 @@ The app **will not boot** if any of these are missing:
 
 | Variable | Purpose |
 |----------|---------|
-| `SENTRY_DSN` | Error tracking |
 | `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY` | Profile photo uploads via S3 |
 | `MAPBOX_ACCESS_TOKEN` | Geocoding |
 | `CHECKR_API_KEY` | Background checks (Phase 2) |
@@ -170,7 +169,6 @@ Triggered on push to `main` when `backend/` changes. Steps:
 4. `npm run build` → compiles to `dist/`
 5. `npm run migration:run` → applies pending DB migrations (uses `dist/database/data-source.js`)
 6. `railway up` → pushes code and triggers Railway to build & deploy the Docker image
-7. Sentry release creation with source maps
 
 #### Required GitHub Actions secrets
 
@@ -179,9 +177,6 @@ DATABASE_URL
 REDIS_URL
 JWT_SECRET
 STRIPE_SECRET_KEY
-SENTRY_DSN
-SENTRY_AUTH_TOKEN
-SENTRY_ORG
 APP_URL
 TWILIO_ACCOUNT_SID
 TWILIO_AUTH_TOKEN

@@ -17,7 +17,8 @@ export class RetentionProcessor {
     this.logger.info('Running scheduled deletion processor');
 
     try {
-      const deletedCount = await this.privacyService.processScheduledDeletions();
+      const deletedCount =
+        await this.privacyService.processScheduledDeletions();
       if (deletedCount > 0) {
         this.logger.info({ deletedCount }, 'Scheduled deletions processed');
       }

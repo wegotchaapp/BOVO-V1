@@ -3,7 +3,6 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
-  Alert,
   Keyboard,
   KeyboardAvoidingView,
   Platform,
@@ -16,6 +15,8 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+
+import { Alert } from "@/lib/alert";
 
 import {
   formatTimeAgo,
@@ -32,6 +33,7 @@ import { useAuth } from "@/context/AuthContext";
 import { useUnread } from "@/context/UnreadContext";
 import { useColors } from "@/hooks/useColors";
 import { CARD_SHADOW } from "@/constants/colors";
+import { formatUsd } from "@/lib/pricing";
 
 function Avatar({ name, size = 44, isDriver = false }: { name: string; size?: number; isDriver?: boolean }) {
   const colors = useColors();
@@ -247,16 +249,16 @@ export default function PostDetail() {
                 <View style={styles.driverNameRow}>
                   <Text style={[styles.driverName, { color: colors.foreground }]}>{post.driver.name}</Text>
                   {post.driver.isTopDriver && (
-                    <View style={[styles.topBadge, { backgroundColor: "#FEF3E2" }]}>
-                      <Feather name="award" size={10} color="#C4954A" />
-                      <Text style={[styles.topBadgeText, { color: "#C4954A" }]}>Top Voyager</Text>
+                    <View style={[styles.topBadge, { backgroundColor: "#C4954A" }]}>
+                      <Feather name="award" size={10} color="#111210" />
+                      <Text style={[styles.topBadgeText, { color: "#111210" }]}>Top Voyager</Text>
                     </View>
                   )}
                 </View>
                 <View style={styles.ratingRow}>
                   <Feather name="star" size={11} color="#C4954A" />
                   <Text style={[styles.ratingText, { color: colors.mutedForeground }]}>
-                    {post.driver.rating.toFixed(1)} · {post.driver.trips} trip{post.driver.trips !== 1 ? "s" : ""}
+                    {post.driver.rating.toFixed(1)} · {post.driver.trips} adventure{post.driver.trips !== 1 ? "s" : ""}
                   </Text>
                 </View>
               </View>
@@ -301,7 +303,7 @@ export default function PostDetail() {
               </View>
               <View style={[styles.metaSep, { backgroundColor: colors.border }]} />
               <View style={styles.metaItem}>
-                <Text style={[styles.priceText, { color: colors.primary }]}>${post.pricePerSeat}</Text>
+                <Text style={[styles.priceText, { color: colors.primary }]}>{formatUsd(post.pricePerSeat)}</Text>
                 <Text style={[styles.metaText, { color: colors.mutedForeground }]}>/seat</Text>
               </View>
             </View>
@@ -432,7 +434,7 @@ export default function PostDetail() {
             <View style={[styles.inputWrap, { backgroundColor: colors.card, borderColor: colors.border }]}>
               <TextInput
                 style={[styles.input, { color: colors.foreground }]}
-                placeholder={isVoyager ? "Reply to your riders..." : "Ask a public question (no personal info)..."}
+                placeholder={isVoyager ? "Reply to your Sailors..." : "Ask a public question (no personal info)..."}
                 placeholderTextColor={colors.mutedForeground}
                 value={replyText}
                 onChangeText={setReplyText}
@@ -474,7 +476,7 @@ export default function PostDetail() {
           {user && user.id !== post.driver.id && !meta?.viewerGroupId && (
             <View style={[styles.bookBar, { backgroundColor: colors.card, borderTopColor: colors.border }]}>
               <View>
-                <Text style={[styles.bookPrice, { color: colors.primary }]}>${post.pricePerSeat}</Text>
+                <Text style={[styles.bookPrice, { color: colors.primary }]}>{formatUsd(post.pricePerSeat)}</Text>
                 <Text style={[styles.bookLabel, { color: colors.mutedForeground }]}>per seat</Text>
               </View>
               <TouchableOpacity

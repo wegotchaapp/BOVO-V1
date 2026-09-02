@@ -30,9 +30,24 @@ interface Props {
   city: string;
   height: number;
   backgroundColor: string;
+  /**
+   * Fraction of `height` left as pure, unwashed weather before the legibility
+   * wash fades in. Content below that point still shows the live scene through
+   * a translucent tint so the weather reads across the whole page.
+   */
+  heroStop?: number;
 }
 
-export function WeatherBackground({ city, height, backgroundColor }: Props) {
+/** `#RRGGBB` → `rgba(r,g,b,alpha)`, so the wash can tint without hiding. */
+function withAlpha(hex: string, alpha: number): string {
+  const clean = hex.replace("#", "");
+  const full = clean.length === 3 ? clean.split("").map((c) => c + c).join("") : clean;
+  const int = parseInt(full, 16);
+  if (Number.isNaN(int)) return `rgba(248,247,243,${alpha})`;
+  return `rgba(${(int >> 16) & 255},${(int >> 8) & 255},${int & 255},${alpha})`;
+}
+
+export function WeatherBackground({ city, height, backgroundColor, heroStop = 0.34 }: Props) {
   const [slotA, setSlotA] = useState<WeatherState>("sunny");
   const [slotB, setSlotB] = useState<WeatherState>("sunny");
   const activeSlot = useRef<"A" | "B">("A");
@@ -90,20 +105,32 @@ export function WeatherBackground({ city, height, backgroundColor }: Props) {
     return () => clearInterval(timer);
   }, [city]);
 
+  const wash = withAlpha(backgroundColor, 0.82);
+  const fadeStart = Math.min(heroStop, 0.9);
+  const fadeEnd = Math.min(fadeStart + 0.12, 1);
+
   return (
-    <View style={[styles.root, { height, pointerEvents: "none" }]}>
+    // `pointerEvents` must be the prop, not a style key — as a style it does not
+    // reach the DOM under react-native-web and the scene swallows every click.
+    <View pointerEvents="none" style={[styles.root, { height }]}>
       <Animated.View style={[StyleSheet.absoluteFill, { opacity: opacityA }]}>
         <Scene weather={slotA} height={height} />
       </Animated.View>
       <Animated.View style={[StyleSheet.absoluteFill, { opacity: opacityB }]}>
         <Scene weather={slotB} height={height} />
       </Animated.View>
+      {/* Legibility wash: pure weather down to `heroStop`, then a translucent
+          tint the rest of the way so content stays readable over live sky. */}
       <LinearGradient
-        colors={["transparent", backgroundColor]}
-        style={[StyleSheet.absoluteFill, { top: height - 130 }]}
+        colors={["transparent", "transparent", wash, wash]}
+        locations={[0, fadeStart, fadeEnd, 1]}
+        style={StyleSheet.absoluteFill}
       />
+      {/* Header scrim. Skies range from bright noon blue to near-black night,
+          so darken the top band and let header text render light — the only
+          treatment that holds contrast across every scene. */}
       <LinearGradient
-        colors={["rgba(248,247,243,0.38)", "transparent"]}
+        colors={["rgba(10,20,16,0.45)", "rgba(10,20,16,0.12)", "transparent"]}
         style={styles.topScrim}
       />
     </View>
@@ -112,5 +139,5 @@ export function WeatherBackground({ city, height, backgroundColor }: Props) {
 
 const styles = StyleSheet.create({
   root:     { position: "absolute", top: 0, left: 0, right: 0, overflow: "hidden" },
-  topScrim: { position: "absolute", top: 0, left: 0, right: 0, height: 90 },
+  topScrim: { position: "absolute", top: 0, left: 0, right: 0, height: 230 },
 });

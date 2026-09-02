@@ -13,11 +13,10 @@ import {
   View,
 } from "react-native";
 
-import { CARD_SHADOW } from "@/constants/colors";
+import { CARD_SHADOW, INK_ON_MUTED } from "@/constants/colors";
 import { useColors } from "@/hooks/useColors";
 import { apiClient } from "@/lib/api";
-
-const IRS_RATE = 0.67 * 0.75; // $0.5025/mile — IRS rate × Bovogo 0.75 factor
+import { formatUsd } from "@/lib/pricing";
 
 type Period = "month" | "all";
 
@@ -117,13 +116,6 @@ export default function Earnings() {
           />
         }
       >
-        <View style={[styles.notice, { backgroundColor: colors.secondary }]}>
-          <Feather name="info" size={14} color={colors.primary} />
-          <Text style={[styles.noticeText, { color: colors.primary }]}>
-            Bovogo is a cost-sharing platform. You save on actual travel expenses — not profit. IRS rate: $0.67/mile.
-          </Text>
-        </View>
-
         <View style={styles.periodRow}>
           {(["month", "all"] as const).map((p) => {
             const active = p === period;
@@ -176,7 +168,7 @@ export default function Earnings() {
                 Net Savings ({period === "month" ? CURRENT_MONTH_LABEL : "All Time"})
               </Text>
               <Text style={[styles.summaryAmount, { color: colors.foreground }]}>
-                ${data.netTotal.toFixed(2)}
+                {formatUsd(data.netTotal)}
               </Text>
               <View style={[styles.divider, { backgroundColor: colors.border }]} />
               <View style={styles.summaryRow}>
@@ -192,7 +184,7 @@ export default function Earnings() {
                 <View style={[styles.statSep, { backgroundColor: colors.border }]} />
                 <View style={styles.summaryStat}>
                   <Text style={[styles.statNum, { color: colors.foreground }]}>
-                    ${data.grossTotal.toFixed(0)}
+                    {formatUsd(data.grossTotal)}
                   </Text>
                   <Text style={[styles.statLabel, { color: colors.mutedForeground }]}>Gross</Text>
                 </View>
@@ -203,37 +195,45 @@ export default function Earnings() {
               <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Cost Breakdown</Text>
               <View style={styles.breakdownRow}>
                 <Text style={[styles.breakdownLabel, { color: colors.mutedForeground }]}>
-                  Rider payments collected
+                  Seat cost-share collected
                 </Text>
                 <Text style={[styles.breakdownValue, { color: colors.foreground }]}>
-                  ${data.grossTotal.toFixed(2)}
-                </Text>
-              </View>
-              <View style={styles.breakdownRow}>
-                <Text style={[styles.breakdownLabel, { color: colors.mutedForeground }]}>
-                  Bovogo service fee
-                </Text>
-                <Text style={[styles.breakdownValue, { color: colors.destructive }]}>
-                  −${data.platformFeeTotal.toFixed(2)}
+                  {formatUsd(data.grossTotal)}
                 </Text>
               </View>
               <View style={[styles.divider, { backgroundColor: colors.border }]} />
               <View style={styles.breakdownRow}>
-                <Text style={[styles.breakdownBold, { color: colors.foreground }]}>Net savings</Text>
+                <Text style={[styles.breakdownBold, { color: colors.foreground }]}>
+                  You keep
+                </Text>
                 <Text style={[styles.breakdownBold, { color: colors.primary }]}>
-                  ${data.netTotal.toFixed(2)}
+                  {formatUsd(data.netTotal)}
                 </Text>
               </View>
+              {/* The Bovogo fee is charged to the Sailor on top of the seat
+                  cost-share and never comes out of the Voyager's recovery —
+                  the backend writes net_amount = gross_amount for exactly that
+                  reason. It is a note, not a line in the sum: as a row above
+                  the rule it made the card read 540.00 − 63.90 = 540.00. */}
+              {data.platformFeeTotal > 0 && (
+                <View style={[styles.irsNote, { backgroundColor: colors.muted }]}>
+                  <Feather name="info" size={12} color={INK_ON_MUTED} />
+                  <Text style={[styles.irsNoteText, { color: INK_ON_MUTED }]}>
+                    Sailors also paid {formatUsd(data.platformFeeTotal)} in Bovogo fees, charged
+                    on top of your cost-share. It never comes out of what you keep.
+                  </Text>
+                </View>
+              )}
               <View style={[styles.irsNote, { backgroundColor: colors.muted }]}>
-                <Feather name="file-text" size={12} color={colors.mutedForeground} />
-                <Text style={[styles.irsNoteText, { color: colors.mutedForeground }]}>
-                  IRS 1099-K required if annual savings exceed $600. Keep records of all trips.
+                <Feather name="file-text" size={12} color={INK_ON_MUTED} />
+                <Text style={[styles.irsNoteText, { color: INK_ON_MUTED }]}>
+                  IRS 1099-K required if annual savings exceed $600. Keep records of every adventure.
                 </Text>
               </View>
             </View>
 
             <Text style={[styles.sectionTitle, { color: colors.foreground, marginBottom: 12 }]}>
-              Trip History
+              Adventure History
             </Text>
 
             {data.trips.length === 0 ? (
@@ -242,22 +242,21 @@ export default function Earnings() {
                   <Feather name="navigation" size={22} color={colors.mutedForeground} />
                 </View>
                 <Text style={[styles.emptyTitle, { color: colors.foreground }]}>
-                  No completed trips yet
+                  No completed adventures yet
                 </Text>
                 <Text style={[styles.emptyBody, { color: colors.mutedForeground }]}>
-                  Once you complete a trip with riders, your cost-recovery and IRS records will show up here automatically.
+                  Once you complete an adventure with Sailors, your cost-recovery and tax records will show up here automatically.
                 </Text>
                 <TouchableOpacity
                   onPress={() => router.push("/post-trip")}
                   style={[styles.emptyCta, { backgroundColor: colors.primary }]}
                   activeOpacity={0.88}
                 >
-                  <Text style={styles.emptyCtaText}>Post a trip</Text>
+                  <Text style={styles.emptyCtaText}>Post an adventure</Text>
                 </TouchableOpacity>
               </View>
             ) : (
               data.trips.map((trip) => {
-                const irsCost = (trip.miles * IRS_RATE).toFixed(2);
                 return (
                   <View key={trip.id} style={[styles.tripCard, CARD_SHADOW]}>
                     <View style={styles.tripTop}>
@@ -271,18 +270,12 @@ export default function Earnings() {
                       </View>
                       <View style={styles.tripRight}>
                         <Text style={[styles.tripTotal, { color: colors.primary }]}>
-                          ${trip.netAmount.toFixed(2)}
+                          {formatUsd(trip.netAmount)}
                         </Text>
                         <Text style={[styles.tripSeats, { color: colors.mutedForeground }]}>
                           {trip.seatsBooked} seat{trip.seatsBooked > 1 ? "s" : ""}
                         </Text>
                       </View>
-                    </View>
-                    <View style={[styles.tripIrs, { backgroundColor: colors.muted }]}>
-                      <Feather name="navigation" size={11} color={colors.mutedForeground} />
-                      <Text style={[styles.tripIrsText, { color: colors.mutedForeground }]}>
-                        IRS cost ({trip.miles} mi × $0.67) = ${irsCost} — within recovery limit
-                      </Text>
                     </View>
                   </View>
                 );

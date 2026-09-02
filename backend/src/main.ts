@@ -11,6 +11,12 @@ import helmet from 'helmet';
 import compression from 'compression';
 import * as express from 'express';
 import * as path from 'path';
+import {
+  createCorsOptions,
+  isProductionEnvironment,
+} from './common/http/cors.config';
+
+type RawBodyRequest = express.Request & { rawBody?: Buffer };
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, {
@@ -21,24 +27,62 @@ async function bootstrap() {
   app.useLogger(app.get(Logger));
 
   app.enableShutdownHooks();
-  app.enableCors({
-    origin: true,
-    methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
-    credentials: true,
-    maxAge: 3600,
-  });
+  app.enableCors(createCorsOptions());
 
   app.use(helmet());
   app.use(compression());
+  // Must precede the global json parser: body-parser sets `req._body` and
+  // short-circuits on the second pass, so a path-specific `verify` registered
+  // afterwards never runs and rawBody is never captured.
+  app.use(
+    '/safety/noonlight/webhook',
+    express.json({
+      type: 'application/json',
+      limit: '1mb',
+      verify: (req: RawBodyRequest, _res, buf) => {
+        req.rawBody = buf;
+      },
+    }),
+  );
+
+  app.use(
+    '/identity/webhook',
+    express.json({
+      type: 'application/json',
+      limit: '5mb',
+      verify: (req: RawBodyRequest, _res, buf) => {
+        req.rawBody = buf;
+      },
+    }),
+  );
+
+  app.use(
+    '/webhooks/checkr',
+    express.json({
+      type: 'application/json',
+      limit: '1mb',
+      verify: (req: RawBodyRequest, _res, buf) => {
+        req.rawBody = buf;
+      },
+    }),
+  );
+
+  app.use(
+    '/api/background-check/webhook',
+    express.json({
+      type: 'application/json',
+      limit: '1mb',
+      verify: (req: RawBodyRequest, _res, buf) => {
+        req.rawBody = buf;
+      },
+    }),
+  );
+
   app.use(express.json({ limit: '10mb' }));
   app.use(express.urlencoded({ extended: true }));
 
   const uploadsDir = path.join(process.cwd(), 'uploads');
   app.use('/uploads', express.static(uploadsDir));
-
-  app.use('/identity/webhook', express.json({ type: 'application/json', limit: '5mb', verify: (req: any, _res, buf) => {
-    (req as any).rawBody = buf;
-  }}));
 
   const allExceptionsFilter = new AllExceptionsFilter(app.get(Logger));
   app.useGlobalFilters(allExceptionsFilter);
@@ -50,10 +94,13 @@ async function bootstrap() {
       transformOptions: { enableImplicitConversion: true },
     }),
   );
-  const auditInterceptor = new AuditInterceptor(app.get(Logger), app.get(AuditService));
+  const auditInterceptor = new AuditInterceptor(
+    app.get(Logger),
+    app.get(AuditService),
+  );
   app.useGlobalInterceptors(auditInterceptor);
 
-  if (process.env.APP_ENV !== 'production') {
+  if (!isProductionEnvironment()) {
     const config = new DocumentBuilder()
       .setTitle('Bovogo API')
       .setDescription('Peer-to-peer carpooling platform API')
@@ -87,4 +134,4 @@ async function bootstrap() {
   const logger = app.get(Logger);
   logger.log(`Bovogo backend running on port ${port}`);
 }
-bootstrap();
+void bootstrap();

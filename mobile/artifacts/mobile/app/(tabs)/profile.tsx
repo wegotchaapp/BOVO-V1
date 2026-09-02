@@ -3,7 +3,6 @@ import * as ImagePicker from "expo-image-picker";
 import { useRouter } from "expo-router";
 import React, { useState } from "react";
 import {
-  Alert,
   Image,
   Platform,
   ScrollView,
@@ -12,11 +11,14 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+
+import { Alert } from "@/lib/alert";
+import { formatUsd, PREMIUM_PRICE_PER_MONTH } from "@/lib/pricing";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useAuth } from "@/context/AuthContext";
 import { useColors } from "@/hooks/useColors";
-import { CARD_SHADOW } from "@/constants/colors";
+import { CARD_SHADOW, GOLD_INK, GOLD_ON_DARK } from "@/constants/colors";
 import { openSupportConversation } from "@/lib/conversations";
 import { confirm, showAlert } from "@/lib/alert";
 
@@ -39,8 +41,8 @@ interface BenefitRow {
 const TRAVEL_PLUS_BENEFITS: BenefitRow[] = [
   { label: "Service fee on bookings", free: "12%", plus: "0%" },
   { label: "Priority match in queue", free: false, plus: true },
-  { label: "Free trip cancellation", free: "1/mo", plus: "Unlimited" },
-  { label: "Premium driver badge", free: false, plus: true },
+  { label: "Free adventure cancellation", free: "1/mo", plus: "Unlimited" },
+  { label: "Premium Voyager badge", free: false, plus: true },
   { label: "24/7 priority support", free: false, plus: true },
 ];
 
@@ -101,14 +103,14 @@ export default function ProfileTab() {
     {
       title: "Account",
       items: [
-        { icon: "map", label: "My Adventures", sublabel: `${user?.trips ?? 0} trips`, route: "/(tabs)/trips" },
+        { icon: "map", label: "My Adventures", sublabel: `${user?.trips ?? 0} adventures`, route: "/(tabs)/trips" },
         {
           icon: "sliders",
           label: "Travel Preferences",
           sublabel:
             user?.preferencesCount && user.preferencesCount > 0
               ? `${user.preferencesCount} of 10 set`
-              : "Set your ride preferences",
+              : "Set your travel preferences",
           route: "/preferences",
         },
         { icon: "bell", label: "Notifications", sublabel: "Manage alerts", route: "/notifications" },
@@ -129,7 +131,7 @@ export default function ProfileTab() {
     {
       title: "Safety",
       items: [
-        { icon: "shield", label: "Verifications", sublabel: user?.isVerified ? "ID verified ✓" : "Complete verification", action: () => router.push("/verify") },
+        { icon: "shield", label: "Verifications", sublabel: user?.isVerified ? "ID verified ✓" : "What we check, and what we don't", action: () => router.push("/verify") },
         { icon: "alert-triangle", label: "Safety Center", sublabel: "SOS, emergency contacts", route: "/safety" },
       ],
     },
@@ -179,7 +181,7 @@ export default function ProfileTab() {
   async function handleDeleteAccount() {
     const step1 = await confirm(
       "Delete Account",
-      "Are you sure you want to delete your Bovogo account?\n\nYour profile, trip history, and data will be permanently erased after a 7-day grace period. You can contact support within 7 days to cancel this request.",
+      "Are you sure you want to delete your Bovogo account?\n\nYour profile, adventure history, and data will be permanently erased after a 7-day grace period. You can contact support within 7 days to cancel this request.",
       { confirmText: "Schedule Deletion", cancelText: "Cancel", destructive: true },
     );
     if (!step1) return;
@@ -200,8 +202,8 @@ export default function ProfileTab() {
     : null;
 
   const badges = [
-    { icon: "check-circle", label: "Verified", color: "#059669", bg: "#ECFDF5", show: user?.isVerified },
-    { icon: "award", label: "Top Rider", color: "#C4954A", bg: "#FEF3E2", show: (user?.trips ?? 0) >= 5 },
+    { icon: "check-circle", label: "Verified", color: colors.success, bg: "#ECFDF5", show: user?.isVerified },
+    { icon: "award", label: "Top Sailor", color: "#111210", bg: "#C4954A", show: (user?.trips ?? 0) >= 5 },
     { icon: "map-pin", label: "Texan", color: colors.primary, bg: colors.secondary, show: true },
   ].filter((b) => b.show);
 
@@ -260,26 +262,28 @@ export default function ProfileTab() {
           )}
           {user?.isFoundingMember && (
             <View style={styles.crownOverlay}>
-              <Feather name="award" size={16} color="#C4954A" />
+              <Feather name="award" size={16} color="#111210" />
             </View>
           )}
           <View style={[styles.cameraOverlay, { backgroundColor: colors.primary }]}>
             <Feather name="camera" size={12} color="#fff" />
           </View>
         </TouchableOpacity>
-        <Text style={[styles.name, { color: colors.foreground }]}>{user?.name ?? "User"}</Text>
+        <Text style={[styles.name, { color: colors.primary }]}>{user?.name ?? "User"}</Text>
 
         <View style={styles.badgesRow}>
           {user?.isFoundingMember && (
-            <View style={[styles.driverBadge, { backgroundColor: "#FEF3E2" }]}>
-              <Feather name="award" size={11} color="#C4954A" />
-              <Text style={[styles.driverBadgeText, { color: "#C4954A" }]}>Founding Member</Text>
+            <View style={[styles.driverBadge, { backgroundColor: "#C4954A" }]}>
+              <Feather name="award" size={11} color="#111210" />
+              <Text style={[styles.driverBadgeText, { color: "#111210" }]}>Founding Member</Text>
             </View>
           )}
           {isDriver && (
-            <View style={[styles.driverBadge, { backgroundColor: "#FEF3E2" }]}>
-              <Feather name="navigation" size={11} color="#C4954A" />
-              <Text style={[styles.driverBadgeText, { color: "#C4954A" }]}>Verified Voyager</Text>
+            <View style={[styles.driverBadge, { backgroundColor: colors.secondary }]}>
+              <Feather name="check-circle" size={11} color={colors.primary} />
+              <Text style={[styles.driverBadgeText, { color: colors.primary }]}>
+                Verified Voyager
+              </Text>
             </View>
           )}
           {badges.map((b) => (
@@ -294,20 +298,20 @@ export default function ProfileTab() {
 
         <View style={styles.statsRow}>
           <View style={styles.stat}>
+            <Text style={[styles.statNum, { color: colors.primary }]}>{user?.trips ?? 0}</Text>
+            <Text style={[styles.statLabel, { color: colors.mutedForeground }]}>Adventures</Text>
+          </View>
+          <View style={[styles.statSep, { backgroundColor: colors.border }]} />
+          <View style={styles.stat}>
             <View style={styles.statValueRow}>
-              <Text style={[styles.statNum, { color: colors.foreground }]}>{user?.rating ?? "5.0"}</Text>
+              <Text style={[styles.statNum, { color: colors.primary }]}>{user?.rating ?? "5.0"}</Text>
               <Feather name="star" size={14} color="#C4954A" />
             </View>
             <Text style={[styles.statLabel, { color: colors.mutedForeground }]}>Rating</Text>
           </View>
           <View style={[styles.statSep, { backgroundColor: colors.border }]} />
           <View style={styles.stat}>
-            <Text style={[styles.statNum, { color: colors.foreground }]}>{user?.trips ?? 0}</Text>
-            <Text style={[styles.statLabel, { color: colors.mutedForeground }]}>Adventures</Text>
-          </View>
-          <View style={[styles.statSep, { backgroundColor: colors.border }]} />
-          <View style={styles.stat}>
-            <Text style={[styles.statNum, { color: colors.foreground }]}>TX</Text>
+            <Text style={[styles.statNum, { color: colors.primary }]}>TX</Text>
             <Text style={[styles.statLabel, { color: colors.mutedForeground }]}>Region</Text>
           </View>
         </View>
@@ -321,7 +325,7 @@ export default function ProfileTab() {
             <Text style={styles.travelPlusBadgeText}>TRAVEL+</Text>
           </View>
           <Text style={styles.travelPlusPrice}>
-            $22<Text style={styles.travelPlusPriceUnit}>/mo</Text>
+            {formatUsd(PREMIUM_PRICE_PER_MONTH)}<Text style={styles.travelPlusPriceUnit}>/mo</Text>
           </Text>
         </View>
         <Text style={styles.travelPlusTitle}>Unlock the full Bovogo experience</Text>
@@ -362,7 +366,7 @@ export default function ProfileTab() {
               </View>
               <View style={[styles.compareCell, { flex: 1 }]}>
                 {row.plus === true ? (
-                  <Feather name="check" size={15} color={colors.accent} />
+                  <Feather name="check" size={15} color={GOLD_ON_DARK} />
                 ) : (
                   <Text style={styles.comparePlusText}>{row.plus}</Text>
                 )}
@@ -381,14 +385,14 @@ export default function ProfileTab() {
               ? "Manage subscription"
               : user?.isFoundingMember
                 ? "Start 1-year free trial"
-                : "Subscribe — $22/month"}
+                : `Subscribe — ${formatUsd(PREMIUM_PRICE_PER_MONTH)}/month`}
           </Text>
-          <Feather name="arrow-right" size={16} color="#fff" />
+          <Feather name="arrow-right" size={16} color={GOLD_INK} />
         </TouchableOpacity>
         <Text style={styles.travelPlusFinePrint}>
           {user?.isFoundingMember
-            ? "Founding members get 1 year free · Cancel anytime · $22/month after"
-            : "Cancel anytime · $22/month"}
+            ? `Founding members get 1 year free · Cancel anytime · ${formatUsd(PREMIUM_PRICE_PER_MONTH)}/month after`
+            : `Cancel anytime · ${formatUsd(PREMIUM_PRICE_PER_MONTH)}/month`}
         </Text>
       </View>
 
@@ -506,7 +510,7 @@ const styles = StyleSheet.create({
     borderRadius: 13,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "#FEF3E2",
+    backgroundColor: "#C4954A",
     borderWidth: 2,
     borderColor: "#fff",
   },
@@ -550,7 +554,7 @@ const styles = StyleSheet.create({
   menuLabelRow: { flexDirection: "row", alignItems: "center", gap: 8 },
   menuLabel: { fontSize: 15, fontFamily: "Inter_500Medium" },
   newBadge: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: 20 },
-  newBadgeText: { color: "#fff", fontSize: 9, fontFamily: "Inter_700Bold", letterSpacing: 0.3 },
+  newBadgeText: { color: GOLD_INK, fontSize: 9, fontFamily: "Inter_700Bold", letterSpacing: 0.3 },
   menuSub: { fontSize: 12, fontFamily: "Inter_400Regular" },
   logoutBtn: {
     flexDirection: "row",
@@ -601,7 +605,7 @@ const styles = StyleSheet.create({
     paddingVertical: 5,
     borderRadius: 20,
   },
-  travelPlusBadgeText: { color: "#fff", fontSize: 11, fontFamily: "Inter_700Bold", letterSpacing: 0.8 },
+  travelPlusBadgeText: { color: GOLD_INK, fontSize: 11, fontFamily: "Inter_700Bold", letterSpacing: 0.8 },
   travelPlusPrice: { color: "#fff", fontSize: 28, fontFamily: "Inter_700Bold", letterSpacing: -0.5 },
   travelPlusPriceUnit: { fontSize: 13, fontFamily: "Inter_500Medium", color: "rgba(255,255,255,0.7)" },
   travelPlusTitle: { color: "#fff", fontSize: 17, fontFamily: "Inter_600SemiBold", letterSpacing: -0.3 },
@@ -638,7 +642,7 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
     borderRadius: 8,
   },
-  comparePlusHeaderText: { color: "#fff", fontSize: 11, fontFamily: "Inter_700Bold", letterSpacing: 0.5 },
+  comparePlusHeaderText: { color: GOLD_INK, fontSize: 11, fontFamily: "Inter_700Bold", letterSpacing: 0.5 },
   compareRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -648,7 +652,7 @@ const styles = StyleSheet.create({
   compareLabel: { color: "rgba(255,255,255,0.92)", fontSize: 13, fontFamily: "Inter_400Regular" },
   compareCell: { alignItems: "center", justifyContent: "center" },
   compareFreeText: { color: "rgba(255,255,255,0.7)", fontSize: 12, fontFamily: "Inter_500Medium", textAlign: "center" },
-  comparePlusText: { color: "#C4954A", fontSize: 12, fontFamily: "Inter_700Bold", textAlign: "center" },
+  comparePlusText: { color: GOLD_ON_DARK, fontSize: 12, fontFamily: "Inter_700Bold", textAlign: "center" },
 
   travelPlusCta: {
     flexDirection: "row",
@@ -659,9 +663,10 @@ const styles = StyleSheet.create({
     borderRadius: 25,
     marginTop: 4,
   },
-  travelPlusCtaText: { color: "#fff", fontSize: 15, fontFamily: "Inter_600SemiBold" },
+  travelPlusCtaText: { color: GOLD_INK, fontSize: 15, fontFamily: "Inter_600SemiBold" },
   travelPlusFinePrint: {
-    color: "rgba(255,255,255,0.5)",
+    // 50% white measured 4.26:1 on the forest card; 60% clears at 5.41:1.
+    color: "rgba(255,255,255,0.6)",
     fontSize: 11,
     fontFamily: "Inter_400Regular",
     textAlign: "center",

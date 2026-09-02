@@ -93,6 +93,7 @@ export default function Layout() {
       items: [
         { to: '/users', label: 'Users', glyph: I.users },
         { to: '/driver-docs', label: 'Driver Docs', glyph: I.docs, badge: counts?.docs },
+        { to: '/vehicle-review', label: 'Vehicle Review', glyph: I.docs },
         { to: '/driver-earnings', label: 'Driver Earnings', glyph: I.earnings },
       ],
     },

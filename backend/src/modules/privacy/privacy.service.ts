@@ -1,15 +1,56 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, In } from 'typeorm';
 import { User } from '../../database/entities/user.entity';
 import { Profile, Vehicle } from '../../database/entities/profile.entities';
-import { Trip, TripPreference, TripZone } from '../../database/entities/trip.entities';
-import { Booking, BookingLuggage, BookingStatusLog, Rating } from '../../database/entities/booking.entities';
-import { Payment, Payout, Refund, InsurancePolicy } from '../../database/entities/payment.entities';
-import { ChatConversation, ChatMessage, ChatBlock, CallRecord } from '../../database/entities/chat.entities';
-import { TripPing, SosEvent, Report, ModerationAction, Suspension, Incident, DeviationEvent, Appeal } from '../../database/entities/safety.entities';
-import { Verification, BackgroundCheck } from '../../database/entities/identity.entities';
-import { Conversation, Message, NotificationLog, NotificationPreference, EmergencyContact, Device } from '../../database/entities/communication.entities';
+import {
+  Trip,
+  TripPreference,
+  TripZone,
+} from '../../database/entities/trip.entities';
+import {
+  Booking,
+  BookingLuggage,
+  BookingStatusLog,
+} from '../../database/entities/booking.entities';
+import {
+  Payment,
+  Payout,
+  Refund,
+  InsurancePolicy,
+} from '../../database/entities/payment.entities';
+import {
+  ChatConversation,
+  ChatMessage,
+  ChatBlock,
+  CallRecord,
+} from '../../database/entities/chat.entities';
+import {
+  TripPing,
+  SosEvent,
+  Report,
+  ModerationAction,
+  Suspension,
+  Incident,
+  DeviationEvent,
+  Appeal,
+} from '../../database/entities/safety.entities';
+import {
+  Verification,
+  BackgroundCheck,
+} from '../../database/entities/identity.entities';
+import {
+  Conversation,
+  Message,
+  NotificationLog,
+  NotificationPreference,
+  EmergencyContact,
+  Device,
+} from '../../database/entities/communication.entities';
 import { AuditEvent } from '../../database/entities/audit.entity';
 import { DriverTrip } from '../../database/entities/driver-trip.entity';
 import { TripReply } from '../../database/entities/trip-reply.entity';
@@ -22,44 +63,71 @@ import { v4 as uuid } from 'uuid';
 export class PrivacyService {
   constructor(
     @InjectRepository(User) private readonly userRepo: Repository<User>,
-    @InjectRepository(Profile) private readonly profileRepo: Repository<Profile>,
-    @InjectRepository(Vehicle) private readonly vehicleRepo: Repository<Vehicle>,
+    @InjectRepository(Profile)
+    private readonly profileRepo: Repository<Profile>,
+    @InjectRepository(Vehicle)
+    private readonly vehicleRepo: Repository<Vehicle>,
     @InjectRepository(Trip) private readonly tripRepo: Repository<Trip>,
-    @InjectRepository(TripPreference) private readonly tripPrefRepo: Repository<TripPreference>,
-    @InjectRepository(TripZone) private readonly tripZoneRepo: Repository<TripZone>,
-    @InjectRepository(Booking) private readonly bookingRepo: Repository<Booking>,
-    @InjectRepository(BookingLuggage) private readonly bookingLuggageRepo: Repository<BookingLuggage>,
-    @InjectRepository(BookingStatusLog) private readonly bookingLogRepo: Repository<BookingStatusLog>,
-    @InjectRepository(Rating) private readonly ratingRepo: Repository<Rating>,
-    @InjectRepository(Payment) private readonly paymentRepo: Repository<Payment>,
+    @InjectRepository(TripPreference)
+    private readonly tripPrefRepo: Repository<TripPreference>,
+    @InjectRepository(TripZone)
+    private readonly tripZoneRepo: Repository<TripZone>,
+    @InjectRepository(Booking)
+    private readonly bookingRepo: Repository<Booking>,
+    @InjectRepository(BookingLuggage)
+    private readonly bookingLuggageRepo: Repository<BookingLuggage>,
+    @InjectRepository(BookingStatusLog)
+    private readonly bookingLogRepo: Repository<BookingStatusLog>,
+    @InjectRepository(Payment)
+    private readonly paymentRepo: Repository<Payment>,
     @InjectRepository(Payout) private readonly payoutRepo: Repository<Payout>,
     @InjectRepository(Refund) private readonly refundRepo: Repository<Refund>,
-    @InjectRepository(InsurancePolicy) private readonly insuranceRepo: Repository<InsurancePolicy>,
-    @InjectRepository(ChatConversation) private readonly chatConvRepo: Repository<ChatConversation>,
-    @InjectRepository(ChatMessage) private readonly chatMsgRepo: Repository<ChatMessage>,
-    @InjectRepository(ChatBlock) private readonly chatBlockRepo: Repository<ChatBlock>,
-    @InjectRepository(CallRecord) private readonly callRecordRepo: Repository<CallRecord>,
+    @InjectRepository(InsurancePolicy)
+    private readonly insuranceRepo: Repository<InsurancePolicy>,
+    @InjectRepository(ChatConversation)
+    private readonly chatConvRepo: Repository<ChatConversation>,
+    @InjectRepository(ChatMessage)
+    private readonly chatMsgRepo: Repository<ChatMessage>,
+    @InjectRepository(ChatBlock)
+    private readonly chatBlockRepo: Repository<ChatBlock>,
+    @InjectRepository(CallRecord)
+    private readonly callRecordRepo: Repository<CallRecord>,
     @InjectRepository(TripPing) private readonly pingRepo: Repository<TripPing>,
     @InjectRepository(SosEvent) private readonly sosRepo: Repository<SosEvent>,
     @InjectRepository(Report) private readonly reportRepo: Repository<Report>,
-    @InjectRepository(ModerationAction) private readonly modActionRepo: Repository<ModerationAction>,
-    @InjectRepository(Suspension) private readonly suspensionRepo: Repository<Suspension>,
-    @InjectRepository(Incident) private readonly incidentRepo: Repository<Incident>,
-    @InjectRepository(DeviationEvent) private readonly deviationRepo: Repository<DeviationEvent>,
+    @InjectRepository(ModerationAction)
+    private readonly modActionRepo: Repository<ModerationAction>,
+    @InjectRepository(Suspension)
+    private readonly suspensionRepo: Repository<Suspension>,
+    @InjectRepository(Incident)
+    private readonly incidentRepo: Repository<Incident>,
+    @InjectRepository(DeviationEvent)
+    private readonly deviationRepo: Repository<DeviationEvent>,
     @InjectRepository(Appeal) private readonly appealRepo: Repository<Appeal>,
-    @InjectRepository(Verification) private readonly verificationRepo: Repository<Verification>,
-    @InjectRepository(BackgroundCheck) private readonly bgCheckRepo: Repository<BackgroundCheck>,
-    @InjectRepository(Conversation) private readonly convRepo: Repository<Conversation>,
+    @InjectRepository(Verification)
+    private readonly verificationRepo: Repository<Verification>,
+    @InjectRepository(BackgroundCheck)
+    private readonly bgCheckRepo: Repository<BackgroundCheck>,
+    @InjectRepository(Conversation)
+    private readonly convRepo: Repository<Conversation>,
     @InjectRepository(Message) private readonly msgRepo: Repository<Message>,
-    @InjectRepository(NotificationLog) private readonly notifLogRepo: Repository<NotificationLog>,
-    @InjectRepository(NotificationPreference) private readonly notifPrefRepo: Repository<NotificationPreference>,
-    @InjectRepository(EmergencyContact) private readonly emergencyRepo: Repository<EmergencyContact>,
+    @InjectRepository(NotificationLog)
+    private readonly notifLogRepo: Repository<NotificationLog>,
+    @InjectRepository(NotificationPreference)
+    private readonly notifPrefRepo: Repository<NotificationPreference>,
+    @InjectRepository(EmergencyContact)
+    private readonly emergencyRepo: Repository<EmergencyContact>,
     @InjectRepository(Device) private readonly deviceRepo: Repository<Device>,
-    @InjectRepository(AuditEvent) private readonly auditRepo: Repository<AuditEvent>,
-    @InjectRepository(DriverTrip) private readonly driverTripRepo: Repository<DriverTrip>,
-    @InjectRepository(TripReply) private readonly tripReplyRepo: Repository<TripReply>,
-    @InjectRepository(UserSession) private readonly userSessionRepo: Repository<UserSession>,
-    @InjectRepository(ComplianceLog) private readonly complianceLogRepo: Repository<ComplianceLog>,
+    @InjectRepository(AuditEvent)
+    private readonly auditRepo: Repository<AuditEvent>,
+    @InjectRepository(DriverTrip)
+    private readonly driverTripRepo: Repository<DriverTrip>,
+    @InjectRepository(TripReply)
+    private readonly tripReplyRepo: Repository<TripReply>,
+    @InjectRepository(UserSession)
+    private readonly userSessionRepo: Repository<UserSession>,
+    @InjectRepository(ComplianceLog)
+    private readonly complianceLogRepo: Repository<ComplianceLog>,
     private readonly logger: PinoLogger,
   ) {}
 
@@ -67,10 +135,16 @@ export class PrivacyService {
     const user = await this.userRepo.findOne({ where: { id: userId } });
     if (!user) throw new NotFoundException('User not found');
 
-    const profile = await this.profileRepo.findOne({ where: { user_id: userId } });
-    const vehicles = await this.vehicleRepo.find({ where: { driver_id: userId } });
+    const profile = await this.profileRepo.findOne({
+      where: { user_id: userId },
+    });
+    const vehicles = await this.vehicleRepo.find({
+      where: { driver_id: userId },
+    });
     const trips = await this.tripRepo.find({ where: { driver_id: userId } });
-    const bookingsAsRider = await this.bookingRepo.find({ where: { rider_id: userId } });
+    const bookingsAsRider = await this.bookingRepo.find({
+      where: { rider_id: userId },
+    });
     const bookingsAsDriver = await this.bookingRepo.find({
       relations: ['trip'],
       where: { trip: { driver_id: userId } },
@@ -79,7 +153,9 @@ export class PrivacyService {
       relations: ['booking'],
       where: { booking: { rider_id: userId } },
     });
-    const payouts = await this.payoutRepo.find({ where: { driver_id: userId } });
+    const payouts = await this.payoutRepo.find({
+      where: { driver_id: userId },
+    });
     const chatConversations = await this.chatConvRepo.find({
       where: { participant_ids: In([userId]) },
     });
@@ -87,20 +163,37 @@ export class PrivacyService {
       where: { sender_id: userId },
     });
     const sosHistory = await this.sosRepo.find({ where: { user_id: userId } });
-    const reports = await this.reportRepo.find({ where: { reporter_id: userId } });
-    const incidents = await this.incidentRepo.find({ where: { user_id: userId } });
-    const verifications = await this.verificationRepo.find({ where: { user_id: userId } });
-    const bgChecks = await this.bgCheckRepo.find({ where: { user_id: userId } });
-    const emergencyContacts = await this.emergencyRepo.find({ where: { user_id: userId } });
-    const devices = await this.deviceRepo.find({ where: { user_id: userId } });
-    const notifPrefs = await this.notifPrefRepo.findOne({ where: { user_id: userId } });
-    const ratings = await this.ratingRepo.find({
-      where: [{ rater_id: userId }, { rated_user_id: userId }],
+    const reports = await this.reportRepo.find({
+      where: { reporter_id: userId },
     });
-    const driverTrips = await this.driverTripRepo.find({ where: { driver_id: userId } });
-    const tripReplies = await this.tripReplyRepo.find({ where: { user_id: userId } });
-    const userSessions = await this.userSessionRepo.find({ where: { user_id: userId } });
-    const complianceLogs = await this.complianceLogRepo.find({ where: { user_id: userId } });
+    const incidents = await this.incidentRepo.find({
+      where: { user_id: userId },
+    });
+    const verifications = await this.verificationRepo.find({
+      where: { user_id: userId },
+    });
+    const bgChecks = await this.bgCheckRepo.find({
+      where: { user_id: userId },
+    });
+    const emergencyContacts = await this.emergencyRepo.find({
+      where: { user_id: userId },
+    });
+    const devices = await this.deviceRepo.find({ where: { user_id: userId } });
+    const notifPrefs = await this.notifPrefRepo.findOne({
+      where: { user_id: userId },
+    });
+    const driverTrips = await this.driverTripRepo.find({
+      where: { driver_id: userId },
+    });
+    const tripReplies = await this.tripReplyRepo.find({
+      where: { user_id: userId },
+    });
+    const userSessions = await this.userSessionRepo.find({
+      where: { user_id: userId },
+    });
+    const complianceLogs = await this.complianceLogRepo.find({
+      where: { user_id: userId },
+    });
 
     const { password_hash, ...safeUser } = user;
 
@@ -119,7 +212,6 @@ export class PrivacyService {
       emergency_contacts: emergencyContacts,
       devices,
       notification_preferences: notifPrefs,
-      ratings,
       driver_trips: driverTrips,
       trip_replies: tripReplies,
       user_sessions: userSessions,
@@ -136,7 +228,9 @@ export class PrivacyService {
     };
   }
 
-  async deleteUserData(userId: string): Promise<{ deleted: boolean; message: string }> {
+  async deleteUserData(
+    userId: string,
+  ): Promise<{ deleted: boolean; message: string }> {
     const user = await this.userRepo.findOne({ where: { id: userId } });
     if (!user) throw new NotFoundException('User not found');
 
@@ -167,7 +261,9 @@ export class PrivacyService {
     await this.callRecordRepo.delete({ caller_id: userId });
     await this.callRecordRepo.delete({ receiver_id: userId });
 
-    const vehicles = await this.vehicleRepo.find({ where: { driver_id: userId } });
+    const vehicles = await this.vehicleRepo.find({
+      where: { driver_id: userId },
+    });
     if (vehicles.length > 0) {
       const vehicleIds = vehicles.map((v) => v.id);
       await this.tripRepo.softDelete({ vehicle_id: In(vehicleIds) });
@@ -184,7 +280,9 @@ export class PrivacyService {
 
     await this.tripRepo.softDelete({ driver_id: userId });
 
-    const bookingsAsRider = await this.bookingRepo.find({ where: { rider_id: userId } });
+    const bookingsAsRider = await this.bookingRepo.find({
+      where: { rider_id: userId },
+    });
     if (bookingsAsRider.length > 0) {
       const bookingIds = bookingsAsRider.map((b) => b.id);
       await this.bookingLuggageRepo.delete({ booking_id: In(bookingIds) });
@@ -196,8 +294,6 @@ export class PrivacyService {
 
     await this.bookingRepo.softDelete({ rider_id: userId });
 
-    await this.ratingRepo.delete({ rater_id: userId });
-    await this.ratingRepo.delete({ rated_user_id: userId });
     await this.payoutRepo.delete({ driver_id: userId });
 
     await this.verificationRepo.delete({ user_id: userId });
@@ -209,7 +305,8 @@ export class PrivacyService {
 
     await this.profileRepo.softDelete({ user_id: userId });
 
-    await this.auditRepo.createQueryBuilder()
+    await this.auditRepo
+      .createQueryBuilder()
       .update()
       .set({ actor_id: null })
       .where('actor_id = :userId', { userId })
@@ -219,10 +316,21 @@ export class PrivacyService {
 
     this.logger.info({ userId }, 'User data deletion completed');
 
-    return { deleted: true, message: 'Your data has been deleted. Audit logs are anonymized per regulatory requirements.' };
+    return {
+      deleted: true,
+      message:
+        'Your data has been deleted. Audit logs are anonymized per regulatory requirements.',
+    };
   }
 
-  async requestDeletion(userId: string, reason: string): Promise<{ message: string; scheduled_at: Date; grace_period_days: number }> {
+  async requestDeletion(
+    userId: string,
+    reason: string,
+  ): Promise<{
+    message: string;
+    scheduled_at: Date;
+    grace_period_days: number;
+  }> {
     const user = await this.userRepo.findOne({ where: { id: userId } });
     if (!user) throw new NotFoundException('User not found');
 
@@ -245,7 +353,10 @@ export class PrivacyService {
       }),
     );
 
-    this.logger.info({ userId, scheduledAt, reason }, 'Account deletion scheduled with grace period');
+    this.logger.info(
+      { userId, scheduledAt, reason },
+      'Account deletion scheduled with grace period',
+    );
 
     return {
       message: `Your deletion request has been received. You have ${gracePeriodDays} days to cancel before data is permanently deleted.`,
@@ -254,12 +365,17 @@ export class PrivacyService {
     };
   }
 
-  async cancelDeletion(userId: string): Promise<{ cancelled: boolean; message: string }> {
+  async cancelDeletion(
+    userId: string,
+  ): Promise<{ cancelled: boolean; message: string }> {
     const user = await this.userRepo.findOne({ where: { id: userId } });
     if (!user) throw new NotFoundException('User not found');
 
     if (!(user as any).deletion_scheduled_at) {
-      return { cancelled: false, message: 'No pending deletion request found.' };
+      return {
+        cancelled: false,
+        message: 'No pending deletion request found.',
+      };
     }
 
     (user as any).deletion_scheduled_at = null;
@@ -277,9 +393,16 @@ export class PrivacyService {
       }),
     );
 
-    this.logger.info({ userId }, 'Account deletion cancelled within grace period');
+    this.logger.info(
+      { userId },
+      'Account deletion cancelled within grace period',
+    );
 
-    return { cancelled: true, message: 'Your deletion request has been cancelled. Your account and data will be retained.' };
+    return {
+      cancelled: true,
+      message:
+        'Your deletion request has been cancelled. Your account and data will be retained.',
+    };
   }
 
   async processScheduledDeletions(): Promise<number> {
@@ -295,7 +418,10 @@ export class PrivacyService {
         await this.deleteUserData(user.id);
         this.logger.info({ userId: user.id }, 'Scheduled deletion processed');
       } catch (err) {
-        this.logger.error({ userId: user.id, err }, 'Failed to process scheduled deletion');
+        this.logger.error(
+          { userId: user.id, err },
+          'Failed to process scheduled deletion',
+        );
       }
     }
 

@@ -7,7 +7,10 @@ import { CheckrWebhookController } from './checkr-webhook.controller';
 import { IdentityService } from './identity.service';
 import { CheckrService } from './checkr.service';
 import { AdverseActionService } from './adverse-action.service';
-import { Verification, BackgroundCheck } from '../../database/entities/identity.entities';
+import {
+  Verification,
+  BackgroundCheck,
+} from '../../database/entities/identity.entities';
 import { User } from '../../database/entities/user.entity';
 import { Incident } from '../../database/entities/safety.entities';
 import { AuditModule } from '../audit/audit.module';
@@ -23,11 +26,7 @@ import { AuditModule } from '../audit/audit.module';
     BackgroundCheckController,
     CheckrWebhookController,
   ],
-  providers: [
-    IdentityService,
-    CheckrService,
-    AdverseActionService,
-  ],
+  providers: [IdentityService, CheckrService, AdverseActionService],
   exports: [IdentityService, CheckrService],
 })
 export class IdentityModule {}

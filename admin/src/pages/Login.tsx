@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { login } from '../lib/api';
+import { getErrorMessage, login } from '../lib/api';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
@@ -16,8 +16,8 @@ export default function LoginPage() {
     try {
       await login(email, password);
       navigate('/');
-    } catch (err: any) {
-      setError(err.response?.data?.message || 'Login failed. Check credentials.');
+    } catch (err: unknown) {
+      setError(getErrorMessage(err, 'Login failed. Check credentials.'));
     } finally {
       setLoading(false);
     }

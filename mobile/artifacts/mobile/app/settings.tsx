@@ -2,7 +2,6 @@ import { Feather } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import React from "react";
 import {
-  Alert,
   Platform,
   SafeAreaView,
   ScrollView,
@@ -11,6 +10,8 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+
+import { Alert } from "@/lib/alert";
 
 import { useAuth } from "@/context/AuthContext";
 import { useColors } from "@/hooks/useColors";
@@ -82,7 +83,7 @@ export default function SettingsScreen() {
             <Text style={[styles.rowSub, { color: colors.mutedForeground }]}>
               {user?.preferencesCount
                 ? `${user.preferencesCount} of 10 set`
-                : "Set your ride preferences"}
+                : "Set your travel preferences"}
             </Text>
           </View>
           <Feather name="chevron-right" size={18} color={colors.mutedForeground} />

@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" name="viewport"/>
+<title>My Adventures - Bovogo</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "on-primary": "#ffffff",
+                        "secondary-container": "#d9e6db",
+                        "on-primary-container": "#84a895",
+                        "on-tertiary-container": "#c7984d",
+                        "on-secondary-fixed-variant": "#3e4941",
+                        "surface-cream": "#f8f7f3",
+                        "on-error-container": "#93000a",
+                        "secondary-fixed-dim": "#bdcabf",
+                        "primary": "#03271a",
+                        "tertiary": "#301e00",
+                        "on-primary-fixed-variant": "#2c4d3f",
+                        "inverse-primary": "#aacfbb",
+                        "surface-container-low": "#f4f4f0",
+                        "primary-fixed-dim": "#aacfbb",
+                        "surface-bright": "#faf9f5",
+                        "secondary-fixed": "#d9e6db",
+                        "on-background": "#1b1c1a",
+                        "sage-secondary": "#67736a",
+                        "error-container": "#ffdad6",
+                        "on-primary-fixed": "#002115",
+                        "outline": "#727974",
+                        "error": "#ba1a1a",
+                        "tertiary-fixed": "#ffddaf",
+                        "on-tertiary-fixed-variant": "#614000",
+                        "primary-container": "#1b3d2f",
+                        "surface-dim": "#dbdad6",
+                        "on-tertiary-fixed": "#281800",
+                        "on-tertiary": "#ffffff",
+                        "forest-ink": "#1b3d2f",
+                        "on-error": "#ffffff",
+                        "sky-scrim": "rgba(0, 0, 0, 0.4)",
+                        "inverse-on-surface": "#f2f1ed",
+                        "outline-variant": "#c1c8c2",
+                        "inverse-surface": "#2f312e",
+                        "background": "#faf9f5",
+                        "gold-accent": "#c4954a",
+                        "on-surface": "#1b1c1a",
+                        "card-white": "#ffffff",
+                        "surface-container": "#efeeea",
+                        "surface": "#faf9f5",
+                        "surface-variant": "#e3e2df",
+                        "on-secondary-fixed": "#131e17",
+                        "tertiary-container": "#4c3200",
+                        "surface-container-highest": "#e3e2df",
+                        "on-secondary-container": "#5b675e",
+                        "tertiary-fixed-dim": "#f1be6e",
+                        "surface-tint": "#436556",
+                        "primary-fixed": "#c5ebd7",
+                        "secondary": "#556159",
+                        "surface-container-lowest": "#ffffff",
+                        "surface-container-high": "#e9e8e4",
+                        "on-surface-variant": "#414844",
+                        "on-secondary": "#ffffff"
+                    },
+                    borderRadius: {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "2xl": "1rem",
+                        "full": "9999px"
+                    },
+                    spacing: {
+                        "gap-standard": "14px",
+                        "base": "4px",
+                        "section-margin": "24px",
+                        "card-padding": "20px",
+                        "screen-padding": "22px"
+                    },
+                    fontFamily: {
+                        "body-md": ["Inter"],
+                        "headline-lg": ["Inter"],
+                        "display-lg": ["Inter"],
+                        "label-md": ["Inter"],
+                        "headline-md": ["Inter"],
+                        "sky-header": ["Inter"]
+                    },
+                    fontSize: {
+                        "body-md": ["14px", { lineHeight: "20px", fontWeight: "400" }],
+                        "headline-lg": ["19px", { lineHeight: "24px", fontWeight: "600" }],
+                        "headline-lg-mobile": ["19px", { lineHeight: "24px", fontWeight: "600" }],
+                        "display-lg": ["26px", { lineHeight: "32px", letterSpacing: "-0.5px", fontWeight: "700" }],
+                        "label-md": ["12px", { lineHeight: "16px", fontWeight: "500" }],
+                        "headline-md": ["16px", { lineHeight: "22px", fontWeight: "600" }],
+                        "sky-header": ["19px", { lineHeight: "24px", fontWeight: "600" }]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        .warm-shadow {
+            box-shadow: 0px 4px 12px 0px rgba(0, 0, 0, 0.07);
+        }
+        .pb-safe {
+            padding-bottom: env(safe-area-inset-bottom);
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-surface-cream font-body-md text-on-surface antialiased min-h-screen pb-[120px]">
+<!-- Top Navigation (Desktop Only) -->
+<nav class="hidden md:flex flex-col w-full px-screen-padding pt-4 gap-4 bg-background w-full top-0 sticky z-50">
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-4">
+<button aria-label="Menu" class="material-symbols-outlined text-primary hover:opacity-80 transition-opacity active:scale-95 duration-150">menu</button>
+<h1 class="font-display-lg text-display-lg text-primary">Adventures</h1>
+</div>
+<div class="flex items-center gap-8">
+<a class="text-sage-secondary font-medium hover:opacity-80 transition-opacity" href="#">Home</a>
+<a class="text-on-primary-container font-semibold border-b-2 border-gold-accent hover:opacity-80 transition-opacity" href="#">Adventures</a>
+<a class="text-sage-secondary font-medium hover:opacity-80 transition-opacity" href="#">Messages</a>
+<a class="text-sage-secondary font-medium hover:opacity-80 transition-opacity" href="#">Profile</a>
+</div>
+<button aria-label="Filter" class="material-symbols-outlined text-primary hover:opacity-80 transition-opacity active:scale-95 duration-150">tune</button>
+</div>
+</nav>
+<!-- Header & Filters -->
+<header class="px-screen-padding pt-8 md:pt-4 pb-4">
+<h1 class="font-display-lg text-display-lg text-forest-ink mb-6 md:hidden">My Adventures</h1>
+<div class="flex bg-surface-container-low rounded-full p-1 border border-outline-variant/30">
+<button class="flex-1 py-2 px-4 rounded-full bg-forest-ink text-on-primary font-label-md text-label-md transition-colors text-center shadow-sm">Upcoming</button>
+<button class="flex-1 py-2 px-4 rounded-full text-sage-secondary font-label-md text-label-md hover:bg-surface-variant transition-colors text-center">Past</button>
+<button class="flex-1 py-2 px-4 rounded-full text-sage-secondary font-label-md text-label-md hover:bg-surface-variant transition-colors text-center">Cancelled</button>
+</div>
+</header>
+<!-- Main Content -->
+<main class="px-screen-padding flex flex-col gap-section-margin">
+<!-- Card 1 (Upcoming - Confirmed) -->
+<article class="bg-card-white rounded-2xl p-card-padding warm-shadow flex flex-col gap-standard">
+<div class="flex justify-between items-start">
+<div class="font-headline-md text-headline-md text-forest-ink">Wed, Aug 19 · 8:00 PM</div>
+<div class="flex items-center gap-1 bg-secondary-container text-primary-container px-2 py-1 rounded-full font-label-md text-label-md">
+<span class="material-symbols-outlined text-[14px]">check_circle</span>
+                    Confirmed
+                </div>
+</div>
+<div class="flex gap-4 items-stretch py-2">
+<div class="flex flex-col items-center justify-between py-1">
+<div class="w-3 h-3 rounded-full bg-forest-ink"></div>
+<div class="flex-1 w-px bg-outline-variant border-dashed border-l-2 my-1"></div>
+<div class="w-3 h-3 rounded-full bg-gold-accent"></div>
+</div>
+<div class="flex flex-col justify-between py-0.5 min-h-[60px]">
+<div class="font-headline-lg-mobile text-headline-lg-mobile text-on-surface">Austin, TX</div>
+<div class="font-headline-lg-mobile text-headline-lg-mobile text-on-surface">Houston, TX</div>
+</div>
+</div>
+<div class="h-px w-full bg-surface-variant"></div>
+<div class="flex justify-between items-center">
+<div class="flex items-center gap-3">
+<div class="w-10 h-10 rounded-full bg-primary-fixed-dim text-forest-ink flex items-center justify-center font-headline-md text-headline-md font-bold">
+                        S
+                    </div>
+<div>
+<div class="font-headline-md text-headline-md text-on-surface">Sushant</div>
+<div class="flex items-center gap-1 text-sage-secondary font-label-md text-label-md">
+<span class="material-symbols-outlined text-[14px] text-gold-accent" style="font-variation-settings: 'FILL' 1;">star</span>
+                            5.0
+                        </div>
+</div>
+</div>
+<div class="text-right">
+<div class="font-headline-md text-headline-md text-on-surface">$32.40</div>
+<div class="font-label-md text-label-md text-sage-secondary">1 seat</div>
+</div>
+</div>
+<div class="flex gap-3 mt-2">
+<button class="flex-1 border border-forest-ink text-forest-ink rounded-full py-2.5 font-headline-md text-headline-md hover:bg-secondary-container transition-colors">Manifest</button>
+<button class="flex-1 border border-error/50 text-error rounded-full py-2.5 font-headline-md text-headline-md hover:bg-error-container transition-colors">Cancel</button>
+</div>
+</article>
+<!-- Card 2 (Upcoming - Pending) -->
+<article class="bg-card-white rounded-2xl p-card-padding warm-shadow flex flex-col gap-standard">
+<div class="flex justify-between items-start">
+<div class="font-headline-md text-headline-md text-forest-ink">Fri, Aug 21 · 7:15 AM</div>
+<div class="flex items-center gap-1 bg-tertiary-fixed text-on-tertiary-fixed-variant px-2 py-1 rounded-full font-label-md text-label-md">
+<span class="material-symbols-outlined text-[14px]">schedule</span>
+                    Pending
+                </div>
+</div>
+<div class="flex gap-4 items-stretch py-2">
+<div class="flex flex-col items-center justify-between py-1">
+<div class="w-3 h-3 rounded-full bg-forest-ink"></div>
+<div class="flex-1 w-px bg-outline-variant border-dashed border-l-2 my-1"></div>
+<div class="w-3 h-3 rounded-full bg-gold-accent"></div>
+</div>
+<div class="flex flex-col justify-between py-0.5 min-h-[60px]">
+<div class="font-headline-lg-mobile text-headline-lg-mobile text-on-surface">Houston, TX</div>
+<div class="font-headline-lg-mobile text-headline-lg-mobile text-on-surface">Austin, TX</div>
+</div>
+</div>
+<div class="h-px w-full bg-surface-variant"></div>
+<div class="flex justify-between items-center">
+<div class="flex items-center gap-3">
+<div class="w-10 h-10 rounded-full bg-surface-tint text-on-primary flex items-center justify-center font-headline-md text-headline-md font-bold">
+                        M
+                    </div>
+<div>
+<div class="font-headline-md text-headline-md text-on-surface">Marisol</div>
+<div class="flex items-center gap-1 text-sage-secondary font-label-md text-label-md">
+<span class="material-symbols-outlined text-[14px] text-gold-accent" style="font-variation-settings: 'FILL' 1;">star</span>
+                            4.8
+                        </div>
+</div>
+</div>
+<div class="text-right">
+<div class="font-headline-md text-headline-md text-on-surface">$64.80</div>
+<div class="font-label-md text-label-md text-sage-secondary">2 seats</div>
+</div>
+</div>
+<div class="flex gap-3 mt-2">
+<button class="flex-1 border border-forest-ink text-forest-ink rounded-full py-2.5 font-headline-md text-headline-md hover:bg-secondary-container transition-colors">Manifest</button>
+<button class="flex-1 border border-error/50 text-error rounded-full py-2.5 font-headline-md text-headline-md hover:bg-error-container transition-colors">Cancel</button>
+</div>
+</article>
+<!-- Card 3 (Past) -->
+<article class="bg-card-white rounded-2xl p-card-padding warm-shadow flex flex-col gap-standard opacity-80">
+<div class="flex justify-between items-start">
+<div class="font-headline-md text-headline-md text-sage-secondary">Sat, Aug 9 · 6:30 PM</div>
+<div class="flex items-center gap-1 bg-surface-variant text-on-surface-variant px-2 py-1 rounded-full font-label-md text-label-md">
+<span class="material-symbols-outlined text-[14px]">history</span>
+                    Completed
+                </div>
+</div>
+<div class="flex gap-4 items-stretch py-2">
+<div class="flex flex-col items-center justify-between py-1">
+<div class="w-3 h-3 rounded-full bg-sage-secondary"></div>
+<div class="flex-1 w-px bg-outline-variant border-dashed border-l-2 my-1"></div>
+<div class="w-3 h-3 rounded-full bg-sage-secondary"></div>
+</div>
+<div class="flex flex-col justify-between py-0.5 min-h-[60px]">
+<div class="font-headline-lg-mobile text-headline-lg-mobile text-on-surface">Austin, TX</div>
+<div class="font-headline-lg-mobile text-headline-lg-mobile text-on-surface">Houston, TX</div>
+</div>
+</div>
+<div class="h-px w-full bg-surface-variant"></div>
+<div class="flex justify-between items-center">
+<div class="flex items-center gap-3">
+<div class="w-10 h-10 rounded-full bg-secondary-fixed text-on-secondary-fixed flex items-center justify-center font-headline-md text-headline-md font-bold">
+                        D
+                    </div>
+<div>
+<div class="font-headline-md text-headline-md text-on-surface">Dan</div>
+</div>
+</div>
+<button class="border border-gold-accent text-gold-accent rounded-full py-1.5 px-6 font-headline-md text-headline-md hover:bg-tertiary-fixed/30 transition-colors">Rate</button>
+</div>
+</article>
+</main>
+<!-- Floating Action Button Area -->
+<div class="fixed bottom-[88px] left-0 w-full px-screen-padding z-40 md:hidden">
+<button class="w-full bg-forest-ink text-on-primary rounded-full py-3.5 font-headline-lg-mobile text-headline-lg-mobile shadow-lg hover:bg-primary-container transition-colors flex justify-center items-center gap-2">
+<span class="material-symbols-outlined">add</span>
+            Post Adventure
+        </button>
+</div>
+<!-- Bottom Navigation Bar (Mobile Only) -->
+<nav class="md:hidden fixed bottom-0 left-0 w-full flex justify-around items-center px-4 py-3 pb-safe bg-card-white shadow-[0_-4px_12px_0_rgba(0,0,0,0.07)] rounded-t-xl z-50">
+<a class="flex flex-col items-center justify-center text-sage-secondary hover:bg-surface-container-low transition-colors active:scale-90 duration-200 p-2 rounded-lg" href="#">
+<span class="material-symbols-outlined mb-1">home</span>
+<span class="font-label-md text-label-md">Home</span>
+</a>
+<a class="flex flex-col items-center justify-center bg-secondary-container text-on-secondary-container rounded-full px-4 py-1 active:scale-90 duration-200" href="#">
+<span class="material-symbols-outlined mb-1" style="font-variation-settings: 'FILL' 1;">explore</span>
+<span class="font-label-md text-label-md">Adventures</span>
+</a>
+<a class="flex flex-col items-center justify-center text-sage-secondary hover:bg-surface-container-low transition-colors active:scale-90 duration-200 p-2 rounded-lg" href="#">
+<span class="material-symbols-outlined mb-1">chat_bubble</span>
+<span class="font-label-md text-label-md">Messages</span>
+</a>
+<a class="flex flex-col items-center justify-center text-sage-secondary hover:bg-surface-container-low transition-colors active:scale-90 duration-200 p-2 rounded-lg" href="#">
+<span class="material-symbols-outlined mb-1">person</span>
+<span class="font-label-md text-label-md">Profile</span>
+</a>
+</nav>
+</body></html>

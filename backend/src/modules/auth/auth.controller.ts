@@ -44,7 +44,10 @@ export class AuthController {
   @Throttle({ default: { limit: 5, ttl: 3600000 } })
   @ApiOperation({ summary: 'Create a pending user and send OTP to phone' })
   @ApiResponse({ status: 201, description: 'Pending user created, OTP sent' })
-  @ApiResponse({ status: 409, description: 'Email or phone already registered' })
+  @ApiResponse({
+    status: 409,
+    description: 'Email or phone already registered',
+  })
   async signup(@Body() dto: SignupDto) {
     return this.authService.signup(dto);
   }
@@ -61,9 +64,18 @@ export class AuthController {
   @Post('register')
   @Throttle({ default: { limit: 5, ttl: 3600000 } })
   @ApiOperation({ summary: 'Register a new user account' })
-  @ApiResponse({ status: 201, description: 'User registered, verification required' })
-  @ApiResponse({ status: 400, description: 'Under 18, breached password, or invalid input' })
-  @ApiResponse({ status: 409, description: 'Email or phone already registered' })
+  @ApiResponse({
+    status: 201,
+    description: 'User registered, verification required',
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Under 18, breached password, or invalid input',
+  })
+  @ApiResponse({
+    status: 409,
+    description: 'Email or phone already registered',
+  })
   async register(@Body() dto: RegisterDto) {
     return this.authService.register(dto);
   }
@@ -91,7 +103,10 @@ export class AuthController {
   @Post('verify-email')
   @ApiOperation({ summary: 'Verify email address with token' })
   @ApiResponse({ status: 200, description: 'Email verified' })
-  @ApiResponse({ status: 400, description: 'Invalid token or already verified' })
+  @ApiResponse({
+    status: 400,
+    description: 'Invalid token or already verified',
+  })
   async verifyEmail(@Body() dto: VerifyEmailDto) {
     await this.authService.verifyEmail(dto.token);
     return { message: 'Email verified successfully' };
@@ -129,7 +144,10 @@ export class AuthController {
   @ApiResponse({ status: 200, description: 'New token pair issued' })
   @ApiResponse({ status: 401, description: 'Invalid or expired refresh token' })
   async refresh(@Body() dto: RefreshTokenDto, @Request() req: any) {
-    return this.authService.refreshToken(dto.refresh_token, req.headers['user-agent']);
+    return this.authService.refreshToken(
+      dto.refresh_token,
+      req.headers['user-agent'],
+    );
   }
 
   @Post('logout')
@@ -153,7 +171,9 @@ export class AuthController {
   }
 
   @Post('supabase')
-  @ApiOperation({ summary: 'Authenticate or sync user via Supabase Auth token' })
+  @ApiOperation({
+    summary: 'Authenticate or sync user via Supabase Auth token',
+  })
   @ApiResponse({ status: 200, description: 'Auth successful' })
   @ApiResponse({ status: 401, description: 'Invalid Supabase token' })
   async supabaseAuth(@Body() dto: SupabaseAuthDto, @Request() req: any) {
@@ -171,7 +191,10 @@ export class AuthController {
   @Post('forgot-password')
   @Throttle({ default: { limit: 3, ttl: 3600000 } })
   @ApiOperation({ summary: 'Request password reset email' })
-  @ApiResponse({ status: 200, description: 'Reset email sent if account exists' })
+  @ApiResponse({
+    status: 200,
+    description: 'Reset email sent if account exists',
+  })
   async forgotPassword(@Body() dto: ForgotPasswordDto) {
     await this.authService.forgotPassword(dto.email);
     return { message: 'If an account exists, a reset link has been sent' };
@@ -181,7 +204,10 @@ export class AuthController {
   @Throttle({ default: { limit: 5, ttl: 3600000 } })
   @ApiOperation({ summary: 'Reset password with token' })
   @ApiResponse({ status: 200, description: 'Password reset successful' })
-  @ApiResponse({ status: 400, description: 'Invalid/expired token or breached password' })
+  @ApiResponse({
+    status: 400,
+    description: 'Invalid/expired token or breached password',
+  })
   async resetPassword(@Body() dto: ResetPasswordDto) {
     await this.authService.resetPassword(dto.token, dto.new_password);
     return { message: 'Password reset successfully' };
@@ -199,7 +225,10 @@ export class AuthController {
   @ApiBearerAuth('JWT')
   @UseGuards(AuthGuard('jwt'))
   @ApiOperation({ summary: 'Update current user profile' })
-  async updateProfile(@Request() req: any, @Body() updates: { name?: string; phone?: string }) {
+  async updateProfile(
+    @Request() req: any,
+    @Body() updates: { name?: string; phone?: string },
+  ) {
     return this.authService.updateProfile(req.user.id, updates);
   }
 
@@ -207,7 +236,9 @@ export class AuthController {
   @ApiBearerAuth('JWT')
   @UseGuards(AuthGuard('jwt'))
   @Throttle({ default: { limit: 1, ttl: 86400000 } })
-  @ApiOperation({ summary: 'Accept biometric data collection consent (Texas BUIA)' })
+  @ApiOperation({
+    summary: 'Accept biometric data collection consent (Texas BUIA)',
+  })
   async acceptBiometricConsent(@Request() req: any) {
     return this.authService.acceptBiometricConsent(req.user.id);
   }
@@ -216,7 +247,10 @@ export class AuthController {
   @ApiBearerAuth('JWT')
   @UseGuards(AuthGuard('jwt'))
   @ApiOperation({ summary: 'Switch user role (driver/rider/both)' })
-  async switchRole(@Request() req: any, @Body('selected_role') selected_role: 'rider' | 'driver' | 'both') {
+  async switchRole(
+    @Request() req: any,
+    @Body('selected_role') selected_role: 'rider' | 'driver' | 'both',
+  ) {
     return this.authService.switchRole(req.user.id, selected_role);
   }
 }

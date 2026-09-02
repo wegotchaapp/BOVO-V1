@@ -1,4 +1,11 @@
-import { Entity, Column, PrimaryColumn, CreateDateColumn, Unique, Index } from 'typeorm';
+import {
+  Entity,
+  Column,
+  PrimaryColumn,
+  CreateDateColumn,
+  Unique,
+  Index,
+} from 'typeorm';
 
 @Entity('trip_groups')
 @Unique(['trip_id'])

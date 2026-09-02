@@ -1,10 +1,19 @@
-import { useState, useEffect } from 'react';
-import { getSubscriptions, overrideTrial } from '../lib/api';
+import { useState, useEffect, useCallback } from 'react';
+import { getSubscriptions, getErrorMessage, overrideTrial } from '../lib/api';
 import { ErrorNotice, EmptyState } from '../components/QueryState';
 import ConfirmDialog, { type ConfirmRequest } from '../components/ConfirmDialog';
 
+interface Subscription {
+  id: string;
+  name?: string;
+  email: string;
+  subscription_tier: string;
+  trial_ended_at?: string;
+  created_at: string;
+}
+
 export default function SubscriptionsPage() {
-  const [subs, setSubs] = useState<any[]>([]);
+  const [subs, setSubs] = useState<Subscription[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
   const [tier, setTier] = useState('');
@@ -13,16 +22,19 @@ export default function SubscriptionsPage() {
   const [msg, setMsg] = useState('');
   const [dialog, setDialog] = useState<ConfirmRequest | null>(null);
 
-  const fetch = () => {
+  const fetch = useCallback(() => {
     setLoading(true);
     setError(null);
     getSubscriptions({ tier: tier || undefined, page })
       .then((r) => { setSubs(r.subscriptions); setTotal(r.total); })
-      .catch((e: any) => setError(e?.response?.data?.message || e?.message || 'Could not load this data.'))
+      .catch((e: unknown) => setError(getErrorMessage(e, 'Could not load this data.')))
       .finally(() => setLoading(false));
-  };
+  }, [page, tier]);
 
-  useEffect(() => { fetch(); }, [page, tier]);
+  useEffect(() => {
+    const timeoutId = window.setTimeout(fetch, 0);
+    return () => window.clearTimeout(timeoutId);
+  }, [fetch]);
 
   // The old prompt() passed its raw string to parseInt, so any non-numeric
   // entry sent NaN to the API. The dialog now rejects anything that isn't a
@@ -77,7 +89,7 @@ export default function SubscriptionsPage() {
                 </tr>
               </thead>
               <tbody>
-                {subs.map((s: any) => (
+                {subs.map((s) => (
                   <tr key={s.id} className="border-b border-border text-ink hover:bg-card">
                     <td className="py-3 px-2">{s.name || '—'}</td>
                     <td className="py-3 px-2 text-ink-soft">{s.email}</td>

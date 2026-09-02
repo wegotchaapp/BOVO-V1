@@ -2,20 +2,41 @@ import { Injectable, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, In } from 'typeorm';
 import { ConfigService } from '@nestjs/config';
-import { TripPing, SosEvent, Incident, DeviationEvent } from '../../database/entities/safety.entities';
+import {
+  TripPing,
+  SosEvent,
+  Incident,
+  DeviationEvent,
+} from '../../database/entities/safety.entities';
 import { Booking } from '../../database/entities/booking.entities';
 import { Trip } from '../../database/entities/trip.entities';
 import { User } from '../../database/entities/user.entity';
 import { EmergencyContact } from '../../database/entities/communication.entities';
-import { SosTriggerType, SosStatus, DeviationStatus, BookingStatus, UserRole } from '../../common/enums';
+import {
+  SosTriggerType,
+  SosStatus,
+  DeviationStatus,
+  BookingStatus,
+  UserRole,
+} from '../../common/enums';
 import { PinoLogger } from 'nestjs-pino';
 import axios from 'axios';
 import { RealtimeGateway } from '../../common/gateways/realtime.gateway';
+import { MobileSosEvent } from '../mobile-api/entities/mobile.entities';
+import { NoonlightService } from '../noonlight/noonlight.service';
+import { RoutingService } from '../routing/routing.service';
+import { distanceFromRouteMiles } from '../../common/geo/route-geometry';
 import { NotificationsService } from '../notifications/notifications.service';
+
+/**
+ * Kept short: an SOS must not stall behind a slow third party. If Noonlight
+ * hasn't answered in this window we escalate locally and move on.
+ */
+/** Miles off the trip's own route before it counts as a deviation. */
+const DEVIATION_THRESHOLD_MILES = 5;
 
 @Injectable()
 export class SafetyService {
-  private mapboxAccessToken: string;
   private appUrl: string;
 
   constructor(
@@ -35,15 +56,24 @@ export class SafetyService {
     private readonly userRepo: Repository<User>,
     @InjectRepository(EmergencyContact)
     private readonly emergencyContactRepo: Repository<EmergencyContact>,
+    @InjectRepository(MobileSosEvent)
+    private readonly mobileSosRepo: Repository<MobileSosEvent>,
     private readonly config: ConfigService,
     private readonly logger: PinoLogger,
     private readonly notifications: NotificationsService,
     private readonly realtime: RealtimeGateway,
+    private readonly noonlight: NoonlightService,
+    private readonly routing: RoutingService,
   ) {
-    this.mapboxAccessToken = this.config.get<string>('MAPBOX_ACCESS_TOKEN') || '';
     this.appUrl = this.config.get<string>('APP_URL') || 'https://bovogo.app';
   }
 
+  /**
+   * Creates a Noonlight alarm so a real dispatcher is engaged alongside our own
+   * escalation. Never throws: the local SOS flow (emergency contacts, ops
+   * paging, 911 on-device) must complete even if Noonlight is unreachable.
+   * Returns the alarm id, or null when unconfigured or the call fails.
+   */
   async receivePing(
     userId: string,
     bookingId: string,
@@ -83,19 +113,41 @@ export class SafetyService {
       last_ping_at: new Date().toISOString(),
     });
 
-    const deviationResult = await this.detectRouteDeviation(booking, latitude, longitude);
+    const deviationResult = await this.detectRouteDeviation(
+      booking,
+      latitude,
+      longitude,
+    );
 
     const trip = booking.trip;
     let eta: number | null = null;
     let progress: number | null = null;
     if (trip.dest_lat && trip.dest_lng) {
-      const distToDest = this.haversineDistance(latitude, longitude, trip.dest_lat, trip.dest_lng);
-      eta = Math.round(distToDest / 30 * 60);
+      const distToDest = this.haversineDistance(
+        latitude,
+        longitude,
+        trip.dest_lat,
+        trip.dest_lng,
+      );
+      eta = Math.round((distToDest / 30) * 60);
     }
     if (trip.origin_lat && trip.origin_lng && trip.dest_lat && trip.dest_lng) {
-      const totalDist = this.haversineDistance(trip.origin_lat, trip.origin_lng, trip.dest_lat, trip.dest_lng);
-      const distTraveled = this.haversineDistance(trip.origin_lat, trip.origin_lng, latitude, longitude);
-      progress = totalDist > 0 ? Math.min(100, Math.round(distTraveled / totalDist * 100)) : 0;
+      const totalDist = this.haversineDistance(
+        trip.origin_lat,
+        trip.origin_lng,
+        trip.dest_lat,
+        trip.dest_lng,
+      );
+      const distTraveled = this.haversineDistance(
+        trip.origin_lat,
+        trip.origin_lng,
+        latitude,
+        longitude,
+      );
+      progress =
+        totalDist > 0
+          ? Math.min(100, Math.round((distTraveled / totalDist) * 100))
+          : 0;
     }
 
     this.realtime.emitTripPing(bookingId, {
@@ -118,25 +170,36 @@ export class SafetyService {
   ): Promise<boolean> {
     const trip = booking.trip;
     if (!trip.mapbox_route_polyline) {
-      this.logger.info({ bookingId: booking.id }, 'No route polyline stored, skipping deviation check');
+      this.logger.info(
+        { bookingId: booking.id },
+        'No route polyline stored, skipping deviation check',
+      );
       return false;
     }
 
     try {
-      const snappedPoint = await this.snapToRoad(lat, lng);
-      if (!snappedPoint) {
-        this.logger.warn({ lat, lng }, 'Could not snap point to road');
+      // Distance from *this trip's* route, not from the nearest road. The old
+      // implementation asked Mapbox to snap the point to the road network and
+      // measured how far it moved, which answers a different question: a driver
+      // 200 miles off course but on a highway measured zero, and one parked in a
+      // field measured a deviation. The polyline checked for above was never
+      // read. It also sent a single coordinate to Map Matching, which requires
+      // at least two, so every call 422'd and the feature never once fired.
+      const route = this.routing.decode(trip.mapbox_route_polyline);
+      const distanceFromRoute = distanceFromRouteMiles(
+        { latitude: lat, longitude: lng },
+        route,
+      );
+
+      if (distanceFromRoute === null) {
+        this.logger.warn(
+          { bookingId: booking.id },
+          'Stored route decoded to nothing — cannot check deviation',
+        );
         return false;
       }
 
-      const distanceFromRoute = this.haversineDistance(
-        snappedPoint.latitude,
-        snappedPoint.longitude,
-        lat,
-        lng,
-      );
-
-      if (distanceFromRoute > 5) {
+      if (distanceFromRoute > DEVIATION_THRESHOLD_MILES) {
         this.logger.warn(
           { bookingId: booking.id, deviationMiles: distanceFromRoute },
           'Route deviation detected (>5 miles)',
@@ -148,30 +211,20 @@ export class SafetyService {
 
       return false;
     } catch (err) {
-      this.logger.warn({ err, bookingId: booking.id }, 'Deviation detection failed');
+      this.logger.warn(
+        { err, bookingId: booking.id },
+        'Deviation detection failed',
+      );
       return false;
     }
   }
 
-  private async snapToRoad(lat: number, lng: number): Promise<{ latitude: number; longitude: number } | null> {
-    if (!this.mapboxAccessToken) return null;
-
-    try {
-      const url = `https://api.mapbox.com/matching/v5/mapbox/driving/${lng},${lat}?access_token=${this.mapboxAccessToken}&radiuses=50&geometries=geojson&overview=false`;
-      const { data } = await axios.get(url);
-
-      if (data.features && data.features.length > 0) {
-        const coords = data.features[0].geometry.coordinates[0];
-        return { longitude: coords[0], latitude: coords[1] };
-      }
-      return null;
-    } catch (err) {
-      this.logger.warn({ err }, 'Mapbox Map Matching failed');
-      return null;
-    }
-  }
-
-  private haversineDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
+  private haversineDistance(
+    lat1: number,
+    lon1: number,
+    lat2: number,
+    lon2: number,
+  ): number {
     const R = 3959;
     const dLat = this.toRad(lat2 - lat1);
     const dLon = this.toRad(lon2 - lon1);
@@ -213,7 +266,11 @@ export class SafetyService {
       'safety',
       'Route Deviation Detected',
       `Your trip with ${driverName} has deviated from the expected route. Are you ok?`,
-      { booking_id: booking.id, deviation_id: deviation.id, screen: `booking/${booking.id}` },
+      {
+        booking_id: booking.id,
+        deviation_id: deviation.id,
+        screen: `booking/${booking.id}`,
+      },
     );
 
     await this.notifications.send(
@@ -224,16 +281,26 @@ export class SafetyService {
       { booking_id: booking.id, deviation_id: deviation.id },
     );
 
-    setTimeout(async () => {
-      const fresh = await this.deviationRepo.findOne({ where: { id: deviation.id } });
-      if (fresh && fresh.status === DeviationStatus.PENDING) {
-        await this.escalateDeviation(deviation.id, booking);
-      }
-    }, 5 * 60 * 1000);
+    setTimeout(
+      async () => {
+        const fresh = await this.deviationRepo.findOne({
+          where: { id: deviation.id },
+        });
+        if (fresh && fresh.status === DeviationStatus.PENDING) {
+          await this.escalateDeviation(deviation.id, booking);
+        }
+      },
+      5 * 60 * 1000,
+    );
   }
 
-  private async escalateDeviation(deviationId: string, booking: Booking): Promise<void> {
-    const deviation = await this.deviationRepo.findOne({ where: { id: deviationId } });
+  private async escalateDeviation(
+    deviationId: string,
+    booking: Booking,
+  ): Promise<void> {
+    const deviation = await this.deviationRepo.findOne({
+      where: { id: deviationId },
+    });
     if (!deviation || deviation.status !== DeviationStatus.PENDING) return;
 
     deviation.status = DeviationStatus.ESCALATED;
@@ -248,7 +315,10 @@ export class SafetyService {
     );
   }
 
-  private async pageTeamAndEscalate(booking: Booking, description?: string): Promise<void> {
+  private async pageTeamAndEscalate(
+    booking: Booking,
+    description?: string,
+  ): Promise<void> {
     const tsAgents = await this.userRepo.find({
       where: { role: UserRole.TS_AGENT },
     });
@@ -263,13 +333,21 @@ export class SafetyService {
     }
   }
 
-  async respondToDeviation(deviationId: string, response: string): Promise<void> {
-    const deviation = await this.deviationRepo.findOne({ where: { id: deviationId } });
+  async respondToDeviation(
+    deviationId: string,
+    response: string,
+  ): Promise<void> {
+    const deviation = await this.deviationRepo.findOne({
+      where: { id: deviationId },
+    });
     if (!deviation) throw new BadRequestException('Deviation event not found');
 
     deviation.response = response;
     deviation.responded_at = new Date().toISOString();
-    deviation.status = response === 'ok' ? DeviationStatus.RESPONDED_OK : DeviationStatus.FALSE_ALARM;
+    deviation.status =
+      response === 'ok'
+        ? DeviationStatus.RESPONDED_OK
+        : DeviationStatus.FALSE_ALARM;
     await this.deviationRepo.save(deviation);
   }
 
@@ -279,6 +357,7 @@ export class SafetyService {
     bookingId: string | undefined,
     lat: number,
     lng: number,
+    accuracyMeters?: number,
   ): Promise<{ sos_id: string; noonlight_alarm_id: string | null }> {
     const user = await this.userRepo.findOne({ where: { id: userId } });
     if (!user) throw new BadRequestException('User not found');
@@ -297,22 +376,17 @@ export class SafetyService {
       }
     }
 
-    const location = {
-      latitude: lat,
-      longitude: lng,
-      address: {
-        line1: 'GPS Location',
-        city: '',
-        state: '',
-        zip: '',
-        country: 'US',
-      },
-    };
-
-    const person = {
+    // Dispatch to Noonlight first so professional responders are engaged as
+    // early as possible; the call is non-throwing and returns null on failure.
+    const noonlightAlarmId = await this.noonlight.createAlarm({
       name: user.name,
-      phone: user.phone || '',
-    };
+      phone: user.phone,
+      lat,
+      lng,
+      accuracyMeters,
+      instructions:
+        `Bovogo SOS activated via ${triggerType}. ${tripContext}`.trim(),
+    });
 
     const sosEvent = this.sosRepo.create({
       user_id: userId,
@@ -321,7 +395,7 @@ export class SafetyService {
       status: SosStatus.ACTIVE,
       latitude: lat,
       longitude: lng,
-      noonlight_alarm_id: null,
+      noonlight_alarm_id: noonlightAlarmId,
     });
     const savedSos = await this.sosRepo.save(sosEvent);
 
@@ -334,9 +408,9 @@ export class SafetyService {
     });
     await this.incidentRepo.save(incident);
 
-    if (bookingId && booking) {
-      await this.notifyEmergencyContacts(user, lat, lng);
-    }
+    // Always notify emergency contacts. Previously this was gated on a booking
+    // existing, so an SOS raised outside a trip silently told nobody.
+    await this.notifyEmergencyContacts(user, lat, lng);
 
     await this.pageTeamAndEscalate(
       booking!,
@@ -345,7 +419,7 @@ export class SafetyService {
 
     return {
       sos_id: savedSos.id,
-      noonlight_alarm_id: null,
+      noonlight_alarm_id: noonlightAlarmId,
     };
   }
 
@@ -392,7 +466,10 @@ export class SafetyService {
 
     const user = await this.userRepo.findOne({ where: { id: userId } });
 
-    if (user?.safe_word && safeWord.toLowerCase() === user.safe_word.toLowerCase()) {
+    if (
+      user?.safe_word &&
+      safeWord.toLowerCase() === user.safe_word.toLowerCase()
+    ) {
       sosEvent.status = SosStatus.FALSE_ALARM;
       await this.sosRepo.save(sosEvent);
 
@@ -418,25 +495,187 @@ export class SafetyService {
     return { status: 'safe_word_mismatch' };
   }
 
-  async handleNoonlightWebhook(payload: { alarm_id: string; status: string; dispatch_status?: string }): Promise<void> {
+  /**
+   * Applies one Noonlight event to its SOS record.
+   *
+   * The shape here is what the sandbox actually sends, captured from a live
+   * callback — not what this method originally assumed. Noonlight posts an
+   * **array** of events, the alarm id sits under `meta`, and there is no
+   * `status` field at all; the verb is `event_type`:
+   *
+   *   [{ event_id, event_time, event_type: "alarm.closed", meta: { alarm_id } }]
+   */
+  /**
+   * Maps a Noonlight event verb to a status, or null when we have not seen it.
+   *
+   * Noonlight documents exactly three webhook verbs, and two of the three we
+   * used to map were invented — `alarm.dispatched` and `alarm.canceled` are not
+   * strings Noonlight ever sends, so the only event that did anything was
+   * `alarm.closed`. A cancelled alarm was silently dropped as unmapped, and
+   * DISPATCHED was unreachable by any real callback.
+   *
+   *   alarm.closed          — closed by the Noonlight dispatcher.
+   *   alarm.status.canceled — the user cancelled, via the dispatcher's text/call.
+   *   alarm.psap_contacted  — an outbound call to the PSAP. May fire many times.
+   *
+   * `alarm.psap_contacted` is the genuine "help is being reached" signal, so it
+   * is what DISPATCHED now hangs on. A user-cancelled alarm maps to FALSE_ALARM
+   * rather than RESOLVED because that is already what cancelSOS() records when
+   * the same person cancels the same alarm through the app with their safe word
+   * — one real-world outcome should not get two names based on the channel.
+   */
+  private mapEventType(eventType: string): SosStatus | null {
+    // Verified against a live sandbox callback.
+    if (eventType === 'alarm.closed') return SosStatus.RESOLVED;
+
+    // Documented by Noonlight but never yet observed here.
+    if (eventType === 'alarm.status.canceled') return SosStatus.FALSE_ALARM;
+    if (eventType === 'alarm.psap_contacted') return SosStatus.DISPATCHED;
+
+    // The two verbs we previously invented, kept only as aliases: if Noonlight's
+    // docs turn out to lag their traffic, these carry the same meaning as the
+    // documented verbs above and so cannot produce a state the others would not.
+    if (eventType === 'alarm.canceled') return SosStatus.FALSE_ALARM;
+    if (eventType === 'alarm.dispatched') return SosStatus.DISPATCHED;
+
+    // Anything else is left alone rather than guessed at — this is the status of
+    // a live emergency, and a wrong guess reads as a resolved incident.
+    return null;
+  }
+
+  /**
+   * Statuses that mean the incident is over. Nothing moves out of one.
+   *
+   * `alarm.psap_contacted` is documented to fire repeatedly, and webhooks can
+   * arrive out of order or be replayed, so without this a late PSAP callback
+   * would reopen a closed emergency as DISPATCHED.
+   */
+  // Widened to `string`: the mobile entity types its column as a literal union
+  // rather than the SosStatus enum, and both call sites share this guard.
+  private isTerminal(status: string): boolean {
+    return status === SosStatus.RESOLVED || status === SosStatus.FALSE_ALARM;
+  }
+
+  private async applyMobileEvent(
+    sos: MobileSosEvent,
+    eventType: string,
+    alarmId: string,
+  ): Promise<{
+    applied: boolean;
+    reason?: 'no_change' | 'unmapped_event' | 'already_terminal';
+  }> {
+    const next = this.mapEventType(eventType);
+    if (next === null) {
+      this.logger.warn(
+        { mobileSosId: sos.id, alarmId, eventType },
+        'Noonlight event type not mapped — mobile SOS status left unchanged',
+      );
+      return { applied: false, reason: 'unmapped_event' };
+    }
+    if (sos.status === next) {
+      return { applied: false, reason: 'no_change' };
+    }
+    if (this.isTerminal(sos.status)) {
+      this.logger.warn(
+        { mobileSosId: sos.id, alarmId, eventType, status: sos.status, next },
+        'Noonlight event arrived after the mobile SOS closed — status left terminal',
+      );
+      return { applied: false, reason: 'already_terminal' };
+    }
+    sos.status = next;
+    await this.mobileSosRepo.save(sos);
+    this.logger.info(
+      { mobileSosId: sos.id, alarmId, eventType, newStatus: next },
+      'Mobile SOS status updated via Noonlight webhook',
+    );
+    return { applied: true };
+  }
+
+  async handleNoonlightEvent(event: {
+    event_type?: string;
+    meta?: { alarm_id?: string };
+  }): Promise<{
+    applied: boolean;
+    reason?:
+      | 'unknown_alarm'
+      | 'no_change'
+      | 'unmapped_event'
+      | 'already_terminal';
+  }> {
+    const alarmId = event.meta?.alarm_id;
+    const eventType = event.event_type ?? '';
+
+    if (!alarmId) {
+      this.logger.warn(
+        { eventType },
+        'Noonlight event carried no meta.alarm_id',
+      );
+      return { applied: false, reason: 'unknown_alarm' };
+    }
+
     const sosEvent = await this.sosRepo.findOne({
-      where: { noonlight_alarm_id: payload.alarm_id },
+      where: { noonlight_alarm_id: alarmId },
     });
+
+    // An alarm raised from the app lives in mobile_sos_events, not here: the
+    // two auth layers keep separate user tables and sos_events.user_id is a
+    // foreign key onto the platform `users`. Either table may own the alarm.
     if (!sosEvent) {
-      this.logger.warn({ alarmId: payload.alarm_id }, 'Noonlight webhook for unknown alarm');
-      return;
+      const mobileSos = await this.mobileSosRepo.findOne({
+        where: { noonlight_alarm_id: alarmId },
+      });
+      if (!mobileSos) {
+        this.logger.warn(
+          { alarmId, eventType },
+          'Noonlight event for unknown alarm',
+        );
+        return { applied: false, reason: 'unknown_alarm' };
+      }
+      return this.applyMobileEvent(mobileSos, eventType, alarmId);
     }
 
-    if (payload.status === 'dispatched') {
-      sosEvent.status = SosStatus.DISPATCHED;
-    } else if (payload.status === 'cancelled') {
-      sosEvent.status = SosStatus.FALSE_ALARM;
+    // Only mappings confirmed against real sandbox traffic. Anything else is
+    // logged and left alone rather than guessed at — this is the status of a
+    // live emergency, and a wrong guess here reads as a resolved incident.
+    const next = this.mapEventType(eventType);
+
+    if (next === null) {
+      this.logger.warn(
+        { sosId: sosEvent.id, alarmId, eventType },
+        'Noonlight event type not mapped — SOS status left unchanged',
+      );
+      return { applied: false, reason: 'unmapped_event' };
     }
 
-    if (sosEvent.status !== undefined) {
-      await this.sosRepo.save(sosEvent);
-      this.logger.info({ sosId: sosEvent.id, newStatus: sosEvent.status }, 'SOS status updated via Noonlight webhook');
+    if (sosEvent.status === next) {
+      this.logger.info(
+        { sosId: sosEvent.id, eventType, status: next },
+        'Noonlight event carried no status change',
+      );
+      return { applied: false, reason: 'no_change' };
     }
+
+    if (this.isTerminal(sosEvent.status)) {
+      this.logger.warn(
+        {
+          sosId: sosEvent.id,
+          alarmId,
+          eventType,
+          status: sosEvent.status,
+          next,
+        },
+        'Noonlight event arrived after the SOS closed — status left terminal',
+      );
+      return { applied: false, reason: 'already_terminal' };
+    }
+
+    sosEvent.status = next;
+    await this.sosRepo.save(sosEvent);
+    this.logger.info(
+      { sosId: sosEvent.id, alarmId, eventType, newStatus: next },
+      'SOS status updated via Noonlight webhook',
+    );
+    return { applied: true };
   }
 
   async submitUnsafeFeeling(
@@ -488,14 +727,18 @@ export class SafetyService {
     return { incident_id: savedIncident.id };
   }
 
-  async getTrackToken(bookingId: string): Promise<{ share_token: string; url: string }> {
+  async getTrackToken(
+    bookingId: string,
+  ): Promise<{ share_token: string; url: string }> {
     const booking = await this.bookingRepo.findOne({
       where: { id: bookingId },
       relations: ['trip'],
     });
     if (!booking) throw new BadRequestException('Booking not found');
     if (!['en_route', 'in_progress', 'completed'].includes(booking.status)) {
-      throw new BadRequestException('Tracking not available until ride has started');
+      throw new BadRequestException(
+        'Tracking not available until ride has started',
+      );
     }
 
     if (!booking.share_token) {
@@ -528,7 +771,9 @@ export class SafetyService {
         throw new BadRequestException('Tracking link expired');
       }
     } else if (!['en_route', 'in_progress'].includes(booking.status)) {
-      throw new BadRequestException('Tracking not available until ride has started');
+      throw new BadRequestException(
+        'Tracking not available until ride has started',
+      );
     }
 
     const latestPing = await this.pingRepo.findOne({
@@ -549,8 +794,14 @@ export class SafetyService {
     let eta: number | null = null;
     if (currentLat && currentLng && trip.dest_lat && trip.dest_lng) {
       eta = Math.round(
-        this.haversineDistance(currentLat, currentLng, trip.dest_lat, trip.dest_lng) /
-          30 * 60,
+        (this.haversineDistance(
+          currentLat,
+          currentLng,
+          trip.dest_lat,
+          trip.dest_lng,
+        ) /
+          30) *
+          60,
       );
     }
 
@@ -640,12 +891,17 @@ export class SafetyService {
             { booking_id: booking.id, deviation_id: deviation.id },
           );
 
-          setTimeout(async () => {
-            const fresh = await this.deviationRepo.findOne({ where: { id: deviation.id } });
-            if (fresh && fresh.status === DeviationStatus.PENDING) {
-              await this.escalateDeviation(deviation.id, booking);
-            }
-          }, 5 * 60 * 1000);
+          setTimeout(
+            async () => {
+              const fresh = await this.deviationRepo.findOne({
+                where: { id: deviation.id },
+              });
+              if (fresh && fresh.status === DeviationStatus.PENDING) {
+                await this.escalateDeviation(deviation.id, booking);
+              }
+            },
+            5 * 60 * 1000,
+          );
         }
       }
     }

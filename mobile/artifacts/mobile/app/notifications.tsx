@@ -2,7 +2,6 @@ import { Feather } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import React, { useState } from "react";
 import {
-  Alert,
   Platform,
   SafeAreaView,
   ScrollView,
@@ -12,6 +11,8 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+
+import { Alert } from "@/lib/alert";
 
 import { useAuth, type NotificationSettings } from "@/context/AuthContext";
 import { useColors } from "@/hooks/useColors";
@@ -34,7 +35,7 @@ const ROWS: {
   },
   {
     key: "tripUpdates",
-    label: "Trip updates",
+    label: "Adventure updates",
     sub: "Departures, delays, and cancellations",
   },
   {

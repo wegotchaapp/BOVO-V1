@@ -31,13 +31,25 @@ export class InsuranceService {
         }
         return await response.json();
       } catch (error) {
-        this.logger.error({ bookingId, userId, error }, 'MGA policy activation failed');
-        throw new InternalServerErrorException('Insurance policy activation failed');
+        this.logger.error(
+          { bookingId, userId, error },
+          'MGA policy activation failed',
+        );
+        throw new InternalServerErrorException(
+          'Insurance policy activation failed',
+        );
       }
     }
 
-    this.logger.info({ bookingId, userId }, 'Insurance policy activated (mock)');
-    return { policy_number: `WG-INS-${Date.now()}`, status: 'active', provider: 'mock' };
+    this.logger.info(
+      { bookingId, userId },
+      'Insurance policy activated (mock)',
+    );
+    return {
+      policy_number: `WG-INS-${Date.now()}`,
+      status: 'active',
+      provider: 'mock',
+    };
   }
 
   async deactivatePolicy(bookingId: string): Promise<void> {
@@ -56,8 +68,13 @@ export class InsuranceService {
         }
         return;
       } catch (error) {
-        this.logger.error({ bookingId, error }, 'MGA policy deactivation failed');
-        throw new InternalServerErrorException('Insurance policy deactivation failed');
+        this.logger.error(
+          { bookingId, error },
+          'MGA policy deactivation failed',
+        );
+        throw new InternalServerErrorException(
+          'Insurance policy deactivation failed',
+        );
       }
     }
 

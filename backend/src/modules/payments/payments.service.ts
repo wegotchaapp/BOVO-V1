@@ -4,7 +4,12 @@ import { Repository } from 'typeorm';
 import { ConfigService } from '@nestjs/config';
 import Stripe from 'stripe';
 import { PinoLogger } from 'nestjs-pino';
-import { Payment, Payout, Refund, InsurancePolicy } from '../../database/entities/payment.entities';
+import {
+  Payment,
+  Payout,
+  Refund,
+  InsurancePolicy,
+} from '../../database/entities/payment.entities';
 import { Booking } from '../../database/entities/booking.entities';
 import { User } from '../../database/entities/user.entity';
 import { PRICING } from '../pricing/pricing.config';
@@ -156,7 +161,13 @@ export class PaymentsService {
     const saved = await this.payoutRepo.save(payout);
 
     this.logger.info(
-      { payoutId: saved.id, driverId, amount: amountCents, scheduledFor, ytd_projected: projectedYtd },
+      {
+        payoutId: saved.id,
+        driverId,
+        amount: amountCents,
+        scheduledFor,
+        ytd_projected: projectedYtd,
+      },
       'Payout scheduled for 24h after trip completion',
     );
 
@@ -167,7 +178,9 @@ export class PaymentsService {
     const payout = await this.payoutRepo.findOne({ where: { id: payoutId } });
     if (!payout) throw new BadRequestException('Payout not found');
 
-    const driver = await this.userRepo.findOne({ where: { id: payout.driver_id } });
+    const driver = await this.userRepo.findOne({
+      where: { id: payout.driver_id },
+    });
     if (!driver?.stripe_account_id) {
       throw new BadRequestException('Driver has no connected Stripe account');
     }
@@ -191,7 +204,8 @@ export class PaymentsService {
     await this.payoutRepo.save(payout);
 
     driver.ytd_earnings = Number(driver.ytd_earnings || 0) + payout.amount;
-    driver.lifetime_earnings = Number(driver.lifetime_earnings || 0) + payout.amount;
+    driver.lifetime_earnings =
+      Number(driver.lifetime_earnings || 0) + payout.amount;
     driver.last_payout_at = new Date().toISOString();
     await this.userRepo.save(driver);
 
@@ -199,7 +213,9 @@ export class PaymentsService {
   }
 
   async activateInsurancePolicy(bookingId: string): Promise<InsurancePolicy> {
-    let policy = await this.insuranceRepo.findOne({ where: { booking_id: bookingId } });
+    let policy = await this.insuranceRepo.findOne({
+      where: { booking_id: bookingId },
+    });
 
     if (!policy) {
       policy = this.insuranceRepo.create({
@@ -216,20 +232,34 @@ export class PaymentsService {
 
     await this.insuranceRepo.save(policy);
 
-    this.logger.info({ bookingId, policyNumber: policy.policy_number }, 'Insurance policy activated');
+    this.logger.info(
+      { bookingId, policyNumber: policy.policy_number },
+      'Insurance policy activated',
+    );
 
     return policy;
   }
 
-  async remitToMGA(bookingId: string, premiumCents: number, source: 'trip_insurance' | 'luggage_insurance' = 'trip_insurance'): Promise<{ mga_reference: string; remitted_cents: number }> {
+  async remitToMGA(
+    bookingId: string,
+    premiumCents: number,
+    source: 'trip_insurance' | 'luggage_insurance' = 'trip_insurance',
+  ): Promise<{ mga_reference: string; remitted_cents: number }> {
     let mgaReference: string;
     let netPremiumCents: number;
 
     if (source === 'trip_insurance') {
-      const policy = await this.insuranceRepo.findOne({ where: { booking_id: bookingId } });
-      if (!policy) throw new BadRequestException('No insurance policy found for this booking');
+      const policy = await this.insuranceRepo.findOne({
+        where: { booking_id: bookingId },
+      });
+      if (!policy)
+        throw new BadRequestException(
+          'No insurance policy found for this booking',
+        );
 
-      const commission = Math.round(premiumCents * PRICING.INSURANCE_COMMISSION);
+      const commission = Math.round(
+        premiumCents * PRICING.INSURANCE_COMMISSION,
+      );
       netPremiumCents = premiumCents - commission;
 
       policy.mga_remitted_cents = netPremiumCents;
@@ -240,7 +270,9 @@ export class PaymentsService {
       mgaReference = policy.mga_reference;
       await this.insuranceRepo.save(policy);
     } else {
-      const platformCommission = Math.round(premiumCents * PRICING.LUGGAGE_INSURANCE_COMMISSION);
+      const platformCommission = Math.round(
+        premiumCents * PRICING.LUGGAGE_INSURANCE_COMMISSION,
+      );
       netPremiumCents = premiumCents - platformCommission;
       mgaReference = `MGA-LI-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
     }
@@ -285,7 +317,10 @@ export class PaymentsService {
     };
   }
 
-  async refreshAccountLink(userId: string, accountId: string): Promise<{ account_link_url: string }> {
+  async refreshAccountLink(
+    userId: string,
+    accountId: string,
+  ): Promise<{ account_link_url: string }> {
     const link = await this.stripe.accountLinks.create({
       account: accountId,
       return_url: `${this.config.get('APP_URL')}/payouts/return`,
@@ -310,10 +345,7 @@ export class PaymentsService {
 
   async handleWebhookTransferCreated(event: any): Promise<void> {
     const transfer = event.data.object;
-    this.logger.info(
-      { transferId: transfer.id },
-      'Transfer created',
-    );
+    this.logger.info({ transferId: transfer.id }, 'Transfer created');
   }
 
   async handleWebhook(event: any): Promise<void> {
@@ -327,13 +359,17 @@ export class PaymentsService {
         await this.handleWebhookTransferCreated(event);
         break;
       case 'transfer.paid':
-        this.logger.info(`Transfer ${event.data.object.id} paid to connected account`);
+        this.logger.info(
+          `Transfer ${event.data.object.id} paid to connected account`,
+        );
         break;
       case 'payout.created':
         this.logger.info(`Payout ${event.data.object.id} created`);
         break;
       case 'payout.paid':
-        this.logger.info(`Payout ${event.data.object.id} paid to driver's bank`);
+        this.logger.info(
+          `Payout ${event.data.object.id} paid to driver's bank`,
+        );
         break;
       default:
         this.logger.info(`Unhandled Stripe webhook type: ${event.type}`);
@@ -359,13 +395,20 @@ export class PaymentsService {
 
     return {
       this_week: payouts
-        .filter((p) => new Date(p.created_at) > weekAgo && p.status === 'dispatched')
+        .filter(
+          (p) => new Date(p.created_at) > weekAgo && p.status === 'dispatched',
+        )
         .reduce((sum, p) => sum + p.amount, 0),
       this_month: payouts
-        .filter((p) => new Date(p.created_at) > monthAgo && p.status === 'dispatched')
+        .filter(
+          (p) => new Date(p.created_at) > monthAgo && p.status === 'dispatched',
+        )
         .reduce((sum, p) => sum + p.amount, 0),
       ytd: payouts
-        .filter((p) => new Date(p.created_at) > yearStart && p.status === 'dispatched')
+        .filter(
+          (p) =>
+            new Date(p.created_at) > yearStart && p.status === 'dispatched',
+        )
         .reduce((sum, p) => sum + p.amount, 0),
       pending: payouts
         .filter((p) => p.status === 'scheduled')

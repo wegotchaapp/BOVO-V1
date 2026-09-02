@@ -1,4 +1,9 @@
-import { Injectable, CanActivate, ExecutionContext, UnauthorizedException } from '@nestjs/common';
+import {
+  Injectable,
+  CanActivate,
+  ExecutionContext,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { SupportSession } from '../../database/entities/support-session.entity';
@@ -23,7 +28,9 @@ export class SupportAuthGuard implements CanActivate {
 
     const parts = authHeader.split(' ');
     if (parts.length !== 2 || parts[0] !== 'Bearer') {
-      throw new UnauthorizedException('Authorization header must be Bearer <token>');
+      throw new UnauthorizedException(
+        'Authorization header must be Bearer <token>',
+      );
     }
 
     const token = parts[1];
@@ -40,7 +47,9 @@ export class SupportAuthGuard implements CanActivate {
       throw new UnauthorizedException('Session has expired');
     }
 
-    const agent = await this.agentRepo.findOne({ where: { id: session.agent_id } });
+    const agent = await this.agentRepo.findOne({
+      where: { id: session.agent_id },
+    });
     if (!agent) {
       throw new UnauthorizedException('Agent not found');
     }

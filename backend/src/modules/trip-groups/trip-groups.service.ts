@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { v4 as uuidv4 } from 'uuid';
@@ -37,8 +41,11 @@ export class TripGroupsService {
   }
 
   async createGroup(tripId: string, driverId: string): Promise<TripGroup> {
-    const existing = await this.groupRepo.findOne({ where: { trip_id: tripId } });
-    if (existing) throw new BadRequestException('Group already exists for this trip');
+    const existing = await this.groupRepo.findOne({
+      where: { trip_id: tripId },
+    });
+    if (existing)
+      throw new BadRequestException('Group already exists for this trip');
 
     const group = this.groupRepo.create({
       id: uuidv4().replace(/-/g, '').substring(0, 32),
@@ -55,18 +62,26 @@ export class TripGroupsService {
       }),
     );
 
-    this.logger.info({ groupId: saved.id, tripId, driverId }, 'Trip group created');
+    this.logger.info(
+      { groupId: saved.id, tripId, driverId },
+      'Trip group created',
+    );
     return saved;
   }
 
-  async joinGroup(groupId: string, userId: string, role: string): Promise<TripGroupMember> {
+  async joinGroup(
+    groupId: string,
+    userId: string,
+    role: string,
+  ): Promise<TripGroupMember> {
     const group = await this.groupRepo.findOne({ where: { id: groupId } });
     if (!group) throw new NotFoundException('Trip group not found');
 
     const existing = await this.memberRepo.findOne({
       where: { group_id: groupId, user_id: userId },
     });
-    if (existing) throw new BadRequestException('User already a member of this group');
+    if (existing)
+      throw new BadRequestException('User already a member of this group');
 
     if (!['driver', 'rider'].includes(role)) {
       throw new BadRequestException('Role must be driver or rider');
@@ -102,7 +117,11 @@ export class TripGroupsService {
     return this.messageRepo.save(message);
   }
 
-  async votePickupHub(groupId: string, userId: string, hubId: string): Promise<{ locked: boolean; pickup_hub_id: string | null }> {
+  async votePickupHub(
+    groupId: string,
+    userId: string,
+    hubId: string,
+  ): Promise<{ locked: boolean; pickup_hub_id: string | null }> {
     const group = await this.groupRepo.findOne({ where: { id: groupId } });
     if (!group) throw new NotFoundException('Trip group not found');
 
@@ -127,8 +146,12 @@ export class TripGroupsService {
       await this.approvalRepo.save(approval);
     }
 
-    const approvals = await this.approvalRepo.find({ where: { group_id: groupId } });
-    const memberCount = await this.memberRepo.count({ where: { group_id: groupId } });
+    const approvals = await this.approvalRepo.find({
+      where: { group_id: groupId },
+    });
+    const memberCount = await this.memberRepo.count({
+      where: { group_id: groupId },
+    });
     const majority = Math.floor(memberCount / 2) + 1;
 
     const voteCounts: Record<string, number> = {};
@@ -142,7 +165,10 @@ export class TripGroupsService {
         group.pickup_locked = true;
         await this.groupRepo.save(group);
 
-        this.logger.info({ groupId, hub, votes: count, majority }, 'Pickup hub locked by majority vote');
+        this.logger.info(
+          { groupId, hub, votes: count, majority },
+          'Pickup hub locked by majority vote',
+        );
         return { locked: true, pickup_hub_id: hub };
       }
     }
@@ -158,8 +184,13 @@ export class TripGroupsService {
     const group = await this.groupRepo.findOne({ where: { id: groupId } });
     if (!group) throw new NotFoundException('Trip group not found');
 
-    const approvals = await this.approvalRepo.find({ where: { group_id: groupId } });
-    const votes = approvals.map((a) => ({ user_id: a.user_id, hub_id: a.hub_id }));
+    const approvals = await this.approvalRepo.find({
+      where: { group_id: groupId },
+    });
+    const votes = approvals.map((a) => ({
+      user_id: a.user_id,
+      hub_id: a.hub_id,
+    }));
 
     return {
       pickup_hub_id: group.pickup_hub_id,
@@ -168,7 +199,10 @@ export class TripGroupsService {
     };
   }
 
-  async getMessages(groupId: string, limit?: number): Promise<TripGroupMessage[]> {
+  async getMessages(
+    groupId: string,
+    limit?: number,
+  ): Promise<TripGroupMessage[]> {
     const group = await this.groupRepo.findOne({ where: { id: groupId } });
     if (!group) throw new NotFoundException('Trip group not found');
 

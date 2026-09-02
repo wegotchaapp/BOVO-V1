@@ -4,12 +4,22 @@ import { Queue, Job } from 'bullmq';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, In } from 'typeorm';
 import { ConfigService } from '@nestjs/config';
-import { NotificationLog, Device, NotificationPreference, EmergencyContact } from '../../database/entities/communication.entities';
+import {
+  NotificationLog,
+  Device,
+  NotificationPreference,
+  EmergencyContact,
+} from '../../database/entities/communication.entities';
 import { User } from '../../database/entities/user.entity';
 import { Booking } from '../../database/entities/booking.entities';
 import { PinoLogger } from 'nestjs-pino';
 import { Twilio } from 'twilio';
-import { Expo, ExpoPushReceipt, ExpoPushErrorReceipt, ExpoPushSuccessReceipt } from 'expo-server-sdk';
+import {
+  Expo,
+  ExpoPushReceipt,
+  ExpoPushErrorReceipt,
+  ExpoPushSuccessReceipt,
+} from 'expo-server-sdk';
 import { Resend } from 'resend';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import * as path from 'path';
@@ -126,7 +136,12 @@ export class NotificationsService implements OnModuleInit {
 
     const channels = this.getChannelsForCategory(category, isCritical);
     const userPrefs = await this.getUserPreferences(userId);
-    const allowedChannels = this.filterByPreferences(channels, category, userPrefs, isCritical);
+    const allowedChannels = this.filterByPreferences(
+      channels,
+      category,
+      userPrefs,
+      isCritical,
+    );
 
     const log = this.logRepo.create({
       user_id: userId,
@@ -166,7 +181,12 @@ export class NotificationsService implements OnModuleInit {
     return log.id;
   }
 
-  async sendPush(userId: string, title: string, body: string, data?: Record<string, string>) {
+  async sendPush(
+    userId: string,
+    title: string,
+    body: string,
+    data?: Record<string, string>,
+  ) {
     const devices = await this.deviceRepo.find({
       where: { user_id: userId, is_active: true },
     });
@@ -201,7 +221,10 @@ export class NotificationsService implements OnModuleInit {
         const receiptChunk = await this.expo.sendPushNotificationsAsync(chunk);
         tickets.push(...receiptChunk);
       } catch (err) {
-        this.logger.error({ err, userId }, 'Failed to send push notification chunk');
+        this.logger.error(
+          { err, userId },
+          'Failed to send push notification chunk',
+        );
       }
     }
 
@@ -210,9 +233,13 @@ export class NotificationsService implements OnModuleInit {
       const device = devices[i];
 
       if (receipt.status === 'error') {
-        const errorReceipt = receipt as ExpoPushErrorReceipt;
+        const errorReceipt = receipt;
         this.logger.warn(
-          { deviceId: device?.id, error: errorReceipt.message, details: errorReceipt.details },
+          {
+            deviceId: device?.id,
+            error: errorReceipt.message,
+            details: errorReceipt.details,
+          },
           'Push notification error',
         );
 
@@ -226,12 +253,16 @@ export class NotificationsService implements OnModuleInit {
   }
 
   async checkPushReceipts(receiptIds: string[]): Promise<void> {
-    const receipts = await this.expo.getPushNotificationReceiptsAsync(receiptIds);
+    const receipts =
+      await this.expo.getPushNotificationReceiptsAsync(receiptIds);
 
     for (const [id, receipt] of Object.entries(receipts)) {
       if (receipt.status === 'error') {
-        const errorReceipt = receipt as ExpoPushErrorReceipt;
-        this.logger.warn({ receiptId: id, error: errorReceipt.message }, 'Push receipt error');
+        const errorReceipt = receipt;
+        this.logger.warn(
+          { receiptId: id, error: errorReceipt.message },
+          'Push receipt error',
+        );
 
         if (errorReceipt.details?.error === 'DeviceNotRegistered') {
           await this.deviceRepo.update(
@@ -278,7 +309,8 @@ export class NotificationsService implements OnModuleInit {
 
     const templatePath = this.getTemplatePath(templateName);
     const TemplateModule = await import(templatePath);
-    const TemplateComponent = TemplateModule.default || TemplateModule[Object.keys(TemplateModule)[0]];
+    const TemplateComponent =
+      TemplateModule.default || TemplateModule[Object.keys(TemplateModule)[0]];
 
     if (!TemplateComponent) {
       throw new Error(`Email template "${templateName}" not found`);
@@ -286,7 +318,8 @@ export class NotificationsService implements OnModuleInit {
 
     const html = await render(TemplateComponent(context), { pretty: true });
 
-    const fromAddress = this.config.get('RESEND_FROM_EMAIL') || 'noreply@bovogo.app';
+    const fromAddress =
+      this.config.get('RESEND_FROM_EMAIL') || 'noreply@bovogo.app';
     const appName = this.config.get('APP_NAME') || 'Bovogo';
 
     const result = await this.resend.emails.send({
@@ -302,7 +335,10 @@ export class NotificationsService implements OnModuleInit {
       throw new Error(`Email send failed: ${result.error.message}`);
     }
 
-    this.logger.info({ emailId: result.data?.id, to, template: templateName }, 'Email sent');
+    this.logger.info(
+      { emailId: result.data?.id, to, template: templateName },
+      'Email sent',
+    );
     return result.data;
   }
 
@@ -314,7 +350,10 @@ export class NotificationsService implements OnModuleInit {
     timezone?: string,
   ) {
     if (!Expo.isExpoPushToken(expoPushToken)) {
-      this.logger.warn({ userId, token: expoPushToken }, 'Invalid Expo push token');
+      this.logger.warn(
+        { userId, token: expoPushToken },
+        'Invalid Expo push token',
+      );
       throw new Error('Invalid Expo push token');
     }
 
@@ -340,13 +379,18 @@ export class NotificationsService implements OnModuleInit {
     }
 
     const saved = await this.deviceRepo.save(device);
-    this.logger.info({ deviceId: saved.id, userId, platform }, 'Device registered');
+    this.logger.info(
+      { deviceId: saved.id, userId, platform },
+      'Device registered',
+    );
     return saved;
   }
 
   async getPreferences(userId: string) {
     const defaults = this.getDefaultPreferences();
-    const userPrefs = await this.prefRepo.findOne({ where: { user_id: userId } });
+    const userPrefs = await this.prefRepo.findOne({
+      where: { user_id: userId },
+    });
 
     if (!userPrefs) {
       const newPrefs = this.prefRepo.create({
@@ -360,10 +404,17 @@ export class NotificationsService implements OnModuleInit {
     return this.mergePreferences(defaults, userPrefs.preferences);
   }
 
-  async updatePreferences(userId: string, updates: Partial<Record<string, Record<string, boolean>>>) {
+  async updatePreferences(
+    userId: string,
+    updates: Partial<Record<string, Record<string, boolean>>>,
+  ) {
     const defaults = this.getDefaultPreferences();
-    const existing = await this.prefRepo.findOne({ where: { user_id: userId } });
-    const current = existing ? this.mergePreferences(defaults, existing.preferences) : defaults;
+    const existing = await this.prefRepo.findOne({
+      where: { user_id: userId },
+    });
+    const current = existing
+      ? this.mergePreferences(defaults, existing.preferences)
+      : defaults;
 
     for (const [category, channels] of Object.entries(updates)) {
       if (!current[category]) continue;
@@ -383,14 +434,23 @@ export class NotificationsService implements OnModuleInit {
       existing.preferences = current;
       await this.prefRepo.save(existing);
     } else {
-      await this.prefRepo.save(this.prefRepo.create({ user_id: userId, preferences: current }));
+      await this.prefRepo.save(
+        this.prefRepo.create({ user_id: userId, preferences: current }),
+      );
     }
 
-    this.logger.info({ userId, preferences: current }, 'Notification preferences updated');
+    this.logger.info(
+      { userId, preferences: current },
+      'Notification preferences updated',
+    );
     return current;
   }
 
-  async getMyNotifications(userId: string, limit = 50, cursor?: string): Promise<any> {
+  async getMyNotifications(
+    userId: string,
+    limit = 50,
+    cursor?: string,
+  ): Promise<any> {
     const query: any = { user_id: userId };
     if (cursor) {
       query.id = { lt: cursor };
@@ -405,7 +465,10 @@ export class NotificationsService implements OnModuleInit {
     const hasMore = notifications.length > limit;
     if (hasMore) notifications.pop();
 
-    const nextCursor = hasMore && notifications.length > 0 ? notifications[notifications.length - 1].id : undefined;
+    const nextCursor =
+      hasMore && notifications.length > 0
+        ? notifications[notifications.length - 1].id
+        : undefined;
 
     return {
       notifications,
@@ -425,7 +488,10 @@ export class NotificationsService implements OnModuleInit {
   }
 
   async markAllAsRead(userId: string): Promise<void> {
-    await this.logRepo.update({ user_id: userId, is_read: false }, { is_read: true });
+    await this.logRepo.update(
+      { user_id: userId, is_read: false },
+      { is_read: true },
+    );
   }
 
   async scheduleBookingReminders(bookingId: string) {
@@ -438,7 +504,8 @@ export class NotificationsService implements OnModuleInit {
 
     const departureDate = new Date(booking.trip.departure_date);
     const now = new Date();
-    const hoursUntilDeparture = (departureDate.getTime() - now.getTime()) / (1000 * 60 * 60);
+    const hoursUntilDeparture =
+      (departureDate.getTime() - now.getTime()) / (1000 * 60 * 60);
 
     if (hoursUntilDeparture <= 0) return;
 
@@ -478,7 +545,11 @@ export class NotificationsService implements OnModuleInit {
     }
 
     this.logger.info(
-      { bookingId, reminder48h: reminder48h.toISOString(), reminder2h: reminder2h.toISOString() },
+      {
+        bookingId,
+        reminder48h: reminder48h.toISOString(),
+        reminder2h: reminder2h.toISOString(),
+      },
       'Booking reminders scheduled',
     );
   }
@@ -506,7 +577,9 @@ export class NotificationsService implements OnModuleInit {
     });
 
     const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
-    const recentLogs = allRecentLogs.filter((log) => new Date(log.created_at) >= oneDayAgo);
+    const recentLogs = allRecentLogs.filter(
+      (log) => new Date(log.created_at) >= oneDayAgo,
+    );
 
     const receiptIds = recentLogs
       .map((log) => log.data?.receiptId)
@@ -532,7 +605,9 @@ export class NotificationsService implements OnModuleInit {
           }
           break;
         case 'email':
-          const emailUser = await this.userRepo.findOne({ where: { id: userId } });
+          const emailUser = await this.userRepo.findOne({
+            where: { id: userId },
+          });
           if (emailUser?.email) {
             await this.sendEmail(
               emailUser.email,
@@ -547,7 +622,7 @@ export class NotificationsService implements OnModuleInit {
 
       await this.logRepo.update(job.data.logId || '', {
         delivery_status: 'delivered',
-        delivered_at: new Date().toISOString() as any,
+        delivered_at: new Date().toISOString(),
       });
 
       this.logger.info(
@@ -557,18 +632,27 @@ export class NotificationsService implements OnModuleInit {
     } catch (err) {
       await this.logRepo.update(job.data.logId || '', {
         delivery_status: 'failed',
-        delivered_at: new Date().toISOString() as any,
+        delivered_at: new Date().toISOString(),
       });
 
       this.logger.error(
-        { err, userId, channel, category, jobId: job.id, attempt: job.attemptsMade },
+        {
+          err,
+          userId,
+          channel,
+          category,
+          jobId: job.id,
+          attempt: job.attemptsMade,
+        },
         'Notification delivery failed',
       );
       throw err;
     }
   }
 
-  async processReminderJob(job: Job<{ type: '48h' | '2h'; bookingId: string }>) {
+  async processReminderJob(
+    job: Job<{ type: '48h' | '2h'; bookingId: string }>,
+  ) {
     const { type, bookingId } = job.data;
 
     const booking = await this.bookingRepo.findOne({
@@ -584,43 +668,31 @@ export class NotificationsService implements OnModuleInit {
     if (type === '48h') {
       const driverTitle = 'Trip reminder: 48 hours to departure';
       const driverBody = `Your trip from ${booking.trip.origin_metro} to ${booking.trip.dest_metro} departs in 48 hours.`;
-      await this.send(
-        driver.id,
-        'pre_trip',
-        driverTitle,
-        driverBody,
-        { booking_id: bookingId, screen: `booking/${bookingId}` },
-      );
+      await this.send(driver.id, 'pre_trip', driverTitle, driverBody, {
+        booking_id: bookingId,
+        screen: `booking/${bookingId}`,
+      });
 
       const riderTitle = 'Trip reminder: 48 hours to departure';
       const riderBody = `Your trip with ${driver?.name || 'your driver'} departs in 48 hours. Share your trip with emergency contacts.`;
-      await this.send(
-        rider.id,
-        'pre_trip',
-        riderTitle,
-        riderBody,
-        { booking_id: bookingId, screen: `booking/${bookingId}` },
-      );
+      await this.send(rider.id, 'pre_trip', riderTitle, riderBody, {
+        booking_id: bookingId,
+        screen: `booking/${bookingId}`,
+      });
     } else if (type === '2h') {
       const driverTitle = 'Trip departing in 2 hours';
       const driverBody = `Your trip from ${booking.trip.origin_metro} departs soon. Check your route and passenger details.`;
-      await this.send(
-        driver.id,
-        'pre_trip',
-        driverTitle,
-        driverBody,
-        { booking_id: bookingId, screen: `trip/${booking.trip.id}` },
-      );
+      await this.send(driver.id, 'pre_trip', driverTitle, driverBody, {
+        booking_id: bookingId,
+        screen: `trip/${booking.trip.id}`,
+      });
 
       const riderTitle = 'Trip departing in 2 hours';
       const riderBody = `${driver?.name || 'Your driver'}\'s trip departs soon. Meet at the pickup zone. Chat with your driver in the app.`;
-      await this.send(
-        rider.id,
-        'pre_trip',
-        riderTitle,
-        riderBody,
-        { booking_id: bookingId, screen: `booking/${bookingId}` },
-      );
+      await this.send(rider.id, 'pre_trip', riderTitle, riderBody, {
+        booking_id: bookingId,
+        screen: `booking/${bookingId}`,
+      });
     }
 
     this.logger.info({ bookingId, type }, 'Reminder notification sent');
@@ -654,21 +726,20 @@ export class NotificationsService implements OnModuleInit {
       }
 
       if (contact.email) {
-        await this.sendEmail(
-          contact.email,
-          'safety_sos_contact',
-          {
-            userName: contact.name,
-            alertedUserName: this.getUserName(userId),
-            alertType,
-            location,
-            bookingId,
-          },
-        );
+        await this.sendEmail(contact.email, 'safety_sos_contact', {
+          userName: contact.name,
+          alertedUserName: this.getUserName(userId),
+          alertType,
+          location,
+          bookingId,
+        });
       }
     }
 
-    this.logger.info({ userId, contactCount: contacts.length, alertType }, 'Emergency contacts notified');
+    this.logger.info(
+      { userId, contactCount: contacts.length, alertType },
+      'Emergency contacts notified',
+    );
   }
 
   private getChannelsForCategory(
@@ -692,10 +763,16 @@ export class NotificationsService implements OnModuleInit {
     return channels.filter((ch) => categoryPrefs[ch] !== false);
   }
 
-  private async getUserPreferences(userId: string): Promise<Record<string, Record<string, boolean>>> {
+  private async getUserPreferences(
+    userId: string,
+  ): Promise<Record<string, Record<string, boolean>>> {
     const defaults = this.getDefaultPreferences();
-    const userPrefs = await this.prefRepo.findOne({ where: { user_id: userId } });
-    return userPrefs ? this.mergePreferences(defaults, userPrefs.preferences) : defaults;
+    const userPrefs = await this.prefRepo.findOne({
+      where: { user_id: userId },
+    });
+    return userPrefs
+      ? this.mergePreferences(defaults, userPrefs.preferences)
+      : defaults;
   }
 
   private getQuietHoursDelay(
@@ -765,7 +842,10 @@ export class NotificationsService implements OnModuleInit {
   }
 
   private async getUserName(userId: string): Promise<string> {
-    const user = await this.userRepo.findOne({ where: { id: userId }, select: ['name'] });
+    const user = await this.userRepo.findOne({
+      where: { id: userId },
+      select: ['name'],
+    });
     return user?.name || 'A user';
   }
 }

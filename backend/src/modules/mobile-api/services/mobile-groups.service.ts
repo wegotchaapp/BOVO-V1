@@ -120,8 +120,12 @@ export class MobileGroupsService {
       throw new ForbiddenException('Only the Voyager can delete this group.');
     }
     await this.dataSource.transaction(async (tx) => {
-      await tx.getRepository(MobileTripGroupMessage).delete({ group_id: groupId });
-      await tx.getRepository(MobileTripGroupMember).delete({ group_id: groupId });
+      await tx
+        .getRepository(MobileTripGroupMessage)
+        .delete({ group_id: groupId });
+      await tx
+        .getRepository(MobileTripGroupMember)
+        .delete({ group_id: groupId });
       await tx.getRepository(MobileTripGroup).delete({ id: groupId });
     });
     return { ok: true };
@@ -177,7 +181,7 @@ export class MobileGroupsService {
       messages: messageRows.map((m) => ({
         id: m.id,
         senderId: m.sender_id,
-        senderName: m.sender_id ? nameById.get(m.sender_id) ?? null : null,
+        senderName: m.sender_id ? (nameById.get(m.sender_id) ?? null) : null,
         text: m.text,
         isSystem: m.is_system,
         createdAt: m.created_at.toISOString(),

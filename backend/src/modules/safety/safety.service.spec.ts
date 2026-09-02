@@ -4,14 +4,44 @@ import { ConfigService } from '@nestjs/config';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { SafetyService } from './safety.service';
-import { TripPing, SosEvent, Incident, DeviationEvent } from '../../database/entities/safety.entities';
+import {
+  TripPing,
+  SosEvent,
+  Incident,
+  DeviationEvent,
+} from '../../database/entities/safety.entities';
 import { Booking } from '../../database/entities/booking.entities';
 import { Trip } from '../../database/entities/trip.entities';
 import { User } from '../../database/entities/user.entity';
 import { EmergencyContact } from '../../database/entities/communication.entities';
-import { SosTriggerType, SosStatus, DeviationStatus, BookingStatus, UserRole } from '../../common/enums';
+import {
+  SosTriggerType,
+  SosStatus,
+  DeviationStatus,
+  BookingStatus,
+  UserRole,
+} from '../../common/enums';
 import { PinoLogger } from 'nestjs-pino';
 import { RealtimeGateway } from '../../common/gateways/realtime.gateway';
+import { MobileSosEvent } from '../mobile-api/entities/mobile.entities';
+import { NoonlightService } from '../noonlight/noonlight.service';
+import { RoutingService } from '../routing/routing.service';
+import {
+  decodePolyline,
+  encodePolyline,
+} from '../../common/geo/route-geometry';
+
+/**
+ * A real route through the coordinate the ping tests use (34.0522,-118.2437),
+ * running roughly north-south through it. The fixture used to be the string
+ * 'encoded_polyline_data', which decodes to nonsense — fine when the code never
+ * read the polyline, misleading now that it does.
+ */
+const ROUTE_THROUGH_TEST_POINT = encodePolyline([
+  { latitude: 34.2022, longitude: -118.2437 },
+  { latitude: 34.0522, longitude: -118.2437 },
+  { latitude: 33.9022, longitude: -118.2437 },
+]);
 import { NotificationsService } from '../notifications/notifications.service';
 import axios from 'axios';
 
@@ -28,6 +58,8 @@ describe('SafetyService', () => {
   let tripRepo: jest.Mocked<Repository<Trip>>;
   let userRepo: jest.Mocked<Repository<User>>;
   let emergencyContactRepo: jest.Mocked<Repository<EmergencyContact>>;
+  let mobileSosRepo: jest.Mocked<Repository<MobileSosEvent>>;
+  let noonlight: { createAlarm: jest.Mock };
   let notificationsService: jest.Mocked<NotificationsService>;
   let logger: jest.Mocked<PinoLogger>;
 
@@ -67,7 +99,7 @@ describe('SafetyService', () => {
     origin_lng: -118.2437,
     dest_lat: 33.9425,
     dest_lng: -118.4081,
-    mapbox_route_polyline: 'encoded_polyline_data',
+    mapbox_route_polyline: ROUTE_THROUGH_TEST_POINT,
     expected_arrival_time: new Date(Date.now() + 3600000).toISOString(),
     vehicle: {
       id: 'vehicle-1',
@@ -96,7 +128,7 @@ describe('SafetyService', () => {
     ...mockBooking,
     trip: { ...mockTrip, driver: mockDriver },
     rider: mockRider,
-  } as Booking;
+  };
 
   beforeEach(async () => {
     const mockRepo = () => ({
@@ -142,6 +174,27 @@ describe('SafetyService', () => {
         {
           provide: getRepositoryToken(EmergencyContact),
           useFactory: mockRepo,
+        },
+        {
+          provide: getRepositoryToken(MobileSosEvent),
+          useFactory: mockRepo,
+        },
+        {
+          // The real one is exercised through the live sandbox, not here; these
+          // tests are about what SafetyService does with the id it gets back.
+          provide: NoonlightService,
+          useValue: {
+            createAlarm: jest.fn().mockResolvedValue('noonlight-alarm-123'),
+          },
+        },
+        {
+          // Decodes for real — the geometry has its own suite — so only the
+          // network fetch is stubbed.
+          provide: RoutingService,
+          useValue: {
+            decode: (enc: string) => decodePolyline(enc, 5),
+            routeBetweenCities: jest.fn().mockResolvedValue(null),
+          },
         },
         {
           provide: ConfigService,
@@ -192,6 +245,8 @@ describe('SafetyService', () => {
     tripRepo = module.get(getRepositoryToken(Trip));
     userRepo = module.get(getRepositoryToken(User));
     emergencyContactRepo = module.get(getRepositoryToken(EmergencyContact));
+    mobileSosRepo = module.get(getRepositoryToken(MobileSosEvent));
+    noonlight = module.get(NoonlightService);
     notificationsService = module.get(NotificationsService);
     logger = module.get(PinoLogger);
 
@@ -231,7 +286,10 @@ describe('SafetyService', () => {
         }),
       );
       expect(pingRepo.save).toHaveBeenCalled();
-      expect(bookingRepo.update).toHaveBeenCalledWith('booking-1', expect.any(Object));
+      expect(bookingRepo.update).toHaveBeenCalledWith(
+        'booking-1',
+        expect.any(Object),
+      );
       expect(result.deviation_triggered).toBe(false);
     });
 
@@ -244,7 +302,10 @@ describe('SafetyService', () => {
     });
 
     it('should throw if trip is not active', async () => {
-      bookingRepo.findOne.mockResolvedValue({ ...mockBooking, status: BookingStatus.COMPLETED });
+      bookingRepo.findOne.mockResolvedValue({
+        ...mockBooking,
+        status: BookingStatus.COMPLETED,
+      });
 
       await expect(
         service.receivePing('driver-1', 'booking-1', 34.0522, -118.2437),
@@ -274,8 +335,8 @@ describe('SafetyService', () => {
       const result = await service.receivePing(
         'driver-1',
         'booking-1',
-        34.1500,
-        -118.3500,
+        34.15,
+        -118.35,
       );
 
       expect(deviationRepo.create).toHaveBeenCalled();
@@ -293,7 +354,12 @@ describe('SafetyService', () => {
       incidentRepo.create.mockReturnValue({ id: 'inc-1' } as Incident);
       incidentRepo.save.mockResolvedValue({ id: 'inc-1' } as Incident);
       emergencyContactRepo.find.mockResolvedValue([
-        { id: 'ec-1', phone: '+15559998888', name: 'Mom', opted_in: true } as EmergencyContact,
+        {
+          id: 'ec-1',
+          phone: '+15559998888',
+          name: 'Mom',
+          opted_in: true,
+        } as EmergencyContact,
       ]);
       userRepo.find.mockResolvedValue([]);
 
@@ -308,7 +374,10 @@ describe('SafetyService', () => {
       expect(sosRepo.save).toHaveBeenCalled();
       expect(incidentRepo.save).toHaveBeenCalled();
       expect(result.sos_id).toBe('sos-1');
-      expect(result.noonlight_alarm_id).toBeNull();
+      expect(result.noonlight_alarm_id).toBe('noonlight-alarm-123');
+      expect(noonlight.createAlarm).toHaveBeenCalledWith(
+        expect.objectContaining({ lat: 34.0522, lng: -118.2437 }),
+      );
     });
 
     it('should continue with local flow if Noonlight API fails', async () => {
@@ -318,7 +387,9 @@ describe('SafetyService', () => {
       sosRepo.save.mockResolvedValue({ id: 'sos-2' } as SosEvent);
       incidentRepo.create.mockReturnValue({ id: 'inc-2' } as Incident);
       incidentRepo.save.mockResolvedValue({ id: 'inc-2' } as Incident);
-      mockedAxios.post.mockRejectedValue(new Error('Noonlight down'));
+      // Dispatch returns null when Noonlight refuses or is unreachable; it
+      // never throws, precisely so local escalation still runs.
+      noonlight.createAlarm.mockResolvedValueOnce(null);
       emergencyContactRepo.find.mockResolvedValue([]);
       userRepo.find.mockResolvedValue([]);
 
@@ -338,7 +409,13 @@ describe('SafetyService', () => {
       userRepo.findOne.mockResolvedValue(null);
 
       await expect(
-        service.activateSOS('nonexistent', SosTriggerType.BUTTON, undefined, 34.0522, -118.2437),
+        service.activateSOS(
+          'nonexistent',
+          SosTriggerType.BUTTON,
+          undefined,
+          34.0522,
+          -118.2437,
+        ),
       ).rejects.toThrow(BadRequestException);
     });
   });
@@ -355,9 +432,17 @@ describe('SafetyService', () => {
       sosRepo.findOne.mockResolvedValue(mockSos);
       userRepo.findOne.mockResolvedValue(mockUser);
       mockedAxios.post.mockResolvedValue({ data: {} });
-      sosRepo.save.mockResolvedValue({ ...mockSos, status: SosStatus.FALSE_ALARM });
+      sosRepo.save.mockResolvedValue({
+        ...mockSos,
+        status: SosStatus.FALSE_ALARM,
+      });
       emergencyContactRepo.find.mockResolvedValue([
-        { id: 'ec-1', phone: '+15559998888', name: 'Mom', opted_in: true } as EmergencyContact,
+        {
+          id: 'ec-1',
+          phone: '+15559998888',
+          name: 'Mom',
+          opted_in: true,
+        } as EmergencyContact,
       ]);
 
       const result = await service.cancelSOS('user-1', 'sos-1', 'sunflower');
@@ -404,7 +489,10 @@ describe('SafetyService', () => {
 
       sosRepo.findOne.mockResolvedValue(mockSos);
       userRepo.findOne.mockResolvedValue(mockUser);
-      sosRepo.save.mockResolvedValue({ ...mockSos, status: SosStatus.FALSE_ALARM });
+      sosRepo.save.mockResolvedValue({
+        ...mockSos,
+        status: SosStatus.FALSE_ALARM,
+      });
       emergencyContactRepo.find.mockResolvedValue([]);
 
       const result = await service.cancelSOS('user-1', 'sos-1', 'SUNFLOWER');
@@ -417,10 +505,23 @@ describe('SafetyService', () => {
     it('should create SOS event with UNSAFE_FEELING trigger and P0 incident', async () => {
       userRepo.findOne.mockResolvedValue(mockUser);
       bookingRepo.findOne.mockResolvedValue(mockActiveBookingWithRelations);
-      sosRepo.create.mockReturnValue({ id: 'sos-3', trigger_type: SosTriggerType.UNSAFE_FEELING, status: SosStatus.RESOLVED, noonlight_alarm_id: null } as SosEvent);
+      sosRepo.create.mockReturnValue({
+        id: 'sos-3',
+        trigger_type: SosTriggerType.UNSAFE_FEELING,
+        status: SosStatus.RESOLVED,
+        noonlight_alarm_id: null,
+      } as SosEvent);
       sosRepo.save.mockResolvedValue({ id: 'sos-3' } as SosEvent);
-      incidentRepo.create.mockReturnValue({ id: 'inc-3', severity: 'P0', status: 'open' } as Incident);
-      incidentRepo.save.mockResolvedValue({ id: 'inc-3', severity: 'P0', status: 'open' } as Incident);
+      incidentRepo.create.mockReturnValue({
+        id: 'inc-3',
+        severity: 'P0',
+        status: 'open',
+      } as Incident);
+      incidentRepo.save.mockResolvedValue({
+        id: 'inc-3',
+        severity: 'P0',
+        status: 'open',
+      } as Incident);
       userRepo.find.mockResolvedValue([]);
 
       const result = await service.submitUnsafeFeeling(
@@ -452,66 +553,170 @@ describe('SafetyService', () => {
       bookingRepo.findOne.mockResolvedValue(null);
 
       await expect(
-        service.submitUnsafeFeeling('user-1', 'nonexistent', 34.0522, -118.2437),
+        service.submitUnsafeFeeling(
+          'user-1',
+          'nonexistent',
+          34.0522,
+          -118.2437,
+        ),
       ).rejects.toThrow(BadRequestException);
     });
   });
 
-  describe('handleNoonlightWebhook', () => {
-    it('should update SOS status to DISPATCHED when webhook confirms dispatch', async () => {
-      const mockSos = {
+  describe('handleNoonlightEvent', () => {
+    // Payload shape captured from a real sandbox callback:
+    // [{ event_id, event_time, event_type: 'alarm.closed', meta: { alarm_id } }]
+    const sosFor = (status: SosStatus) =>
+      ({
         id: 'sos-1',
         user_id: 'user-1',
-        booking_id: 'booking-1',
-        status: SosStatus.ACTIVE,
+        status,
         noonlight_alarm_id: 'noonlight-alarm-123',
-      } as SosEvent;
+      }) as SosEvent;
 
-      sosRepo.findOne.mockResolvedValue(mockSos);
-      sosRepo.save.mockResolvedValue({ ...mockSos, status: SosStatus.DISPATCHED });
-      bookingRepo.findOne.mockResolvedValue(mockBooking);
-      userRepo.find.mockResolvedValue([]);
+    // Noonlight documents exactly three verbs. alarm.dispatched and
+    // alarm.canceled — which this code used to map — are not among them.
+    it('moves an alarm to DISPATCHED on alarm.psap_contacted', async () => {
+      sosRepo.findOne.mockResolvedValue(sosFor(SosStatus.ACTIVE));
+      sosRepo.save.mockResolvedValue({} as SosEvent);
 
-      await service.handleNoonlightWebhook({
-        alarm_id: 'noonlight-alarm-123',
-        status: 'dispatched',
-        dispatch_status: 'dispatched',
+      const res = await service.handleNoonlightEvent({
+        event_type: 'alarm.psap_contacted',
+        meta: { alarm_id: 'noonlight-alarm-123' },
       });
 
+      expect(res).toEqual({ applied: true });
       expect(sosRepo.save).toHaveBeenCalledWith(
         expect.objectContaining({ status: SosStatus.DISPATCHED }),
       );
     });
 
-    it('should update SOS status to FALSE_ALARM when webhook confirms cancellation', async () => {
-      const mockSos = {
-        id: 'sos-1',
-        user_id: 'user-1',
-        status: SosStatus.ACTIVE,
-        noonlight_alarm_id: 'noonlight-alarm-123',
-      } as SosEvent;
+    it('marks a user cancellation as FALSE_ALARM on alarm.status.canceled', async () => {
+      sosRepo.findOne.mockResolvedValue(sosFor(SosStatus.ACTIVE));
+      sosRepo.save.mockResolvedValue({} as SosEvent);
 
-      sosRepo.findOne.mockResolvedValue(mockSos);
-      sosRepo.save.mockResolvedValue({ ...mockSos, status: SosStatus.FALSE_ALARM });
-
-      await service.handleNoonlightWebhook({
-        alarm_id: 'noonlight-alarm-123',
-        status: 'cancelled',
+      const res = await service.handleNoonlightEvent({
+        event_type: 'alarm.status.canceled',
+        meta: { alarm_id: 'noonlight-alarm-123' },
       });
 
+      expect(res).toEqual({ applied: true });
       expect(sosRepo.save).toHaveBeenCalledWith(
         expect.objectContaining({ status: SosStatus.FALSE_ALARM }),
       );
     });
 
-    it('should ignore webhooks for unknown alarms', async () => {
-      sosRepo.findOne.mockResolvedValue(null);
+    it('still honours the legacy alarm.dispatched alias', async () => {
+      sosRepo.findOne.mockResolvedValue(sosFor(SosStatus.ACTIVE));
+      sosRepo.save.mockResolvedValue({} as SosEvent);
 
-      await service.handleNoonlightWebhook({
-        alarm_id: 'unknown-alarm',
-        status: 'dispatched',
+      const res = await service.handleNoonlightEvent({
+        event_type: 'alarm.dispatched',
+        meta: { alarm_id: 'noonlight-alarm-123' },
       });
 
+      expect(res).toEqual({ applied: true });
+      expect(sosRepo.save).toHaveBeenCalledWith(
+        expect.objectContaining({ status: SosStatus.DISPATCHED }),
+      );
+    });
+
+    // alarm.psap_contacted is documented to fire more than once, and webhooks
+    // can arrive out of order — a late one must not reopen a closed emergency.
+    it('does not reopen a resolved SOS when a PSAP event arrives late', async () => {
+      sosRepo.findOne.mockResolvedValue(sosFor(SosStatus.RESOLVED));
+
+      const res = await service.handleNoonlightEvent({
+        event_type: 'alarm.psap_contacted',
+        meta: { alarm_id: 'noonlight-alarm-123' },
+      });
+
+      expect(res).toEqual({ applied: false, reason: 'already_terminal' });
+      expect(sosRepo.save).not.toHaveBeenCalled();
+    });
+
+    it('does not reopen a false-alarm SOS when a PSAP event arrives late', async () => {
+      sosRepo.findOne.mockResolvedValue(sosFor(SosStatus.FALSE_ALARM));
+
+      const res = await service.handleNoonlightEvent({
+        event_type: 'alarm.psap_contacted',
+        meta: { alarm_id: 'noonlight-alarm-123' },
+      });
+
+      expect(res).toEqual({ applied: false, reason: 'already_terminal' });
+      expect(sosRepo.save).not.toHaveBeenCalled();
+    });
+
+    it('resolves the SOS on alarm.closed', async () => {
+      sosRepo.findOne.mockResolvedValue(sosFor(SosStatus.ACTIVE));
+      sosRepo.save.mockResolvedValue({} as SosEvent);
+
+      const res = await service.handleNoonlightEvent({
+        event_type: 'alarm.closed',
+        meta: { alarm_id: 'noonlight-alarm-123' },
+      });
+
+      expect(res).toEqual({ applied: true });
+      expect(sosRepo.save).toHaveBeenCalledWith(
+        expect.objectContaining({ status: SosStatus.RESOLVED }),
+      );
+    });
+
+    it('reads the alarm id from meta, not the top level', async () => {
+      sosRepo.findOne.mockResolvedValue(null);
+
+      await service.handleNoonlightEvent({
+        event_type: 'alarm.closed',
+        meta: { alarm_id: 'noonlight-alarm-123' },
+      });
+
+      expect(sosRepo.findOne).toHaveBeenCalledWith({
+        where: { noonlight_alarm_id: 'noonlight-alarm-123' },
+      });
+    });
+
+    it('ignores events for unknown alarms', async () => {
+      sosRepo.findOne.mockResolvedValue(null);
+
+      const res = await service.handleNoonlightEvent({
+        event_type: 'alarm.closed',
+        meta: { alarm_id: 'unknown-alarm' },
+      });
+
+      expect(res).toEqual({ applied: false, reason: 'unknown_alarm' });
+      expect(sosRepo.save).not.toHaveBeenCalled();
+    });
+
+    it('ignores an event with no meta.alarm_id', async () => {
+      const res = await service.handleNoonlightEvent({
+        event_type: 'alarm.closed',
+      });
+
+      expect(res).toEqual({ applied: false, reason: 'unknown_alarm' });
+      expect(sosRepo.findOne).not.toHaveBeenCalled();
+    });
+
+    it('leaves the status alone for an unmapped event type', async () => {
+      sosRepo.findOne.mockResolvedValue(sosFor(SosStatus.ACTIVE));
+
+      const res = await service.handleNoonlightEvent({
+        event_type: 'alarm.something.new',
+        meta: { alarm_id: 'noonlight-alarm-123' },
+      });
+
+      expect(res).toEqual({ applied: false, reason: 'unmapped_event' });
+      expect(sosRepo.save).not.toHaveBeenCalled();
+    });
+
+    it('does not re-save when the status already matches', async () => {
+      sosRepo.findOne.mockResolvedValue(sosFor(SosStatus.RESOLVED));
+
+      const res = await service.handleNoonlightEvent({
+        event_type: 'alarm.closed',
+        meta: { alarm_id: 'noonlight-alarm-123' },
+      });
+
+      expect(res).toEqual({ applied: false, reason: 'no_change' });
       expect(sosRepo.save).not.toHaveBeenCalled();
     });
   });
@@ -519,7 +724,10 @@ describe('SafetyService', () => {
   describe('getTrackToken', () => {
     it('should generate and return a 16-character share token', async () => {
       bookingRepo.findOne.mockResolvedValue(mockBooking);
-      bookingRepo.save.mockResolvedValue({ ...mockBooking, share_token: 'XFB28FC6C85PHJJU' });
+      bookingRepo.save.mockResolvedValue({
+        ...mockBooking,
+        share_token: 'XFB28FC6C85PHJJU',
+      });
 
       const result = await service.getTrackToken('booking-1');
 
@@ -530,7 +738,10 @@ describe('SafetyService', () => {
     });
 
     it('should return existing token if already generated', async () => {
-      const existingTokenBooking = { ...mockBooking, share_token: 'EXISTINGTOKEN12345' };
+      const existingTokenBooking = {
+        ...mockBooking,
+        share_token: 'EXISTINGTOKEN12345',
+      };
       bookingRepo.findOne.mockResolvedValue(existingTokenBooking);
 
       const result = await service.getTrackToken('booking-1');
@@ -542,7 +753,9 @@ describe('SafetyService', () => {
     it('should throw if booking not found', async () => {
       bookingRepo.findOne.mockResolvedValue(null);
 
-      await expect(service.getTrackToken('nonexistent')).rejects.toThrow(BadRequestException);
+      await expect(service.getTrackToken('nonexistent')).rejects.toThrow(
+        BadRequestException,
+      );
     });
   });
 
@@ -567,14 +780,16 @@ describe('SafetyService', () => {
       expect(result.accuracy).toBe(10);
       expect(result.driver_name).toBe('John D.');
       expect(result.vehicle_make).toBe('Toyota');
-      expect(result.route_polyline).toBe('encoded_polyline_data');
+      expect(result.route_polyline).toBe(ROUTE_THROUGH_TEST_POINT);
       expect(result.status).toBe(BookingStatus.EN_ROUTE);
     });
 
     it('should throw if token is invalid', async () => {
       bookingRepo.findOne.mockResolvedValue(null);
 
-      await expect(service.getPublicTrack('invalid-token')).rejects.toThrow(BadRequestException);
+      await expect(service.getPublicTrack('invalid-token')).rejects.toThrow(
+        BadRequestException,
+      );
     });
 
     it('should throw if tracking link expired (over 1 hour after completion)', async () => {
@@ -585,7 +800,9 @@ describe('SafetyService', () => {
       };
       bookingRepo.findOne.mockResolvedValue(oldCompletedBooking);
 
-      await expect(service.getPublicTrack('expired-token')).rejects.toThrow(BadRequestException);
+      await expect(service.getPublicTrack('expired-token')).rejects.toThrow(
+        BadRequestException,
+      );
     });
 
     it('should allow tracking within 1 hour of completion', async () => {
@@ -611,7 +828,10 @@ describe('SafetyService', () => {
       } as DeviationEvent;
 
       deviationRepo.findOne.mockResolvedValue(mockDeviation);
-      deviationRepo.save.mockResolvedValue({ ...mockDeviation, status: DeviationStatus.RESPONDED_OK });
+      deviationRepo.save.mockResolvedValue({
+        ...mockDeviation,
+        status: DeviationStatus.RESPONDED_OK,
+      });
 
       await service.respondToDeviation('dev-1', 'ok');
 
@@ -703,8 +923,14 @@ describe('SafetyService', () => {
 
       bookingRepo.find.mockResolvedValue([overrunBooking]);
       deviationRepo.findOne.mockResolvedValue(null);
-      deviationRepo.create.mockReturnValue({ id: 'dev-overrun', booking_id: 'booking-overrun', status: DeviationStatus.PENDING } as DeviationEvent);
-      deviationRepo.save.mockResolvedValue({ id: 'dev-overrun' } as DeviationEvent);
+      deviationRepo.create.mockReturnValue({
+        id: 'dev-overrun',
+        booking_id: 'booking-overrun',
+        status: DeviationStatus.PENDING,
+      } as DeviationEvent);
+      deviationRepo.save.mockResolvedValue({
+        id: 'dev-overrun',
+      } as DeviationEvent);
 
       await service.checkTripOverruns();
 
@@ -725,7 +951,9 @@ describe('SafetyService', () => {
       };
 
       bookingRepo.find.mockResolvedValue([overrunBooking]);
-      deviationRepo.findOne.mockResolvedValue({ id: 'existing-dev' } as DeviationEvent);
+      deviationRepo.findOne.mockResolvedValue({
+        id: 'existing-dev',
+      } as DeviationEvent);
 
       await service.checkTripOverruns();
 

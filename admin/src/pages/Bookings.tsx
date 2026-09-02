@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { getBookings } from '../lib/api';
+import { useState, useEffect, useCallback } from 'react';
+import { getBookings, getErrorMessage } from '../lib/api';
 import { ErrorNotice, EmptyState } from '../components/QueryState';
 
 interface Booking {
@@ -21,16 +21,19 @@ export default function BookingsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const fetch = () => {
+  const fetch = useCallback(() => {
     setLoading(true);
     setError(null);
     getBookings({ status: status || undefined, page })
       .then((res) => { setBookings(res.bookings); setTotal(res.total); })
-      .catch((e: any) => setError(e?.response?.data?.message || e?.message || 'Could not load this data.'))
+      .catch((e: unknown) => setError(getErrorMessage(e, 'Could not load this data.')))
       .finally(() => setLoading(false));
-  };
+  }, [page, status]);
 
-  useEffect(() => { fetch(); }, [page, status]);
+  useEffect(() => {
+    const timeoutId = window.setTimeout(fetch, 0);
+    return () => window.clearTimeout(timeoutId);
+  }, [fetch]);
 
   const pages = Math.ceil(total / 20);
 

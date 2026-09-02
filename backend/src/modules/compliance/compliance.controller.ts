@@ -1,4 +1,13 @@
-import { Controller, Get, Post, Body, Param, UseGuards, Request, Query } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Param,
+  UseGuards,
+  Request,
+  Query,
+} from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { AuthGuard } from '@nestjs/passport';
 import { ComplianceService } from './compliance.service';
@@ -13,7 +22,10 @@ export class ComplianceController {
   @ApiBearerAuth('JWT')
   @ApiOperation({ summary: "Get current user's compliance logs" })
   async getLogs(@Request() req: any, @Query('limit') limit?: number) {
-    return this.complianceService.getLogs(req.user.sub, limit ? parseInt(String(limit)) : undefined);
+    return this.complianceService.getLogs(
+      req.user.sub,
+      limit ? parseInt(String(limit)) : undefined,
+    );
   }
 
   @Post('logs')

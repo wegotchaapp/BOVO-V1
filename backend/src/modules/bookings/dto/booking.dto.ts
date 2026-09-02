@@ -1,4 +1,13 @@
-import { IsString, IsOptional, IsArray, IsBoolean, IsEnum, IsNumber, Min, ValidateNested } from 'class-validator';
+import {
+  IsString,
+  IsOptional,
+  IsArray,
+  IsBoolean,
+  IsEnum,
+  IsNumber,
+  Min,
+  ValidateNested,
+} from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import { LuggageType } from '../../../common/enums';
@@ -57,22 +66,4 @@ export class CancelBookingDto {
   @IsOptional()
   @IsBoolean()
   cancelled_by_driver?: boolean;
-}
-
-export class SubmitRatingDto {
-  @ApiProperty({ minimum: 1, maximum: 5 })
-  @Type(() => Number)
-  @IsNumber()
-  @Min(1)
-  rating!: number;
-
-  @ApiProperty({ type: [String] })
-  @IsArray()
-  @IsString({ each: true })
-  category_tags!: string[];
-
-  @ApiPropertyOptional()
-  @IsOptional()
-  @IsString()
-  text_review?: string;
 }

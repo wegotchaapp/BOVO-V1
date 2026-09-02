@@ -14,7 +14,7 @@ import {
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { ChatService } from './chat.service';
-import { SendMessageDto, SubmitRatingDto, BlockUserDto } from './chat.dto';
+import { SendMessageDto, BlockUserDto } from './chat.dto';
 
 @ApiTags('chat')
 @Controller('chat')
@@ -58,11 +58,10 @@ export class ChatController {
 
   @Post('conversations/:bookingId/read')
   @ApiBearerAuth('JWT')
-  @ApiOperation({ summary: 'Mark messages as read in a conversation (by booking ID)' })
-  async markAsRead(
-    @Request() req: any,
-    @Param('bookingId') bookingId: string,
-  ) {
+  @ApiOperation({
+    summary: 'Mark messages as read in a conversation (by booking ID)',
+  })
+  async markAsRead(@Request() req: any, @Param('bookingId') bookingId: string) {
     await this.chatService.markMessagesAsRead(req.user.id, bookingId);
     return { success: true };
   }
@@ -70,10 +69,7 @@ export class ChatController {
   @Patch('conversations/:id/read')
   @ApiBearerAuth('JWT')
   @ApiOperation({ summary: 'Mark conversation as read by conversation ID' })
-  async markConversationRead(
-    @Request() req: any,
-    @Param('id') id: string,
-  ) {
+  async markConversationRead(@Request() req: any, @Param('id') id: string) {
     await this.chatService.markConversationRead(req.user.id, id);
     return { success: true };
   }
@@ -122,7 +118,9 @@ export class ChatController {
 
   @Get('has-paid')
   @ApiBearerAuth('JWT')
-  @ApiOperation({ summary: 'Check if user has a paid booking (gate for messages access)' })
+  @ApiOperation({
+    summary: 'Check if user has a paid booking (gate for messages access)',
+  })
   async hasPaid(@Request() req: any) {
     const hasPaid = await this.chatService.userHasPaidBookings(req.user.id);
     return { has_paid: hasPaid };
@@ -138,8 +136,14 @@ export class ChatController {
     @Query('limit') limit?: number,
   ) {
     const hasPaid = await this.chatService.userHasPaidBookings(req.user.id);
-    if (!hasPaid) throw new ForbiddenException('Payment required to access messages');
-    return this.chatService.getGroup(req.user.id, bookingId, cursor, parseInt(String(limit)) || 50);
+    if (!hasPaid)
+      throw new ForbiddenException('Payment required to access messages');
+    return this.chatService.getGroup(
+      req.user.id,
+      bookingId,
+      cursor,
+      parseInt(String(limit)) || 50,
+    );
   }
 
   @Post('group/:bookingId/message')
@@ -151,7 +155,8 @@ export class ChatController {
     @Body() dto: SendMessageDto,
   ) {
     const hasPaid = await this.chatService.userHasPaidBookings(req.user.id);
-    if (!hasPaid) throw new ForbiddenException('Payment required to access messages');
+    if (!hasPaid)
+      throw new ForbiddenException('Payment required to access messages');
     return this.chatService.sendMessage(req.user.id, bookingId, dto);
   }
 
@@ -163,7 +168,8 @@ export class ChatController {
     @Param('bookingId') bookingId: string,
   ) {
     const hasPaid = await this.chatService.userHasPaidBookings(req.user.id);
-    if (!hasPaid) throw new ForbiddenException('Payment required to access messages');
+    if (!hasPaid)
+      throw new ForbiddenException('Payment required to access messages');
     await this.chatService.deleteGroup(req.user.id, bookingId);
     return { success: true };
   }
@@ -176,7 +182,11 @@ export class ChatController {
     @Param('bookingId') bookingId: string,
     @Body() dto: BlockUserDto,
   ) {
-    await this.chatService.blockUser(req.user.id, bookingId, dto.blocked_user_id);
+    await this.chatService.blockUser(
+      req.user.id,
+      bookingId,
+      dto.blocked_user_id,
+    );
     return { success: true, message: 'User blocked' };
   }
 
@@ -211,33 +221,5 @@ export class ChatController {
   </Dial>
 </Response>`,
     };
-  }
-
-  @Post('ratings/:bookingId')
-  @ApiBearerAuth('JWT')
-  @ApiOperation({ summary: 'Submit a rating after trip completion' })
-  async submitRating(
-    @Request() req: any,
-    @Param('bookingId') bookingId: string,
-    @Body() dto: SubmitRatingDto,
-  ) {
-    return this.chatService.submitRating(req.user.id, bookingId, dto);
-  }
-
-  @Get('ratings/:bookingId/status')
-  @ApiBearerAuth('JWT')
-  @ApiOperation({ summary: 'Get rating status for a booking' })
-  async getRatingStatus(
-    @Request() req: any,
-    @Param('bookingId') bookingId: string,
-  ) {
-    return this.chatService.getRatingStatus(bookingId, req.user.id);
-  }
-
-  @Get('ratings/my-profile')
-  @ApiBearerAuth('JWT')
-  @ApiOperation({ summary: 'Get my aggregate rating (only after 5+ ratings)' })
-  async getMyProfileRating(@Request() req: any) {
-    return this.chatService.getMyProfileRating(req.user.id);
   }
 }

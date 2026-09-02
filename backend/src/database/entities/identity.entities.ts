@@ -28,7 +28,11 @@ export class Verification {
   @Column({ unique: true })
   provider_reference!: string;
 
-  @Column({ type: 'enum', enum: VerificationStatus, default: VerificationStatus.PENDING })
+  @Column({
+    type: 'enum',
+    enum: VerificationStatus,
+    default: VerificationStatus.PENDING,
+  })
   status!: VerificationStatus;
 
   @Column({ type: 'varchar', length: 255, nullable: true })
@@ -65,7 +69,11 @@ export class BackgroundCheck {
   @Column({ unique: true })
   checkr_candidate_id!: string;
 
-  @Column({ type: 'enum', enum: BackgroundCheckStatus, default: BackgroundCheckStatus.PENDING })
+  @Column({
+    type: 'enum',
+    enum: BackgroundCheckStatus,
+    default: BackgroundCheckStatus.PENDING,
+  })
   status!: BackgroundCheckStatus;
 
   @Column({ type: 'varchar', length: 100, nullable: true })

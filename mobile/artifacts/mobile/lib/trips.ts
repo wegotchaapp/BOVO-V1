@@ -17,10 +17,13 @@ export interface CreateTripInput {
 export async function listTrips(params?: {
   from?: string;
   to?: string;
+  /** ISO calendar day, YYYY-MM-DD. Omit to search every upcoming day. */
+  date?: string;
 }): Promise<Trip[]> {
   const q = new URLSearchParams();
   if (params?.from) q.set("from", params.from);
   if (params?.to) q.set("to", params.to);
+  if (params?.date) q.set("date", params.date);
   const qs = q.toString();
   const data = await apiClient.get<{ trips: Trip[] }>(
     `/trips${qs ? `?${qs}` : ""}`,

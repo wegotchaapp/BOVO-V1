@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { getUsers, suspendUser, unsuspendUser, banUser } from '../lib/api';
+import { useState, useEffect, useCallback } from 'react';
+import { getErrorMessage, getUsers, suspendUser, unsuspendUser, banUser } from '../lib/api';
 import { ErrorNotice, EmptyState } from '../components/QueryState';
 import ConfirmDialog, { type ConfirmRequest } from '../components/ConfirmDialog';
 
@@ -22,27 +22,31 @@ export default function UsersPage() {
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');
+  const [appliedSearch, setAppliedSearch] = useState('');
   const [role, setRole] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [dialog, setDialog] = useState<ConfirmRequest | null>(null);
   const limit = 20;
 
-  const fetch = () => {
+  const fetch = useCallback(() => {
     setLoading(true);
     setError(null);
-    getUsers({ search: search || undefined, role: role || undefined, page, limit })
+    getUsers({ search: appliedSearch || undefined, role: role || undefined, page, limit })
       .then((res) => { setUsers(res.users); setTotal(res.total); })
-      .catch((e: any) => setError(e?.response?.data?.message || e?.message || 'Could not load this data.'))
+      .catch((e: unknown) => setError(getErrorMessage(e, 'Could not load this data.')))
       .finally(() => setLoading(false));
-  };
+  }, [appliedSearch, page, role]);
 
-  useEffect(() => { fetch(); }, [page, role]);
+  useEffect(() => {
+    const timeoutId = window.setTimeout(fetch, 0);
+    return () => window.clearTimeout(timeoutId);
+  }, [fetch]);
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     setPage(1);
-    fetch();
+    setAppliedSearch(search);
   };
 
   // Suspend and ban are audited. The reason is required by the dialog rather

@@ -56,7 +56,9 @@ export class MobileAuthService {
       await this.purgeIfExpired(existing);
       const still = await this.users.findOne({ where: { email } });
       if (still) {
-        throw new ConflictException('An account with this email already exists');
+        throw new ConflictException(
+          'An account with this email already exists',
+        );
       }
     }
 
@@ -184,6 +186,15 @@ export class MobileAuthService {
     if (dto.ridePreferences !== undefined) {
       user.ride_preferences = JSON.stringify(dto.ridePreferences ?? {});
     }
+
+    // A profile photo is mandatory. Enforce it here as well as in the client so
+    // onboarding cannot be completed by calling the API directly.
+    if (dto.onboarded === true && !user.photo_url) {
+      throw new BadRequestException(
+        'A profile photo is required before you can finish setting up your account.',
+      );
+    }
+
     const saved = await this.users.save(user);
     return userToDto(saved);
   }
@@ -322,9 +333,10 @@ export class MobileAuthService {
       throw new UnauthorizedException('Invalid Apple identity token.');
     }
     const payload = JSON.parse(
-      Buffer.from(parts[1].replace(/-/g, '+').replace(/_/g, '/'), 'base64').toString(
-        'utf8',
-      ),
+      Buffer.from(
+        parts[1].replace(/-/g, '+').replace(/_/g, '/'),
+        'base64',
+      ).toString('utf8'),
     ) as {
       sub?: string;
       email?: string;

@@ -630,7 +630,7 @@ const styles = StyleSheet.create({
     padding: 8,
     overflow: "hidden",
   },
-  photoImg: { ...StyleSheet.absoluteFillObject, width: "100%", height: "100%" },
+  photoImg: { ...StyleSheet.absoluteFill, width: "100%", height: "100%" },
   photoCheck: {
     position: "absolute",
     top: 8,

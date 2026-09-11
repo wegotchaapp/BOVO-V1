@@ -196,7 +196,7 @@ export default function MapboxWebMap({
 
 const styles = StyleSheet.create({
   container: { flex: 1, position: "relative", overflow: "hidden" },
-  mapBg: { ...StyleSheet.absoluteFillObject },
+  mapBg: { ...StyleSheet.absoluteFill },
   gridH: { position: "absolute", left: 0, right: 0, height: 1, backgroundColor: "#c8bfaa", opacity: 0.35 },
   gridV: { position: "absolute", top: 0, bottom: 0, width: 1, backgroundColor: "#c8bfaa", opacity: 0.35 },
   roadLabel: { position: "absolute", fontSize: 10, color: "#9CA3AF", fontFamily: "Inter_500Medium" },

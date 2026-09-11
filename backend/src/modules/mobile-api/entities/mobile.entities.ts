@@ -230,6 +230,63 @@ export class MobileVehicle {
   updated_at!: Date;
 }
 
+/**
+ * A government ID and selfie submitted from Settings, reviewed by a person in
+ * the admin dashboard. One row per submission: a rejected submission is kept
+ * and a resubmission is a new row, so the review history survives.
+ *
+ * The three file columns hold private storage keys, never URLs. These images
+ * must never be publicly reachable — admins open them through the admin API
+ * only. Approving a row sets `mobile_users.is_verified`.
+ *
+ * Indexes (including the one-pending-per-user partial unique index) live in the
+ * migration, which is authoritative for this table.
+ */
+@Entity('mobile_identity_verifications')
+export class MobileIdentityVerification {
+  @PrimaryGeneratedColumn('uuid')
+  id!: string;
+
+  @Column({ type: 'uuid' })
+  user_id!: string;
+
+  @Column({ type: 'varchar', length: 16, default: 'pending_review' })
+  status!: 'pending_review' | 'approved' | 'rejected';
+
+  @Column({ type: 'varchar', length: 20 })
+  document_type!: 'drivers_license' | 'state_id' | 'passport';
+
+  @Column({ type: 'text' })
+  id_front_key!: string;
+
+  /** Absent for passports, which have no back. */
+  @Column({ type: 'text', nullable: true })
+  id_back_key!: string | null;
+
+  @Column({ type: 'text' })
+  selfie_key!: string;
+
+  /** Shown to the user when a submission is rejected. */
+  @Column({ type: 'text', nullable: true })
+  review_note!: string | null;
+
+  /** The platform admin who reviewed it. */
+  @Column({ type: 'uuid', nullable: true })
+  reviewed_by!: string | null;
+
+  @Column({ type: 'timestamptz', nullable: true })
+  reviewed_at!: Date | null;
+
+  @Column({ type: 'timestamptz', default: () => 'now()' })
+  submitted_at!: Date;
+
+  @CreateDateColumn({ type: 'timestamptz' })
+  created_at!: Date;
+
+  @UpdateDateColumn({ type: 'timestamptz' })
+  updated_at!: Date;
+}
+
 @Entity('mobile_ratings')
 @Unique(['booking_id', 'rater_id'])
 export class MobileRating {

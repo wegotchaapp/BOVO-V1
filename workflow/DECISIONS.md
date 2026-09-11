@@ -11,6 +11,11 @@ Decided by Claude unless marked `USER` — Sushant's decisions override.
 | 2 | 2026-09-01 | Does `mockup-sandbox` block the release? | **No — dropped from the release gate** | USER | It ships to nobody, is referenced by nothing but the lockfile, and the alternative fix unpins Expo SDK 54. See below |
 | 3 | 2026-08-30 | Are the frozen `.sql` files a faithful record of production? | **Yes — verified, zero drift** | Claude | Live schema diff against Supabase; see below |
 | 4 | 2026-08-30 | Admin lint debt: fix now or formally defer? | **Fix now, in Codex's lane, bundled with item 4** | Claude | Typing the 60 `any`s *is* defining the admin API contract — the same work as the route-gap item |
+| 5 | 2026-09-11 | Stay on the Expo SDK 54 pin, or keep the SDK 57 upgrade? | **Keep SDK 57** — committed as `c693184` | USER | Supersedes the SDK 54 pin in `AGENT_OPERATING_AGREEMENT.md` §1.1. Typecheck and tests were green on the upgraded tree |
+| 6 | 2026-09-11 | How is a government ID checked? | **A person reviews it in the admin dashboard. Optional for users for now** | USER | Works without a vendor. Stripe Identity would need live Stripe keys (placeholders today) and costs per check |
+| 7 | 2026-09-11 | Which sign-up photo step comes out? | **Only the ID + selfie screen after registering. Onboarding keeps its required profile photo** | USER | ID and selfie upload moves to Settings |
+| 8 | 2026-09-11 | One vehicle per Voyager, or several? | **Several. Approved vehicles are read-only; the Voyager picks one when posting** | USER | The review found no way to add a second car and an Edit on an approved one |
+| 9 | 2026-09-11 | Can a Sailor message a Voyager? | **Only after booking. Public replies on posts are removed** | USER | Replies had already been asked to be removed; the post-booking group chat stays for pickup |
 
 ## Decision 3 — schema verification, 2026-08-30
 

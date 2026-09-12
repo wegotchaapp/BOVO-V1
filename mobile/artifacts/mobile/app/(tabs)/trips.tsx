@@ -28,6 +28,7 @@ import { useAuth } from "@/context/AuthContext";
 import { listMyBookings, type Booking } from "@/lib/bookings";
 import { getRatingStatus } from "@/lib/ratings";
 import { deleteTrip, listMyTrips } from "@/lib/trips";
+import { isActivePost } from "@/lib/trip-activity";
 import type { Trip } from "@/data/trips";
 
 interface TripItem {
@@ -100,14 +101,16 @@ function bookingToItem(b: Booking): TripItem {
 }
 
 function tripToItem(t: Trip): TripItem {
-  const departed = new Date(t.departureAt).getTime() < Date.now();
   const inProgress = t.status === "in_progress";
+  // Upcoming only while the post is live. A departed post, or a ride left "in
+  // progress" long after it would have arrived, belongs under Past — the old
+  // check kept every in-progress ride upcoming forever.
   const status: TripItem["status"] =
     t.status === "cancelled"
       ? "cancelled"
-      : t.status === "completed" || (departed && !inProgress)
-      ? "completed"
-      : "upcoming";
+      : isActivePost(t)
+      ? "upcoming"
+      : "completed";
   return {
     id: t.id,
     from: cityShort(t.fromCity),

@@ -65,7 +65,7 @@ function RootLayoutNav() {
         <Stack.Screen name="index" options={{ headerShown: false }} />
         <Stack.Screen name="login" options={{ headerShown: false }} />
         <Stack.Screen name="register" options={{ headerShown: false }} />
-        <Stack.Screen name="verify" options={{ title: "Verify Identity" }} />
+        <Stack.Screen name="verify" options={{ headerShown: false }} />
         <Stack.Screen name="onboarding" options={{ headerShown: false }} />
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
         <Stack.Screen name="search-results" options={{ headerShown: false }} />
@@ -83,6 +83,7 @@ function RootLayoutNav() {
         <Stack.Screen name="odometer/[tripId]" options={{ headerShown: false }} />
         <Stack.Screen name="earnings" options={{ headerShown: false }} />
         <Stack.Screen name="vehicle" options={{ headerShown: false }} />
+        <Stack.Screen name="vehicles" options={{ headerShown: false }} />
         <Stack.Screen name="safety-unsafe" options={{ headerShown: false }} />
         <Stack.Screen name="rate-trip/[id]" options={{ headerShown: false }} />
         <Stack.Screen name="settings" options={{ headerShown: false }} />

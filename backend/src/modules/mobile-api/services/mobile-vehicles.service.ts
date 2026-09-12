@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ForbiddenException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
@@ -18,18 +19,30 @@ import { vehicleToDto } from '../mobile.mappers';
 const UPLOADS_DIR = path.join(process.cwd(), 'uploads');
 const VEHICLE_BUCKET = 'bovogo-vehicle-media';
 
-const ALLOWED_IMAGE_MIME: Record<string, string> = {
-  'image/jpeg': 'jpg',
-  'image/jpg': 'jpg',
-  'image/png': 'png',
-  'image/heic': 'heic',
-  'image/webp': 'webp',
-};
+/** Enough for a household's cars; stops one account flooding the review queue. */
+export const MAX_VEHICLES_PER_USER = 5;
+
+const UUID_PATTERN =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/**
+ * `Map`s, not object literals: the MIME type comes straight off a multipart
+ * part, so a lookup by `constructor` or `__proto__` would otherwise return a
+ * truthy value inherited from `Object.prototype`, pass for a supported format,
+ * and end up interpolated into the stored key and its URL.
+ */
+const ALLOWED_IMAGE_MIME = new Map<string, string>([
+  ['image/jpeg', 'jpg'],
+  ['image/jpg', 'jpg'],
+  ['image/png', 'png'],
+  ['image/heic', 'heic'],
+  ['image/webp', 'webp'],
+]);
 /** Documents may also be photographed, so images are accepted alongside PDF. */
-const ALLOWED_DOC_MIME: Record<string, string> = {
+const ALLOWED_DOC_MIME = new Map<string, string>([
   ...ALLOWED_IMAGE_MIME,
-  'application/pdf': 'pdf',
-};
+  ['application/pdf', 'pdf'],
+]);
 
 export const PHOTO_SLOTS = [
   'front',
@@ -105,52 +118,35 @@ export class MobileVehiclesService {
     };
   }
 
-  /** Upsert the Voyager's single primary vehicle. */
-  async upsert(userId: string, dto: UpsertVehicleBody) {
-    const vin = normaliseVin(dto.vin);
-    if (!VIN_PATTERN.test(vin)) {
+  /** Registers another vehicle. Each one is reviewed on its own. */
+  async create(userId: string, dto: UpsertVehicleBody) {
+    const count = await this.vehicles.count({ where: { user_id: userId } });
+    if (count >= MAX_VEHICLES_PER_USER) {
       throw new BadRequestException(
-        'Enter a valid 17-character VIN. It uses letters and numbers but never the letters I, O or Q.',
+        `You can register up to ${MAX_VEHICLES_PER_USER} vehicles.`,
       );
     }
+    const vin = await this.assertVinAvailable(userId, dto.vin, null);
 
-    // A VIN identifies one physical car, so it cannot belong to two accounts.
-    const clash = await this.vehicles.findOne({ where: { vin } });
-    if (clash && clash.user_id !== userId) {
-      throw new BadRequestException(
-        'That VIN is already registered to another Bovogo account.',
-      );
-    }
+    const row = this.vehicles.create({ user_id: userId });
+    applyDetails(row, dto, vin);
+    const saved = await this.save(row);
+    return { vehicle: vehicleToDto(saved, missingRequirements(saved)) };
+  }
 
-    const existing = await this.vehicles.find({
-      where: { user_id: userId },
-      order: { updated_at: 'DESC' },
-      take: 1,
-    });
-    const row = existing[0] ?? this.vehicles.create({ user_id: userId });
+  /** Edits a vehicle that has not been approved yet. */
+  async update(userId: string, id: string, dto: UpsertVehicleBody) {
+    const row = await this.requireEditableVehicle(userId, id);
+    const vin = await this.assertVinAvailable(userId, dto.vin, row.id);
 
-    row.make = dto.make.trim();
-    row.model = dto.model.trim();
-    row.year = dto.year;
-    row.color = dto.color.trim();
-    row.license_plate = dto.licensePlate.trim().toUpperCase();
-    row.state = (dto.state ?? 'TX').trim().toUpperCase().slice(0, 2);
-    row.vin = vin;
-    row.seat_count = dto.seatCount;
-    row.door_count = dto.doorCount;
-    if (dto.insuranceExpiresAt !== undefined) {
-      row.insurance_expires_at = dto.insuranceExpiresAt || null;
-    }
-    if (dto.registrationExpiresAt !== undefined) {
-      row.registration_expires_at = dto.registrationExpiresAt || null;
-    }
-
+    applyDetails(row, dto, vin);
     const saved = await this.save(row);
     return { vehicle: vehicleToDto(saved, missingRequirements(saved)) };
   }
 
   async uploadPhoto(
     userId: string,
+    vehicleId: string,
     slot: string,
     file: UploadedFile | undefined,
   ) {
@@ -159,7 +155,7 @@ export class MobileVehiclesService {
         `Unknown photo slot "${slot}". Expected one of: ${PHOTO_SLOTS.join(', ')}.`,
       );
     }
-    const row = await this.requireVehicle(userId);
+    const row = await this.requireEditableVehicle(userId, vehicleId);
     const ext = this.assertFile(file, ALLOWED_IMAGE_MIME, 'photo');
 
     const key = `vehicles/${row.id}/${slot}-${randomUUID()}.${ext}`;
@@ -177,6 +173,7 @@ export class MobileVehiclesService {
 
   async uploadDocument(
     userId: string,
+    vehicleId: string,
     kind: string,
     expiresAt: string | undefined,
     file: UploadedFile | undefined,
@@ -186,7 +183,7 @@ export class MobileVehiclesService {
         `Unknown document "${kind}". Expected one of: ${DOC_KINDS.join(', ')}.`,
       );
     }
-    const row = await this.requireVehicle(userId);
+    const row = await this.requireEditableVehicle(userId, vehicleId);
     const ext = this.assertFile(file, ALLOWED_DOC_MIME, 'document');
 
     const key = `vehicles/${row.id}/${kind}-${randomUUID()}.${ext}`;
@@ -217,43 +214,42 @@ export class MobileVehiclesService {
   }
 
   /**
-   * Throws unless the Voyager has a vehicle that satisfies every requirement.
-   * Called before an adventure may be posted.
+   * Throws unless the Voyager has an approved vehicle that satisfies every
+   * requirement. Called before an adventure may be posted. With a `vehicleId`
+   * that vehicle must be the one; without, any approved vehicle will do.
    */
-  async assertReadyToDrive(userId: string): Promise<MobileVehicle> {
+  async assertReadyToDrive(
+    userId: string,
+    vehicleId?: string,
+  ): Promise<MobileVehicle> {
+    if (vehicleId) {
+      const row = UUID_PATTERN.test(vehicleId)
+        ? await this.vehicles.findOne({ where: { id: vehicleId } })
+        : null;
+      if (!row || row.user_id !== userId) {
+        throw new BadRequestException(
+          'Choose one of your own vehicles for this adventure.',
+        );
+      }
+      return assertDrivable(row);
+    }
+
     const rows = await this.vehicles.find({
       where: { user_id: userId },
       order: { updated_at: 'DESC' },
-      take: 1,
     });
-    const row = rows[0];
-    if (!row) {
+    if (rows.length === 0) {
       throw new BadRequestException(
         'Add your vehicle before posting an adventure.',
       );
     }
-    const missing = missingRequirements(row);
-    if (missing.length > 0) {
-      throw new BadRequestException(
-        `Your vehicle isn't ready yet. Still needed: ${missing.join(', ')}.`,
-      );
-    }
-    // Documents being present is not the same as somebody having looked at them.
-    // Sailors are told vehicles are checked before they ride, so the check has to
-    // be the thing that opens the gate.
-    if (row.verification_status === 'rejected') {
-      throw new BadRequestException(
-        row.verification_note
-          ? `Your vehicle needs attention: ${row.verification_note}`
-          : 'Your vehicle was rejected. Update it and resubmit.',
-      );
-    }
-    if (row.verification_status !== 'approved') {
-      throw new BadRequestException(
-        "Your vehicle is being reviewed. You can post as soon as it's approved.",
-      );
-    }
-    return row;
+    const ready = rows.find(
+      (r) =>
+        r.verification_status === 'approved' &&
+        missingRequirements(r).length === 0,
+    );
+    // Nothing ready: explain what the most recently touched vehicle still needs.
+    return assertDrivable(ready ?? rows[0]);
   }
 
   /** Recomputes review state from completeness, then persists. */
@@ -261,39 +257,76 @@ export class MobileVehiclesService {
     const missing = missingRequirements(row);
     if (missing.length > 0) {
       row.verification_status = 'incomplete';
-    } else if (row.verification_status === 'incomplete') {
-      // Everything supplied for the first time — hand to ops.
+    } else if (
+      row.verification_status === 'incomplete' ||
+      row.verification_status === 'rejected'
+    ) {
+      // Complete for the first time, or fixed after a rejection — hand to ops.
+      // A rejected vehicle used to stay rejected however much it changed, so it
+      // could never be posted with again.
       row.verification_status = 'pending_review';
+      row.verification_note = null;
     }
     return this.vehicles.save(row);
   }
 
-  private async requireVehicle(userId: string): Promise<MobileVehicle> {
-    const rows = await this.vehicles.find({
-      where: { user_id: userId },
-      order: { updated_at: 'DESC' },
-      take: 1,
-    });
-    if (!rows[0]) {
-      throw new BadRequestException(
-        'Save your vehicle details before uploading photos or documents.',
+  /**
+   * The vehicle, if it belongs to this Voyager and can still be changed.
+   * Approved vehicles are locked: what ops checked is what Sailors ride in.
+   */
+  private async requireEditableVehicle(
+    userId: string,
+    id: string,
+  ): Promise<MobileVehicle> {
+    const row = await this.vehicles.findOne({ where: { id } });
+    if (!row || row.user_id !== userId) {
+      throw new NotFoundException('Vehicle not found');
+    }
+    if (row.verification_status === 'approved') {
+      throw new ForbiddenException(
+        "Approved vehicles can't be edited. Contact support if something about this vehicle has changed.",
       );
     }
-    return rows[0];
+    return row;
+  }
+
+  /** Normalises the VIN and checks nobody — including this Voyager — has it. */
+  private async assertVinAvailable(
+    userId: string,
+    rawVin: string,
+    ownVehicleId: string | null,
+  ): Promise<string> {
+    const vin = normaliseVin(rawVin);
+    if (!VIN_PATTERN.test(vin)) {
+      throw new BadRequestException(
+        'Enter a valid 17-character VIN. It uses letters and numbers but never the letters I, O or Q.',
+      );
+    }
+
+    // A VIN identifies one physical car, so it can be registered only once.
+    const clash = await this.vehicles.findOne({ where: { vin } });
+    if (clash && clash.id !== ownVehicleId) {
+      throw new BadRequestException(
+        clash.user_id === userId
+          ? "You've already added a vehicle with that VIN."
+          : 'That VIN is already registered to another Bovogo account.',
+      );
+    }
+    return vin;
   }
 
   private assertFile(
     file: UploadedFile | undefined,
-    allowed: Record<string, string>,
+    allowed: Map<string, string>,
     label: string,
   ): string {
     if (!file || !file.buffer?.length) {
       throw new BadRequestException(`A ${label} file is required.`);
     }
-    const ext = allowed[file.mimetype];
+    const ext = allowed.get(file.mimetype);
     if (!ext) {
       throw new BadRequestException(
-        `Unsupported ${label} format. Accepted: ${Object.keys(allowed).join(', ')}.`,
+        `Unsupported ${label} format. Accepted: ${[...allowed.keys()].join(', ')}.`,
       );
     }
     return ext;
@@ -329,6 +362,54 @@ export class MobileVehiclesService {
     if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
     fs.writeFileSync(filePath, buffer);
   }
+}
+
+function applyDetails(
+  row: MobileVehicle,
+  dto: UpsertVehicleBody,
+  vin: string,
+): void {
+  row.make = dto.make.trim();
+  row.model = dto.model.trim();
+  row.year = dto.year;
+  row.color = dto.color.trim();
+  row.license_plate = dto.licensePlate.trim().toUpperCase();
+  row.state = (dto.state ?? 'TX').trim().toUpperCase().slice(0, 2);
+  row.vin = vin;
+  row.seat_count = dto.seatCount;
+  row.door_count = dto.doorCount;
+  if (dto.insuranceExpiresAt !== undefined) {
+    row.insurance_expires_at = dto.insuranceExpiresAt || null;
+  }
+  if (dto.registrationExpiresAt !== undefined) {
+    row.registration_expires_at = dto.registrationExpiresAt || null;
+  }
+}
+
+/** The posting gate: complete, and approved by a person. */
+function assertDrivable(row: MobileVehicle): MobileVehicle {
+  const missing = missingRequirements(row);
+  if (missing.length > 0) {
+    throw new BadRequestException(
+      `Your vehicle isn't ready yet. Still needed: ${missing.join(', ')}.`,
+    );
+  }
+  // Documents being present is not the same as somebody having looked at them.
+  // Sailors are told vehicles are checked before they ride, so the check has to
+  // be the thing that opens the gate.
+  if (row.verification_status === 'rejected') {
+    throw new BadRequestException(
+      row.verification_note
+        ? `Your vehicle needs attention: ${row.verification_note}`
+        : 'Your vehicle was rejected. Update it and resubmit.',
+    );
+  }
+  if (row.verification_status !== 'approved') {
+    throw new BadRequestException(
+      "Your vehicle is being reviewed. You can post as soon as it's approved.",
+    );
+  }
+  return row;
 }
 
 function isPhotoSlot(v: string): v is PhotoSlot {

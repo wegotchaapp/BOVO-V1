@@ -1,0 +1,210 @@
+{
+  "clientPrivileges": [
+    {
+      "role": "anon",
+      "can_read": false,
+      "can_insert": false
+    },
+    {
+      "role": "authenticated",
+      "can_read": false,
+      "can_insert": false
+    }
+  ],
+  "migrations": [
+    {
+      "id": 1,
+      "timestamp": "1746284000000",
+      "name": "InitialTypeormBaseline1746284000000"
+    },
+    {
+      "id": 2,
+      "timestamp": "1746284700000",
+      "name": "ComplianceColumnsAddition1746284700000"
+    },
+    {
+      "id": 3,
+      "timestamp": "1746285000000",
+      "name": "SelectedRoleColumnAddition1746285000000"
+    },
+    {
+      "id": 4,
+      "timestamp": "1746286000000",
+      "name": "PasswordHashNullable1746286000000"
+    },
+    {
+      "id": 5,
+      "timestamp": "1746290000000",
+      "name": "TripReplyTable1746290000000"
+    },
+    {
+      "id": 6,
+      "timestamp": "1746291000000",
+      "name": "AddFoundingMemberColumn1746291000000"
+    },
+    {
+      "id": 7,
+      "timestamp": "1746292000000",
+      "name": "AddSubscriptionColumns1746292000000"
+    },
+    {
+      "id": 8,
+      "timestamp": "1746400000000",
+      "name": "AddLuggageInsuranceColumn1746400000000"
+    },
+    {
+      "id": 9,
+      "timestamp": "1746500000000",
+      "name": "AddIsVerifiedColumn1746500000000"
+    },
+    {
+      "id": 10,
+      "timestamp": "1746600000000",
+      "name": "MobileApiTables1746600000000"
+    },
+    {
+      "id": 11,
+      "timestamp": "1788047999000",
+      "name": "MobileApiRemainingBaseTables1788047999000"
+    },
+    {
+      "id": 12,
+      "timestamp": "1788047999500",
+      "name": "MobileApiEntityColumns1788047999500"
+    },
+    {
+      "id": 13,
+      "timestamp": "1788048000000",
+      "name": "MobileVehicleAndBackgroundCheck1788048000000"
+    },
+    {
+      "id": 14,
+      "timestamp": "1788048001000",
+      "name": "MobileBookingLuggageAndOdometer1788048001000"
+    },
+    {
+      "id": 15,
+      "timestamp": "1788048002000",
+      "name": "MobileSafetyAndRouteDeviation1788048002000"
+    },
+    {
+      "id": 16,
+      "timestamp": "1788048004000",
+      "name": "MobileReadPathIndexes1788048004000"
+    },
+    {
+      "id": 17,
+      "timestamp": "1788048005000",
+      "name": "MobileCheckrWebhookEvents1788048005000"
+    },
+    {
+      "id": 20,
+      "timestamp": "1789149600000",
+      "name": "MobileIdentityVerifications1789149600000"
+    }
+  ],
+  "columns": [
+    {
+      "column_name": "id",
+      "data_type": "uuid",
+      "column_default": "gen_random_uuid()",
+      "is_nullable": "NO"
+    },
+    {
+      "column_name": "user_id",
+      "data_type": "uuid",
+      "column_default": null,
+      "is_nullable": "NO"
+    },
+    {
+      "column_name": "status",
+      "data_type": "character varying",
+      "column_default": "'pending_review'::character varying",
+      "is_nullable": "NO"
+    },
+    {
+      "column_name": "document_type",
+      "data_type": "character varying",
+      "column_default": null,
+      "is_nullable": "NO"
+    },
+    {
+      "column_name": "id_front_key",
+      "data_type": "text",
+      "column_default": null,
+      "is_nullable": "NO"
+    },
+    {
+      "column_name": "id_back_key",
+      "data_type": "text",
+      "column_default": null,
+      "is_nullable": "YES"
+    },
+    {
+      "column_name": "selfie_key",
+      "data_type": "text",
+      "column_default": null,
+      "is_nullable": "NO"
+    },
+    {
+      "column_name": "review_note",
+      "data_type": "text",
+      "column_default": null,
+      "is_nullable": "YES"
+    },
+    {
+      "column_name": "reviewed_by",
+      "data_type": "uuid",
+      "column_default": null,
+      "is_nullable": "YES"
+    },
+    {
+      "column_name": "reviewed_at",
+      "data_type": "timestamp with time zone",
+      "column_default": null,
+      "is_nullable": "YES"
+    },
+    {
+      "column_name": "submitted_at",
+      "data_type": "timestamp with time zone",
+      "column_default": "now()",
+      "is_nullable": "NO"
+    },
+    {
+      "column_name": "created_at",
+      "data_type": "timestamp with time zone",
+      "column_default": "now()",
+      "is_nullable": "NO"
+    },
+    {
+      "column_name": "updated_at",
+      "data_type": "timestamp with time zone",
+      "column_default": "now()",
+      "is_nullable": "NO"
+    }
+  ],
+  "indexes": [
+    {
+      "indexdef": "CREATE UNIQUE INDEX mobile_identity_verifications_pkey ON public.mobile_identity_verifications USING btree (id)"
+    },
+    {
+      "indexdef": "CREATE INDEX \"IDX_mobile_identity_user_submitted\" ON public.mobile_identity_verifications USING btree (user_id, submitted_at DESC)"
+    },
+    {
+      "indexdef": "CREATE UNIQUE INDEX \"IDX_mobile_identity_one_pending\" ON public.mobile_identity_verifications USING btree (user_id) WHERE ((status)::text = 'pending_review'::text)"
+    },
+    {
+      "indexdef": "CREATE INDEX \"IDX_mobile_identity_review_queue\" ON public.mobile_identity_verifications USING btree (status, submitted_at DESC, id DESC)"
+    }
+  ],
+  "rls": [
+    {
+      "relrowsecurity": true
+    }
+  ],
+  "tables": [
+    {
+      "count": "71"
+    }
+  ]
+}

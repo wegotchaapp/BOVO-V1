@@ -11,6 +11,8 @@ export interface CreateTripInput {
   pricePerSeat: number;
   note?: string;
   car?: string;
+  /** One of the Voyager's approved vehicles. Omitted, the server uses the newest. */
+  vehicleId?: string;
   preferences?: TripPreferences;
 }
 
@@ -36,6 +38,7 @@ export async function listMyTrips(): Promise<Trip[]> {
   return data.trips;
 }
 
+/** `replies` is always empty now that posts take no public replies. */
 export async function getTrip(
   id: string,
 ): Promise<{ trip: Trip; replies: TripReply[]; meta: TripDetailMeta }> {
@@ -93,15 +96,4 @@ export async function uploadStartVideo(
 export async function startTrip(tripId: string): Promise<Trip> {
   const data = await apiClient.post<{ trip: Trip }>(`/trips/${tripId}/start`);
   return data.trip;
-}
-
-export async function replyToTrip(
-  tripId: string,
-  text: string,
-): Promise<TripReply> {
-  const data = await apiClient.post<{ reply: TripReply }>(
-    `/trips/${tripId}/replies`,
-    { text },
-  );
-  return data.reply;
 }

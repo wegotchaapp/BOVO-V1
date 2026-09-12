@@ -1,0 +1,28 @@
+
+> wegotcha-backend@0.0.1 test
+> jest --runInBand
+
+PASS src/modules/safety/safety.service.spec.ts
+PASS src/modules/mobile-api/services/mobile-identity.service.spec.ts
+PASS src/modules/safety/noonlight-webhook.controller.spec.ts
+PASS src/modules/mobile-api/services/mobile-trips.service.spec.ts
+PASS src/modules/mobile-api/controllers/mobile-background-check.controller.spec.ts
+PASS src/modules/mobile-api/services/mobile-vehicles.service.spec.ts
+[Nest] 5844  - 09/12/2026, 7:27:20 PM   ERROR [CheckrWebhookController] Checkr webhook rejected: signature verification unavailable
+PASS src/modules/identity/checkr-webhook.controller.spec.ts
+PASS src/modules/health/bullmq-health.indicator.spec.ts
+[Nest] 5844  - 09/12/2026, 7:27:20 PM     LOG [CheckrWebhookController] Received Checkr webhook: report.completed (report: report_1)
+PASS src/modules/auth/jwt.strategy.spec.ts
+PASS src/modules/mobile-api/services/mobile-background-check.service.spec.ts
+PASS src/modules/private-media/private-media.service.spec.ts
+PASS src/database/private-query.logger.spec.ts
+PASS src/common/utils/refund-calculator.spec.ts
+PASS src/common/http/cors.config.spec.ts
+PASS src/common/geo/route-geometry.spec.ts
+PASS src/common/geo/texas-cities.spec.ts
+
+Test Suites: 16 passed, 16 total
+Tests:       173 passed, 173 total
+Snapshots:   0 total
+Time:        1.235 s, estimated 2 s
+Ran all test suites.

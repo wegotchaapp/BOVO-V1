@@ -408,7 +408,7 @@ callers; it becomes one the day it gets one.
 
 ## Phase 5 — Infrastructure, CI and observability
 
-### P5-1. Health readiness · owner: **Codex** · **written 2026-09-01, certified by reading, not yet integrated**
+### P5-1. Health readiness · owner: **Codex** · **done — integrated 2026-09-02 in `d5041f7`**
 
 Delivered as `16c2501` on `codex/prod-readiness`: a `BullmqHealthIndicator` with
 a Redis `ping` and a `getJobCounts` probe across both queues, each wrapped in a
@@ -422,8 +422,9 @@ Certified by reading — the parts that could silently pass while broken:
 - `HealthIndicatorService` is a genuine export of the installed
   `@nestjs/terminus` 11.1.1, not a hallucinated API.
 
-Full gates run at integration, per agreement §10 — not run yet, because Codex is
-still mid-batch.
+Gates run on the merge result 2026-09-02: backend 11 suites / 103 tests, build,
+`format:check`, and both production audits clean at `--audit-level=high`; admin
+lint and build clean; mobile typecheck clean.
 
 Two consequences to act on, neither a defect in the code:
 
@@ -454,13 +455,24 @@ dated, written, time-limited exception per remaining advisory.
 **Mobile advisories are reported by Codex and applied by Claude** — never run an
 install under `mobile/`; the lockfile carries the Expo SDK 54 pins.
 
-### P5-4. Deployment · owner: **Codex** + **Sushant**
+### P5-4. Deployment · owner: **Codex** + **Sushant** · **two of three closed 2026-09-02**
 
-- No admin-dashboard deployment workflow exists. Add one.
-- Every `sed -i "s|KEY=.*|KEY=${{ secrets.X }}|"` line in `backend-deploy.yml`
-  (~20 of them) breaks if a secret contains a `|`. Pre-existing; fix in one
-  focused commit next time that file is touched.
-- Branch protection on `main` with required backend/admin/mobile checks.
+- ~~No admin-dashboard deployment workflow exists.~~ **Done** — `b32f89d` adds
+  `admin-ci.yml` (lint, build, production audit) and puts the same audit gate on
+  backend CI. Integrated in `d5041f7`.
+- ~~Every `sed -i "s|KEY=.*|KEY=${{ secrets.X }}|"` line in `backend-deploy.yml`
+  breaks if a secret contains a `|`.~~ **Done** — `049ffac` replaces all ~17 with
+  environment variables and `scripts/write-deploy-env.cjs`, which also fails the
+  deploy when a secret is set but missing from the template. One follow-up is
+  open against it in `FINDINGS.md`: quotes and backslashes in a secret value are
+  still mangled, because dotenv does not decode `\"` or `\\`.
+- **Still open — Sushant.** Branch protection on `main` with required
+  backend/admin/mobile checks. There are now three CI workflows to require.
+
+> [!warning] The audit gate will go red on its own one day
+> `--audit-level=high` now gates both workspaces. That is the point of an audit
+> gate, and it is only passable because both audits are at zero — but it means a
+> red build eventually arrives on a branch where nobody changed anything.
 
 ### P5-5. Monitoring and alerting · owner: **Sushant** + **Codex**
 

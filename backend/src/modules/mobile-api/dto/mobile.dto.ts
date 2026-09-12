@@ -312,6 +312,15 @@ export class CreateTripBody {
   @MaxLength(120)
   car?: string;
 
+  /**
+   * Which of the Voyager's approved vehicles this adventure uses. Omitted, the
+   * newest approved vehicle is used.
+   */
+  @IsOptional()
+  @IsString()
+  @MaxLength(64)
+  vehicleId?: string;
+
   @IsOptional()
   @ValidateNested()
   @Type(() => TripPreferencesDto)
@@ -323,6 +332,12 @@ export class CreateReplyBody {
   @MinLength(1)
   @MaxLength(1000)
   text!: string;
+}
+
+/** Multipart fields alongside the `idFront`, `idBack` and `selfie` files. */
+export class SubmitIdentityVerificationBody {
+  @IsIn(['drivers_license', 'state_id', 'passport'])
+  documentType!: 'drivers_license' | 'state_id' | 'passport';
 }
 
 export class CreateBookingBody {

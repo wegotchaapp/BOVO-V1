@@ -32,6 +32,7 @@ import {
   UpdateMeBody,
 } from '../dto/mobile.dto';
 import { notificationSettingsFromUser, userToDto } from '../mobile.mappers';
+import { MobileIdentityService } from './mobile-identity.service';
 
 const BCRYPT_ROUNDS = 12;
 const SESSION_TTL_DAYS = 30;
@@ -47,6 +48,7 @@ export class MobileAuthService {
     private readonly sessions: Repository<MobileSession>,
     private readonly dataSource: DataSource,
     private readonly config: ConfigService,
+    private readonly identity: MobileIdentityService,
   ) {}
 
   async register(dto: RegisterBody) {
@@ -245,6 +247,11 @@ export class MobileAuthService {
     return { ok: true, user: userToDto(saved) };
   }
 
+  /**
+   * Deliberately propagates. If the purge cannot complete — private storage is
+   * unreachable, say — the account's data still exists, so reporting the sign-in
+   * or registration as fine would be a lie. The next attempt retries it.
+   */
   private async purgeIfExpired(user: MobileUser) {
     if (!user.deletion_requested_at) return;
     const purgeAt = new Date(user.deletion_requested_at);
@@ -255,6 +262,22 @@ export class MobileAuthService {
 
   private async purgeUser(userId: string) {
     await this.dataSource.transaction(async (tx) => {
+      // Lock the account first. `mobile_identity_verifications` has no foreign
+      // key to it, so without the lock an ID submission committing mid-purge
+      // would outlive the user it belongs to, images and all.
+      const owner = await tx.getRepository(MobileUser).findOne({
+        where: { id: userId },
+        lock: { mode: 'pessimistic_write' },
+      });
+      // Another request purged it already; nothing left to do.
+      if (!owner) return;
+
+      // Identity images go first, by key. They live in private storage rather
+      // than the database, so this is the one irreversible step — a removal
+      // that fails throws, rolling the purge back with the keys intact so the
+      // next attempt can finish it.
+      await this.identity.purge(userId, tx);
+
       await tx.getRepository(MobileSession).delete({ user_id: userId });
       await tx.getRepository(MobileVehicle).delete({ user_id: userId });
       await tx.getRepository(MobileRating).delete({ rater_id: userId });

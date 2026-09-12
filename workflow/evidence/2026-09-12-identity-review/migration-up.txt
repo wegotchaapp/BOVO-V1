@@ -1,0 +1,852 @@
+
+> wegotcha-backend@0.0.1 migration:run
+> typeorm migration:run -d dist/database/data-source.js
+
+query: SELECT version()
+query: SELECT * FROM current_schema()
+query: CREATE EXTENSION IF NOT EXISTS "uuid-ossp"
+query: SELECT * FROM "information_schema"."tables" WHERE "table_schema" = 'public' AND "table_name" = 'migrations'
+query: CREATE TABLE "migrations" ("id" SERIAL NOT NULL, "timestamp" bigint NOT NULL, "name" character varying NOT NULL, CONSTRAINT "PK_8c82d7f526340ab734260ea46be" PRIMARY KEY ("id"))
+query: SELECT * FROM "migrations" "migrations" ORDER BY "id" DESC
+0 migrations are already loaded in the database.
+18 migrations were found in the source code.
+18 migrations are new migrations must be executed.
+query: START TRANSACTION
+query: CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+query: SELECT * FROM "information_schema"."tables" WHERE "table_schema" = 'public' AND "table_name" = 'users'
+query: SELECT * FROM "information_schema"."tables" WHERE "table_schema" = 'public' AND "table_name" = 'profiles'
+query: SELECT * FROM "information_schema"."tables" WHERE "table_schema" = 'public' AND "table_name" = 'trips'
+query: SELECT * FROM "information_schema"."tables" WHERE "table_schema" = 'public' AND "table_name" = 'bookings'
+query: CREATE TYPE "public"."users_role_enum" AS ENUM('user', 'premium_user', 'driver', 'ts_agent', 'admin')
+query: CREATE TYPE "public"."users_subscription_tier_enum" AS ENUM('free', 'premium')
+query: CREATE TABLE "users" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "email" character varying NOT NULL, "phone" character varying(20), "password_hash" character varying, "name" character varying NOT NULL, "dob" date, "role" "public"."users_role_enum" NOT NULL DEFAULT 'user', "selected_role" character varying(10) NOT NULL DEFAULT 'rider', "is_email_verified" boolean NOT NULL DEFAULT false, "is_phone_verified" boolean NOT NULL DEFAULT false, "is_verified" boolean NOT NULL DEFAULT false, "stripe_customer_id" character varying(100), "stripe_subscription_id" character varying(100), "stripe_account_id" character varying(100), "stripe_charges_enabled" boolean NOT NULL DEFAULT false, "stripe_payouts_enabled" boolean NOT NULL DEFAULT false, "stripe_details_submitted" boolean, "is_founding_member" boolean NOT NULL DEFAULT false, "ytd_earnings" numeric(10,2) NOT NULL DEFAULT '0', "lifetime_earnings" numeric(10,2) NOT NULL DEFAULT '0', "last_payout_at" TIMESTAMP WITH TIME ZONE, "subscription_tier" "public"."users_subscription_tier_enum" NOT NULL DEFAULT 'free', "referral_code" character varying(50), "referred_by" uuid, "avg_rating" numeric(3,2) DEFAULT '0', "total_ratings" integer NOT NULL DEFAULT '0', "total_trips" integer NOT NULL DEFAULT '0', "display_name" character varying(100), "gender" character varying(20), "rider_conversation_style" character varying(30), "rider_music_preference" character varying(30), "rider_smoking_preference" character varying(30), "rider_pet_preference" character varying(30), "background_check_status" character varying NOT NULL DEFAULT 'not_started', "is_suspended" boolean NOT NULL DEFAULT false, "is_banned" boolean NOT NULL DEFAULT false, "is_under_review" boolean NOT NULL DEFAULT false, "safe_word" character varying(32), "biometric_consent_given" boolean NOT NULL DEFAULT false, "biometric_consent_at" TIMESTAMP WITH TIME ZONE, "ytd_gross_volume" numeric(10,2) NOT NULL DEFAULT '0', "w9_on_file" boolean NOT NULL DEFAULT false, "w9_submitted_at" TIMESTAMP WITH TIME ZONE, "tax_blocked" boolean NOT NULL DEFAULT false, "tax_notification_5k_sent" boolean NOT NULL DEFAULT false, "ride_preferences" jsonb NOT NULL DEFAULT '{}', "trial_ended_at" TIMESTAMP WITH TIME ZONE, "subscription_expires_at" TIMESTAMP WITH TIME ZONE, "subscription_apple_original_transaction_id" character varying(255), "onboarded" boolean NOT NULL DEFAULT false, "created_at" TIMESTAMP NOT NULL DEFAULT now(), "updated_at" TIMESTAMP NOT NULL DEFAULT now(), "deleted_at" TIMESTAMP, CONSTRAINT "UQ_97672ac88f789774dd47f7c8be3" UNIQUE ("email"), CONSTRAINT "PK_a3ffb1c0c8416b9fc6f907b7433" PRIMARY KEY ("id"))
+query: CREATE TABLE "refresh_tokens" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "user_id" uuid NOT NULL, "token" character varying NOT NULL, "expires_at" TIMESTAMP WITH TIME ZONE NOT NULL, "is_revoked" boolean NOT NULL DEFAULT false, "revoked_reason" character varying(100), "device_info" jsonb, "created_at" TIMESTAMP NOT NULL DEFAULT now(), "updated_at" TIMESTAMP NOT NULL DEFAULT now(), CONSTRAINT "UQ_4542dd2f38a61354a040ba9fd57" UNIQUE ("token"), CONSTRAINT "PK_7d8bee0204106019488c4c50ffa" PRIMARY KEY ("id"))
+query: CREATE TYPE "public"."verifications_status_enum" AS ENUM('pending', 'verified', 'failed', 'requires_input', 'expired')
+query: CREATE TABLE "verifications" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "user_id" uuid NOT NULL, "provider" character varying NOT NULL DEFAULT 'stripe_identity', "provider_reference" character varying NOT NULL, "status" "public"."verifications_status_enum" NOT NULL DEFAULT 'pending', "verified_name" character varying(255), "verified_dob" date, "face_image_reference" character varying(255), "completed_at" TIMESTAMP WITH TIME ZONE, "expires_at" TIMESTAMP WITH TIME ZONE, "created_at" TIMESTAMP NOT NULL DEFAULT now(), CONSTRAINT "UQ_80f15dbd5c398d8ae9a70bcf615" UNIQUE ("provider_reference"), CONSTRAINT "PK_2127ad1b143cf012280390b01d1" PRIMARY KEY ("id"))
+query: CREATE TYPE "public"."background_checks_status_enum" AS ENUM('pending', 'clear', 'consider', 'adverse')
+query: CREATE TABLE "background_checks" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "user_id" uuid NOT NULL, "checkr_candidate_id" character varying NOT NULL, "status" "public"."background_checks_status_enum" NOT NULL DEFAULT 'pending', "checkr_package" character varying(100), "invitation_url" character varying(255), "ssn_hash_suffix" character varying(8), "fcra_disclosure_accepted_at" TIMESTAMP WITH TIME ZONE, "user_authorization_accepted_at" TIMESTAMP WITH TIME ZONE, "initiated_at" TIMESTAMP WITH TIME ZONE, "completed_at" TIMESTAMP WITH TIME ZONE, "pre_adverse_notice_sent_at" TIMESTAMP WITH TIME ZONE, "final_adverse_notice_sent_at" TIMESTAMP WITH TIME ZONE, "adverse_action_deadline" TIMESTAMP WITH TIME ZONE, "annual_recheck_scheduled" boolean NOT NULL DEFAULT false, "created_at" TIMESTAMP NOT NULL DEFAULT now(), "updated_at" TIMESTAMP NOT NULL DEFAULT now(), CONSTRAINT "UQ_628b0f3a98bd47bb6b60006343e" UNIQUE ("checkr_candidate_id"), CONSTRAINT "PK_0db3759452d2be6d0e0027abe76" PRIMARY KEY ("id"))
+query: CREATE TABLE "profiles" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "user_id" uuid NOT NULL, "display_name" character varying NOT NULL, "bio" character varying(500), "languages" text array NOT NULL DEFAULT '{}', "profile_photo_url" character varying(500), "avg_rating" numeric(3,2), "total_trips" integer NOT NULL DEFAULT '0', "badges" text array NOT NULL DEFAULT '{}', "created_at" TIMESTAMP NOT NULL DEFAULT now(), "updated_at" TIMESTAMP NOT NULL DEFAULT now(), "deleted_at" TIMESTAMP, CONSTRAINT "UQ_9e432b7df0d182f8d292902d1a2" UNIQUE ("user_id"), CONSTRAINT "PK_8e520eb4da7dc01d0e190447c8e" PRIMARY KEY ("id"))
+query: CREATE TYPE "public"."vehicles_category_enum" AS ENUM('compact', 'standard_sedan', 'suv_crossover', 'large_suv', 'truck', 'van')
+query: CREATE TABLE "vehicles" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "driver_id" uuid NOT NULL, "make" character varying NOT NULL, "model" character varying NOT NULL, "year" integer NOT NULL, "color" character varying NOT NULL, "license_plate" character varying NOT NULL, "state" character varying(2) NOT NULL, "vin" character varying(17), "category" "public"."vehicles_category_enum" NOT NULL, "max_luggage_class" character varying(20) NOT NULL DEFAULT 'medium', "max_passengers" integer NOT NULL DEFAULT '4', "is_verified" boolean NOT NULL DEFAULT false, "photo_urls" jsonb NOT NULL DEFAULT '{}', "documents" jsonb NOT NULL DEFAULT '{}', "category_assignment_reason" text, "category_manually_overridden" boolean NOT NULL DEFAULT false, "insurance_verified" boolean NOT NULL DEFAULT false, "created_at" TIMESTAMP NOT NULL DEFAULT now(), "updated_at" TIMESTAMP NOT NULL DEFAULT now(), "deleted_at" TIMESTAMP, CONSTRAINT "PK_18d8646b59304dce4af3a9e35b6" PRIMARY KEY ("id"))
+query: CREATE TABLE "trip_replies" ("id" character varying(32) NOT NULL, "trip_id" character varying(32) NOT NULL, "user_id" character varying(32) NOT NULL, "text" text NOT NULL, "created_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(), CONSTRAINT "PK_8bf24287a1226cab7249b3ce98f" PRIMARY KEY ("id"))
+query: CREATE INDEX "IDX_4fcb0e392d03f3e30e4cb29f27" ON "trip_replies" ("trip_id", "created_at") 
+query: CREATE TABLE "trip_reply_reads" ("id" character varying(32) NOT NULL, "reply_id" character varying(32) NOT NULL, "user_id" character varying(32) NOT NULL, "read_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(), CONSTRAINT "PK_755ab66e94c50988983b4b52a07" PRIMARY KEY ("id"))
+query: CREATE INDEX "IDX_d611911920d77611c563055d47" ON "trip_reply_reads" ("reply_id", "user_id") 
+query: CREATE TYPE "public"."trips_status_enum" AS ENUM('posted', 'booked', 'confirmed', 'en_route', 'in_progress', 'completed', 'cancelled')
+query: CREATE TABLE "trips" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "driver_id" uuid NOT NULL, "vehicle_id" uuid NOT NULL, "origin_metro" character varying NOT NULL, "origin_pickup_zones" text array NOT NULL, "dest_metro" character varying NOT NULL, "dest_dropoff_zones" text array NOT NULL, "departure_date" date NOT NULL, "departure_time" TIME NOT NULL, "departure_time_window" character varying NOT NULL DEFAULT '+/- 30 min', "seats_total" integer NOT NULL DEFAULT '1', "seats_available" integer NOT NULL, "per_seat_price" numeric(8,2) NOT NULL, "status" "public"."trips_status_enum" NOT NULL DEFAULT 'posted', "notes" character varying(300), "distance_miles" numeric(10,2), "irs_rate_used" numeric(4,2), "total_occupants_calc" integer, "price_calculation_inputs" jsonb, "luggage_capacity" character varying(20) NOT NULL DEFAULT 'small', "mapbox_route_polyline" character varying(2000), "expected_arrival_time" TIMESTAMP WITH TIME ZONE, "origin_lat" numeric(6,3), "origin_lng" numeric(6,3), "dest_lat" numeric(6,3), "dest_lng" numeric(6,3), "created_at" TIMESTAMP NOT NULL DEFAULT now(), "updated_at" TIMESTAMP NOT NULL DEFAULT now(), "deleted_at" TIMESTAMP, CONSTRAINT "PK_f71c231dee9c05a9522f9e840f5" PRIMARY KEY ("id"))
+query: CREATE TABLE "trip_preferences" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "trip_id" uuid NOT NULL, "conversation" character varying NOT NULL DEFAULT 'friendly', "music" character varying NOT NULL DEFAULT 'background', "smoking" character varying NOT NULL DEFAULT 'never', "pets" character varying NOT NULL DEFAULT 'with_approval', "women_only" boolean NOT NULL DEFAULT false, CONSTRAINT "PK_9b42ad2d1a9ae23341c47bfe532" PRIMARY KEY ("id"))
+query: CREATE TABLE "trip_zones" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "trip_id" uuid NOT NULL, "zone_type" character varying NOT NULL, "zone_name" character varying NOT NULL, "polygon_wkt" text, CONSTRAINT "PK_a7c6da70717fc5f152fa99c3cc2" PRIMARY KEY ("id"))
+query: CREATE TYPE "public"."bookings_status_enum" AS ENUM('pending', 'confirmed', 'en_route', 'completed', 'cancelled', 'declined')
+query: CREATE TABLE "bookings" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "trip_id" uuid NOT NULL, "rider_id" uuid NOT NULL, "seats" integer NOT NULL, "total_price" numeric(8,2) NOT NULL, "insurance_opted_in" boolean NOT NULL DEFAULT false, "luggage_insurance_opted_in" boolean NOT NULL DEFAULT false, "status" "public"."bookings_status_enum" NOT NULL DEFAULT 'pending', "payment_intent_id" character varying(255), "share_token" character varying(32), "last_known_location" text, "last_ping_at" TIMESTAMP WITH TIME ZONE, "created_at" TIMESTAMP NOT NULL DEFAULT now(), "updated_at" TIMESTAMP NOT NULL DEFAULT now(), CONSTRAINT "PK_bee6805982cc1e248e94ce94957" PRIMARY KEY ("id"))
+query: CREATE TABLE "booking_luggage" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "booking_id" uuid NOT NULL, "type" character varying(20) NOT NULL, "quantity" integer NOT NULL, CONSTRAINT "PK_7238b25b585f54e280b958fcc24" PRIMARY KEY ("id"))
+query: CREATE TABLE "booking_status_log" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "booking_id" uuid NOT NULL, "from_status" character varying NOT NULL, "to_status" character varying NOT NULL, "changed_by" uuid NOT NULL, "reason" character varying(500), "created_at" TIMESTAMP NOT NULL DEFAULT now(), CONSTRAINT "PK_34ac45a89e6149de12d0113c86c" PRIMARY KEY ("id"))
+query: CREATE TABLE "payments" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "booking_id" uuid NOT NULL, "stripe_payment_intent_id" character varying NOT NULL, "amount" numeric(10,2) NOT NULL, "currency" character varying NOT NULL, "status" character varying NOT NULL, "created_at" TIMESTAMP NOT NULL DEFAULT now(), "updated_at" TIMESTAMP NOT NULL DEFAULT now(), CONSTRAINT "PK_197ab7af18c93fbb0c9b28b4a59" PRIMARY KEY ("id"))
+query: CREATE TABLE "payouts" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "driver_id" uuid NOT NULL, "stripe_transfer_id" character varying NOT NULL, "amount" numeric(10,2) NOT NULL, "currency" character varying NOT NULL, "status" character varying NOT NULL, "dispatched_at" TIMESTAMP WITH TIME ZONE, "created_at" TIMESTAMP NOT NULL DEFAULT now(), CONSTRAINT "PK_76855dc4f0a6c18c72eea302e87" PRIMARY KEY ("id"))
+query: CREATE TABLE "refunds" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "payment_id" uuid NOT NULL, "amount" numeric(10,2) NOT NULL, "reason" character varying NOT NULL, "stripe_refund_id" character varying NOT NULL, "status" character varying NOT NULL, "created_at" TIMESTAMP NOT NULL DEFAULT now(), CONSTRAINT "PK_5106efb01eeda7e49a78b869738" PRIMARY KEY ("id"))
+query: CREATE TABLE "insurance_policies" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "booking_id" uuid NOT NULL, "policy_number" character varying(255), "mga_reference" character varying(255), "activated_at" TIMESTAMP WITH TIME ZONE, "expires_at" TIMESTAMP WITH TIME ZONE, "is_active" boolean NOT NULL DEFAULT false, "mga_remitted_cents" integer NOT NULL DEFAULT '0', "mga_remitted_at" TIMESTAMP WITH TIME ZONE, "created_at" TIMESTAMP NOT NULL DEFAULT now(), "updated_at" TIMESTAMP NOT NULL DEFAULT now(), CONSTRAINT "PK_69af1d3a19277d1a822c9b13bf1" PRIMARY KEY ("id"))
+query: CREATE TABLE "trip_pings" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "booking_id" uuid NOT NULL, "location" text, "accuracy" double precision, "speed" double precision, "battery_level" integer, "timestamp" TIMESTAMP WITH TIME ZONE NOT NULL, "created_at" TIMESTAMP NOT NULL DEFAULT now(), CONSTRAINT "PK_6ddc2ce0d49651abd65235d7507" PRIMARY KEY ("id"))
+query: CREATE TYPE "public"."sos_events_trigger_type_enum" AS ENUM('button', 'volume_sequence', 'unsafe_feeling')
+query: CREATE TYPE "public"."sos_events_status_enum" AS ENUM('active', 'false_alarm', 'dispatched', 'resolved')
+query: CREATE TABLE "sos_events" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "user_id" uuid NOT NULL, "booking_id" uuid, "trigger_type" "public"."sos_events_trigger_type_enum" NOT NULL, "status" "public"."sos_events_status_enum" NOT NULL DEFAULT 'active', "latitude" double precision NOT NULL, "longitude" double precision NOT NULL, "noonlight_alarm_id" character varying(100), "created_at" TIMESTAMP NOT NULL DEFAULT now(), CONSTRAINT "PK_a056474ff3a26241eaeff3575c2" PRIMARY KEY ("id"))
+query: CREATE TYPE "public"."reports_category_enum" AS ENUM('sexual_misconduct', 'weapons_threat', 'criminal_allegations', 'unsafe_driving', 'harassment', 'discrimination', 'vehicle_condition', 'no_show', 'route_fraud', 'minor_dispute')
+query: CREATE TYPE "public"."reports_severity_enum" AS ENUM('P0', 'P1', 'P2')
+query: CREATE TABLE "reports" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "reporter_id" uuid NOT NULL, "reported_user_id" uuid NOT NULL, "booking_id" uuid, "category" "public"."reports_category_enum" NOT NULL, "description" character varying(1000) NOT NULL, "evidence_photo_url" character varying(255), "severity" "public"."reports_severity_enum" NOT NULL, "sla_deadline" TIMESTAMP WITH TIME ZONE NOT NULL, "status" character varying NOT NULL DEFAULT 'pending', "resolved_at" TIMESTAMP WITH TIME ZONE, "created_at" TIMESTAMP NOT NULL DEFAULT now(), CONSTRAINT "PK_d9013193989303580053c0b5ef6" PRIMARY KEY ("id"))
+query: CREATE TYPE "public"."moderation_actions_action_type_enum" AS ENUM('dismiss', 'warning', 'temp_suspension', 'permanent_ban', 'law_enforcement_referral')
+query: CREATE TABLE "moderation_actions" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "report_id" uuid NOT NULL, "taken_by" uuid NOT NULL, "action_type" "public"."moderation_actions_action_type_enum" NOT NULL, "reason" character varying(500) NOT NULL, "evidence_refs" text array NOT NULL DEFAULT '{}', "suspension_days" integer, "created_at" TIMESTAMP NOT NULL DEFAULT now(), CONSTRAINT "PK_d259906fb4d2a5ef718f1f66e35" PRIMARY KEY ("id"))
+query: CREATE TABLE "suspensions" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "user_id" uuid NOT NULL, "starts_at" TIMESTAMP WITH TIME ZONE NOT NULL, "ends_at" TIMESTAMP WITH TIME ZONE NOT NULL, "reason" character varying(500), "moderation_action_id" uuid, "created_at" TIMESTAMP NOT NULL DEFAULT now(), CONSTRAINT "PK_c3df8984cf2c9a5726c11644474" PRIMARY KEY ("id"))
+query: CREATE TABLE "incidents" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "user_id" uuid NOT NULL, "booking_id" uuid, "severity" character varying NOT NULL DEFAULT 'P1', "description" character varying NOT NULL, "status" character varying NOT NULL DEFAULT 'open', "created_at" TIMESTAMP NOT NULL DEFAULT now(), "updated_at" TIMESTAMP NOT NULL DEFAULT now(), CONSTRAINT "PK_ccb34c01719889017e2246469f9" PRIMARY KEY ("id"))
+query: CREATE TABLE "deviation_events" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "booking_id" uuid NOT NULL, "actual_location" text, "expected_location" text, "deviation_distance_miles" double precision NOT NULL, "time_off_route_seconds" integer, "status" character varying NOT NULL DEFAULT 'pending', "responded_at" TIMESTAMP WITH TIME ZONE, "response" text, "ts_paged_at" TIMESTAMP WITH TIME ZONE, "contacts_notified_at" TIMESTAMP WITH TIME ZONE, "created_at" TIMESTAMP NOT NULL DEFAULT now(), CONSTRAINT "PK_422ef5c086f5c0562bd5f577688" PRIMARY KEY ("id"))
+query: CREATE TYPE "public"."appeals_status_enum" AS ENUM('pending', 'under_review', 'granted', 'denied')
+query: CREATE TABLE "appeals" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "user_id" uuid NOT NULL, "action_id" uuid NOT NULL, "reason" character varying(2000) NOT NULL, "evidence_url" character varying(255), "status" "public"."appeals_status_enum" NOT NULL DEFAULT 'pending', "reviewed_by" uuid, "decision" character varying(500), "reviewed_at" TIMESTAMP WITH TIME ZONE, "created_at" TIMESTAMP NOT NULL DEFAULT now(), CONSTRAINT "PK_ebd2050a02aa78081b5346152bc" PRIMARY KEY ("id"))
+query: CREATE TABLE "chat_conversations" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "booking_id" uuid, "participant_ids" uuid array NOT NULL, "title" character varying(200), "type" character varying(20) NOT NULL DEFAULT 'booking', "last_message" character varying(500), "last_message_sender_id" uuid, "last_message_at" TIMESTAMP WITH TIME ZONE, "unread_count_driver" integer NOT NULL DEFAULT '0', "unread_count_rider" integer NOT NULL DEFAULT '0', "expires_at" TIMESTAMP WITH TIME ZONE, "created_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(), "updated_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(), CONSTRAINT "PK_ff117d9f57807c4f2e3034a39f3" PRIMARY KEY ("id"))
+query: CREATE TABLE "chat_messages" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "conversation_id" uuid NOT NULL, "sender_id" uuid NOT NULL, "content" character varying(2000) NOT NULL, "is_flagged" boolean NOT NULL DEFAULT false, "flag_category" character varying(50), "requires_review" boolean NOT NULL DEFAULT false, "is_read" boolean NOT NULL DEFAULT false, "read_at" TIMESTAMP WITH TIME ZONE, "created_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(), CONSTRAINT "PK_40c55ee0e571e268b0d3cd37d10" PRIMARY KEY ("id"))
+query: CREATE INDEX "IDX_9e5fc47ecb06d4d7b84633b171" ON "chat_messages" ("sender_id") 
+query: CREATE INDEX "IDX_bdfd8165e694fe9d3ce4140c87" ON "chat_messages" ("conversation_id", "created_at") 
+query: CREATE TABLE "chat_blocks" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "blocker_id" uuid NOT NULL, "blocked_user_id" uuid NOT NULL, "booking_id" uuid NOT NULL, "created_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(), CONSTRAINT "PK_701c8d3d2bb8eb7bc492291ee1c" PRIMARY KEY ("id"))
+query: CREATE UNIQUE INDEX "IDX_1ced1324de7c5b9ee6558e2dc3" ON "chat_blocks" ("blocker_id", "blocked_user_id") 
+query: CREATE TABLE "call_records" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "booking_id" uuid NOT NULL, "caller_id" uuid NOT NULL, "receiver_id" uuid NOT NULL, "twilio_call_sid" character varying(255) NOT NULL, "duration_seconds" integer, "status" character varying(50), "created_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(), CONSTRAINT "PK_ca3ee401ef0cd1a9cebf8f494b0" PRIMARY KEY ("id"))
+query: CREATE TABLE "conversations" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "booking_id" uuid NOT NULL, "participant_ids" text array NOT NULL, "last_message" character varying(500), "last_message_at" TIMESTAMP WITH TIME ZONE, "unread_count" integer NOT NULL DEFAULT '0', "expires_at" TIMESTAMP WITH TIME ZONE, "created_at" TIMESTAMP NOT NULL DEFAULT now(), "updated_at" TIMESTAMP NOT NULL DEFAULT now(), CONSTRAINT "UQ_9bc96e73e2a6aba08e0473844ed" UNIQUE ("booking_id"), CONSTRAINT "PK_ee34f4f7ced4ec8681f26bf04ef" PRIMARY KEY ("id"))
+query: CREATE TABLE "messages" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "conversation_id" uuid NOT NULL, "sender_id" uuid NOT NULL, "content" character varying(2000) NOT NULL, "is_flagged" boolean NOT NULL DEFAULT false, "flag_category" character varying(50), "is_read" boolean NOT NULL DEFAULT false, "read_at" TIMESTAMP WITH TIME ZONE, "requires_review" boolean NOT NULL DEFAULT false, "created_at" TIMESTAMP NOT NULL DEFAULT now(), "updated_at" TIMESTAMP NOT NULL DEFAULT now(), CONSTRAINT "PK_18325f38ae6de43878487eff986" PRIMARY KEY ("id"))
+query: CREATE TABLE "notification_log" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "user_id" uuid NOT NULL, "channel" character varying NOT NULL, "category" character varying NOT NULL, "title" character varying(200) NOT NULL, "body" character varying(1000) NOT NULL, "data" jsonb, "is_read" boolean NOT NULL DEFAULT false, "delivery_status" character varying(20), "delivered_at" TIMESTAMP WITH TIME ZONE, "created_at" TIMESTAMP NOT NULL DEFAULT now(), CONSTRAINT "PK_6f761cfbbd064e0f326960877d6" PRIMARY KEY ("id"))
+query: CREATE TABLE "notification_preferences" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "user_id" uuid NOT NULL, "preferences" jsonb NOT NULL DEFAULT '{}', "created_at" TIMESTAMP NOT NULL DEFAULT now(), "updated_at" TIMESTAMP NOT NULL DEFAULT now(), CONSTRAINT "UQ_64c90edc7310c6be7c10c96f675" UNIQUE ("user_id"), CONSTRAINT "PK_e94e2b543f2f218ee68e4f4fad2" PRIMARY KEY ("id"))
+query: CREATE TABLE "emergency_contacts" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "user_id" uuid NOT NULL, "name" character varying NOT NULL, "phone" character varying NOT NULL, "email" character varying(255), "relationship" character varying NOT NULL, "opted_in" boolean NOT NULL DEFAULT false, "created_at" TIMESTAMP NOT NULL DEFAULT now(), "updated_at" TIMESTAMP NOT NULL DEFAULT now(), "deleted_at" TIMESTAMP, CONSTRAINT "PK_8be191845b6fca1c4e5ba5bd7d1" PRIMARY KEY ("id"))
+query: CREATE TABLE "devices" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "user_id" uuid NOT NULL, "expo_push_token" character varying NOT NULL, "device_id" character varying(100), "platform" character varying(20), "timezone" character varying(50), "is_active" boolean NOT NULL DEFAULT true, "created_at" TIMESTAMP NOT NULL DEFAULT now(), "updated_at" TIMESTAMP NOT NULL DEFAULT now(), CONSTRAINT "PK_b1514758245c12daf43486dd1f0" PRIMARY KEY ("id"))
+query: CREATE TABLE "saved_searches" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "user_id" uuid NOT NULL, "name" character varying(255), "origin_metro" character varying NOT NULL, "dest_metro" character varying NOT NULL, "travel_date" date NOT NULL, "seats_needed" integer NOT NULL DEFAULT '1', "conversation_style" character varying(50), "music_preference" character varying(50), "smoking_preference" character varying(50), "pet_preference" character varying(50), "women_only" boolean NOT NULL DEFAULT false, "strict_filters" boolean NOT NULL DEFAULT false, "sort_by" character varying NOT NULL DEFAULT 'best_match', "usage_count" integer NOT NULL DEFAULT '0', "created_at" TIMESTAMP NOT NULL DEFAULT now(), CONSTRAINT "PK_d9a53c71ccc5cf66dcdc5b33dfe" PRIMARY KEY ("id"))
+query: CREATE TABLE "driver_trips" ("id" character varying(32) NOT NULL, "driver_id" character varying(32) NOT NULL, "from_city" text NOT NULL, "to_city" text NOT NULL, "miles" integer NOT NULL, "seats_booked" integer NOT NULL, "gross_amount" numeric(10,2) NOT NULL, "platform_fee" numeric(10,2) NOT NULL, "net_amount" numeric(10,2) NOT NULL, "completed_at" TIMESTAMP WITH TIME ZONE NOT NULL, "created_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(), CONSTRAINT "PK_8b43e0b7140f0e703d6e8a7a325" PRIMARY KEY ("id"))
+query: CREATE INDEX "IDX_c3984cebf2c7331581e7470ee2" ON "driver_trips" ("driver_id", "completed_at") 
+query: CREATE TABLE "support_agents" ("id" character varying(32) NOT NULL, "name" text NOT NULL, "email" text NOT NULL, "password_hash" text NOT NULL, "role" text NOT NULL DEFAULT 'agent', "is_active" boolean NOT NULL DEFAULT true, "created_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(), CONSTRAINT "UQ_c847d6a940a4ef3277b619a427c" UNIQUE ("email"), CONSTRAINT "PK_9430cef6c3ac730c30cc3022129" PRIMARY KEY ("id"))
+query: CREATE TABLE "support_tickets" ("id" character varying(32) NOT NULL, "subject" text NOT NULL, "status" text NOT NULL DEFAULT 'open', "priority" text NOT NULL DEFAULT 'normal', "requester_name" text NOT NULL, "requester_role" text NOT NULL, "requester_email" text, "requester_phone" text, "requester_avatar_url" text, "trip_id" character varying(64), "trip_origin" text, "trip_destination" text, "trip_departure_at" TIMESTAMP WITH TIME ZONE, "trip_driver_name" text, "trip_price_cents" integer, "assignee_id" character varying(32), "first_agent_response_at" TIMESTAMP WITH TIME ZONE, "created_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(), "updated_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(), CONSTRAINT "PK_942e8d8f5df86100471d2324643" PRIMARY KEY ("id"))
+query: CREATE TABLE "support_ticket_messages" ("id" character varying(32) NOT NULL, "ticket_id" character varying(32) NOT NULL, "body" text NOT NULL, "author_type" text NOT NULL, "author_name" text NOT NULL, "author_agent_id" character varying(32), "internal" boolean NOT NULL DEFAULT false, "created_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(), CONSTRAINT "PK_c3e561853b6b303f74fde5a3e1f" PRIMARY KEY ("id"))
+query: CREATE TABLE "support_sessions" ("id" character varying(64) NOT NULL, "agent_id" character varying(32) NOT NULL, "created_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(), "expires_at" TIMESTAMP WITH TIME ZONE NOT NULL, CONSTRAINT "PK_3f42d6581b7be63ce898b1d0f65" PRIMARY KEY ("id"))
+query: CREATE TABLE "user_sessions" ("id" character varying(64) NOT NULL, "user_id" character varying(32) NOT NULL, "created_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(), "expires_at" TIMESTAMP WITH TIME ZONE NOT NULL, CONSTRAINT "PK_e93e031a5fed190d4789b6bfd83" PRIMARY KEY ("id"))
+query: CREATE TABLE "trip_groups" ("id" character varying(32) NOT NULL, "trip_id" character varying(32) NOT NULL, "pickup_hub_id" text, "pickup_locked" boolean NOT NULL DEFAULT false, "created_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(), CONSTRAINT "UQ_856b7d451f985cc6aeb5d7aa516" UNIQUE ("trip_id"), CONSTRAINT "PK_7435f37ca2c5100b96db855a5d0" PRIMARY KEY ("id"))
+query: CREATE TABLE "trip_group_members" ("id" character varying(32) NOT NULL, "group_id" character varying(32) NOT NULL, "user_id" character varying(32) NOT NULL, "role" character varying(12) NOT NULL, "joined_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(), CONSTRAINT "UQ_ad36ae34969140d7a35539e8b9e" UNIQUE ("group_id", "user_id"), CONSTRAINT "PK_65d4b74c834e808a6d8b197276d" PRIMARY KEY ("id"))
+query: CREATE INDEX "IDX_0411da2d6272ac71e7c20537d2" ON "trip_group_members" ("user_id") 
+query: CREATE TABLE "trip_group_messages" ("id" character varying(32) NOT NULL, "group_id" character varying(32) NOT NULL, "sender_id" character varying(32), "text" text NOT NULL, "is_system" boolean NOT NULL DEFAULT false, "created_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(), CONSTRAINT "PK_b8b82ada365e446b71845f4a66c" PRIMARY KEY ("id"))
+query: CREATE INDEX "IDX_05728a2db44be658fb6fb1dfca" ON "trip_group_messages" ("group_id", "created_at") 
+query: CREATE TABLE "trip_group_pickup_approvals" ("id" character varying(32) NOT NULL, "group_id" character varying(32) NOT NULL, "user_id" character varying(32) NOT NULL, "hub_id" text NOT NULL, "created_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(), CONSTRAINT "UQ_a0a90ad6a727e955169e61ac636" UNIQUE ("group_id", "user_id"), CONSTRAINT "PK_4a4806bb3abcfc8666773cd74c6" PRIMARY KEY ("id"))
+query: CREATE TABLE "compliance_logs" ("id" character varying(32) NOT NULL, "user_id" character varying(32) NOT NULL, "rule" character varying NOT NULL, "action" character varying NOT NULL, "details" character varying(500), "triggered_at" TIMESTAMP WITH TIME ZONE NOT NULL, "created_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(), CONSTRAINT "PK_0f10ef25e2593d957c2a38873c0" PRIMARY KEY ("id"))
+query: CREATE TABLE "mobile_users" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "name" character varying NOT NULL, "email" character varying NOT NULL, "phone" character varying(32), "password_hash" character varying NOT NULL, "role" character varying(12), "rating" numeric(3,2) NOT NULL DEFAULT '5', "trips" integer NOT NULL DEFAULT '0', "is_verified" boolean NOT NULL DEFAULT false, "onboarded" boolean NOT NULL DEFAULT false, "is_founding_member" boolean NOT NULL DEFAULT false, "stripe_customer_id" character varying(100), "stripe_subscription_id" character varying(100), "subscription_status" character varying(30), "trial_ends_at" TIMESTAMP WITH TIME ZONE, "bio" text, "languages" text, "emergency_name" character varying(120), "emergency_phone" character varying(32), "photo_url" text, "ride_preferences" text, "notification_settings" text, "oauth_provider" character varying(20), "oauth_subject" character varying(128), "deletion_requested_at" TIMESTAMP WITH TIME ZONE, "checkr_candidate_id" character varying(64), "background_check_status" character varying(24) NOT NULL DEFAULT 'not_started', "ssn_verified" boolean NOT NULL DEFAULT false, "ssn_last4" character varying(4), "background_check_completed_at" TIMESTAMP WITH TIME ZONE, "created_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(), CONSTRAINT "PK_ec56e7a9707cbf9c9809e0cd107" PRIMARY KEY ("id"))
+query: CREATE UNIQUE INDEX "IDX_c5fd69ff3b140b2c3ad83861b7" ON "mobile_users" ("email") 
+query: CREATE TABLE "mobile_vehicles" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "user_id" uuid NOT NULL, "make" character varying(60) NOT NULL, "model" character varying(60) NOT NULL, "year" integer NOT NULL, "color" character varying(40) NOT NULL, "license_plate" character varying(20) NOT NULL, "state" character varying(2) NOT NULL DEFAULT 'TX', "vin" character varying(17), "seat_count" integer, "door_count" integer, "photo_front_url" text, "photo_rear_url" text, "photo_left_url" text, "photo_right_url" text, "photo_interior_url" text, "insurance_doc_url" text, "insurance_expires_at" date, "registration_doc_url" text, "registration_expires_at" date, "verification_status" character varying(16) NOT NULL DEFAULT 'incomplete', "verification_note" text, "created_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(), "updated_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(), CONSTRAINT "PK_e95bde74ddc025bee65e66d53ad" PRIMARY KEY ("id"))
+query: CREATE INDEX "IDX_aa52e3b0d47cd8ae7a6fd11cd1" ON "mobile_vehicles" ("user_id") 
+query: CREATE TABLE "mobile_ratings" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "booking_id" uuid NOT NULL, "rater_id" uuid NOT NULL, "ratee_id" uuid NOT NULL, "score" integer NOT NULL, "comment" text, "tags" text, "created_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(), CONSTRAINT "UQ_f1e8c13db2fc9c41af9017a0ecf" UNIQUE ("booking_id", "rater_id"), CONSTRAINT "PK_ba76d87c78df7173ff84fc55a79" PRIMARY KEY ("id"))
+query: CREATE INDEX "IDX_46a824d501e39171b7dca87f22" ON "mobile_ratings" ("booking_id") 
+query: CREATE INDEX "IDX_c4e61b625b7cd0fd7fc167ede8" ON "mobile_ratings" ("rater_id") 
+query: CREATE INDEX "IDX_5912caa944bd089b9183fddd6d" ON "mobile_ratings" ("ratee_id") 
+query: CREATE TABLE "mobile_sessions" ("token" character varying(64) NOT NULL, "user_id" uuid NOT NULL, "expires_at" TIMESTAMP WITH TIME ZONE NOT NULL, "created_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(), CONSTRAINT "PK_96977c29b2812c81b88f7e17bdf" PRIMARY KEY ("token"))
+query: CREATE INDEX "IDX_ac467ca2abde2525f2c3d7bb68" ON "mobile_sessions" ("user_id") 
+query: CREATE TABLE "mobile_trips" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "driver_id" uuid NOT NULL, "from_city" text NOT NULL, "to_city" text NOT NULL, "departure_at" TIMESTAMP WITH TIME ZONE NOT NULL, "seats_available" integer NOT NULL, "luggage_space" integer NOT NULL DEFAULT '0', "price_per_seat" numeric(10,2) NOT NULL, "note" text NOT NULL DEFAULT '', "car" text, "pref_smoking" boolean NOT NULL DEFAULT false, "pref_pets" boolean NOT NULL DEFAULT false, "pref_music" boolean NOT NULL DEFAULT true, "pref_ac" boolean NOT NULL DEFAULT true, "status" character varying(12) NOT NULL DEFAULT 'active', "start_video_url" text, "started_at" TIMESTAMP WITH TIME ZONE, "route_polyline" text, "route_fetched_at" TIMESTAMP WITH TIME ZONE, "created_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(), CONSTRAINT "PK_f59b34bfdde5c40294312fe3dac" PRIMARY KEY ("id"))
+query: CREATE INDEX "IDX_ef2ca3281d3952b8f8ffdb8827" ON "mobile_trips" ("driver_id") 
+query: CREATE TABLE "mobile_trip_replies" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "trip_id" uuid NOT NULL, "user_id" uuid NOT NULL, "text" text NOT NULL, "created_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(), CONSTRAINT "PK_b6c0eb0ae388ef5b7488377d81a" PRIMARY KEY ("id"))
+query: CREATE INDEX "IDX_7fffaef9d3d5f823d9e37cd85f" ON "mobile_trip_replies" ("trip_id", "created_at") 
+query: CREATE TABLE "mobile_trip_reply_reads" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "user_id" uuid NOT NULL, "trip_id" uuid NOT NULL, "last_read_at" TIMESTAMP WITH TIME ZONE NOT NULL, CONSTRAINT "UQ_60546325f3da565181cf2e6d70a" UNIQUE ("user_id", "trip_id"), CONSTRAINT "PK_c085b1d09f42db331f40c1fa6d4" PRIMARY KEY ("id"))
+query: CREATE TABLE "mobile_bookings" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "trip_id" uuid NOT NULL, "rider_id" uuid NOT NULL, "seats" integer NOT NULL, "price_per_seat" numeric(10,2) NOT NULL, "service_fee" numeric(10,2) NOT NULL, "total_amount" numeric(10,2) NOT NULL, "luggage_tier" character varying(12) NOT NULL DEFAULT 'carry_on', "luggage_surcharge" numeric(10,2) NOT NULL DEFAULT '0', "insurance_opted_in" boolean NOT NULL DEFAULT true, "insurance_premium" numeric(10,2) NOT NULL DEFAULT '0', "luggage_insurance_opted_in" boolean NOT NULL DEFAULT false, "luggage_insurance_premium" numeric(10,2) NOT NULL DEFAULT '0', "payment_method" character varying(12) NOT NULL, "status" character varying(12) NOT NULL DEFAULT 'pending', "payment_intent_id" character varying(64), "created_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(), "completed_at" TIMESTAMP WITH TIME ZONE, "pickup_miles" integer, "dropoff_miles" integer, "miles_travelled" integer, "picked_up_at" TIMESTAMP WITH TIME ZONE, "dropped_off_at" TIMESTAMP WITH TIME ZONE, CONSTRAINT "PK_81fd0b163f865ad864e73fbb0b3" PRIMARY KEY ("id"))
+query: CREATE INDEX "IDX_e5006976e22ac8835eef2ab139" ON "mobile_bookings" ("trip_id") 
+query: CREATE INDEX "IDX_0faf3c1c59a0328090b9b4eb90" ON "mobile_bookings" ("rider_id") 
+query: CREATE TABLE "mobile_odometer_readings" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "trip_id" uuid NOT NULL, "booking_id" uuid NOT NULL, "sailor_id" uuid NOT NULL, "voyager_id" uuid NOT NULL, "kind" character varying(8) NOT NULL, "miles" integer NOT NULL, "photo_url" text NOT NULL, "latitude" numeric(9,6), "longitude" numeric(9,6), "recorded_at" TIMESTAMP WITH TIME ZONE NOT NULL, "created_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(), CONSTRAINT "UQ_b08718223d47774d8c89fb06df0" UNIQUE ("booking_id", "kind"), CONSTRAINT "PK_a0e7e95bf4336158893b492d233" PRIMARY KEY ("id"))
+query: CREATE INDEX "IDX_c6a85087def94f80315da7197f" ON "mobile_odometer_readings" ("trip_id") 
+query: CREATE INDEX "IDX_325127acb55ce476911aa8db43" ON "mobile_odometer_readings" ("booking_id") 
+query: CREATE INDEX "IDX_5747b47835a4fa89a8df10d207" ON "mobile_odometer_readings" ("trip_id", "recorded_at") 
+query: CREATE TABLE "mobile_trip_groups" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "trip_id" uuid NOT NULL, "pickup_hub_id" text, "pickup_locked" boolean NOT NULL DEFAULT false, "created_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(), CONSTRAINT "UQ_cd0ccdf646f42dd23c488aefdeb" UNIQUE ("trip_id"), CONSTRAINT "PK_3cbe717a45ae72f53c601ddd08b" PRIMARY KEY ("id"))
+query: CREATE TABLE "mobile_trip_group_members" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "group_id" uuid NOT NULL, "user_id" uuid NOT NULL, "role" character varying(12) NOT NULL, "joined_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(), CONSTRAINT "UQ_c0558873b8dc85494a9b80c7ad5" UNIQUE ("group_id", "user_id"), CONSTRAINT "PK_b03362e96ffe291625300b213ee" PRIMARY KEY ("id"))
+query: CREATE INDEX "IDX_6dabb4ae5be0b45cf450c9441d" ON "mobile_trip_group_members" ("user_id") 
+query: CREATE TABLE "mobile_trip_group_messages" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "group_id" uuid NOT NULL, "sender_id" uuid, "text" text NOT NULL, "is_system" boolean NOT NULL DEFAULT false, "created_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(), CONSTRAINT "PK_25c41b62562ea34cb8f17c27627" PRIMARY KEY ("id"))
+query: CREATE INDEX "IDX_273752b7914db4c1038841078b" ON "mobile_trip_group_messages" ("group_id", "created_at") 
+query: CREATE TABLE "mobile_driver_trips" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "driver_id" uuid NOT NULL, "from_city" text NOT NULL, "to_city" text NOT NULL, "miles" integer NOT NULL, "seats_booked" integer NOT NULL, "gross_amount" numeric(10,2) NOT NULL, "platform_fee" numeric(10,2) NOT NULL, "net_amount" numeric(10,2) NOT NULL, "completed_at" TIMESTAMP WITH TIME ZONE NOT NULL, "created_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(), CONSTRAINT "PK_a56767e328d291e725c47eaee19" PRIMARY KEY ("id"))
+query: CREATE INDEX "IDX_b65815f487f0abba4f9cd22ee8" ON "mobile_driver_trips" ("driver_id", "completed_at") 
+query: CREATE TABLE "mobile_conversations" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "user_low_id" uuid NOT NULL, "user_high_id" uuid NOT NULL, "last_message" text, "last_message_at" TIMESTAMP WITH TIME ZONE, "trip_label" text, "created_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(), CONSTRAINT "UQ_db4029d8b006a32133aa3884991" UNIQUE ("user_low_id", "user_high_id"), CONSTRAINT "PK_1c10bf0bde5ea3a81873e105c8d" PRIMARY KEY ("id"))
+query: CREATE INDEX "IDX_8a57b83ffffaa22ae67f0ea0b9" ON "mobile_conversations" ("user_low_id") 
+query: CREATE INDEX "IDX_501bc4ae1b20eb4b151d6c1cc6" ON "mobile_conversations" ("user_high_id") 
+query: CREATE TABLE "mobile_direct_messages" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "conversation_id" uuid NOT NULL, "sender_id" uuid NOT NULL, "text" text NOT NULL, "read_at" TIMESTAMP WITH TIME ZONE, "created_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(), CONSTRAINT "PK_93ffc784fbb5d898eef5f586970" PRIMARY KEY ("id"))
+query: CREATE INDEX "IDX_4fb2e506d745ffff52dd0a897c" ON "mobile_direct_messages" ("conversation_id") 
+query: CREATE INDEX "IDX_800eadcd518482307826b592f3" ON "mobile_direct_messages" ("sender_id") 
+query: CREATE TABLE "mobile_live_locations" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "trip_id" uuid NOT NULL, "user_id" uuid NOT NULL, "role" character varying(12) NOT NULL, "latitude" double precision NOT NULL, "longitude" double precision NOT NULL, "heading" double precision, "speed" double precision, "updated_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(), CONSTRAINT "UQ_6501be8b79ac59ff8310887841d" UNIQUE ("trip_id", "user_id"), CONSTRAINT "PK_316c5dd91437138608b6c8ba16a" PRIMARY KEY ("id"))
+query: CREATE INDEX "IDX_ac856299ba609bcdc595303930" ON "mobile_live_locations" ("trip_id") 
+query: CREATE INDEX "IDX_91e0b596851cb63854f345c998" ON "mobile_live_locations" ("user_id") 
+query: CREATE TABLE "mobile_sos_events" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "user_id" uuid NOT NULL, "trip_id" uuid, "status" character varying(20) NOT NULL DEFAULT 'active', "latitude" double precision, "longitude" double precision, "noonlight_alarm_id" character varying(100), "contact_notified" boolean NOT NULL DEFAULT false, "created_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(), CONSTRAINT "PK_1a15f1b81ea7ebd32204519accb" PRIMARY KEY ("id"))
+query: CREATE INDEX "IDX_ffbcfa0f917cef22f9803cad5e" ON "mobile_sos_events" ("user_id") 
+query: CREATE INDEX "IDX_c3d51c9476c127e6075d5c2c52" ON "mobile_sos_events" ("trip_id") 
+query: CREATE INDEX "IDX_5872ec84c269e60a6819762b23" ON "mobile_sos_events" ("noonlight_alarm_id") 
+query: CREATE TABLE "mobile_deviation_events" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "trip_id" uuid NOT NULL, "user_id" uuid NOT NULL, "latitude" double precision NOT NULL, "longitude" double precision NOT NULL, "distance_miles" double precision NOT NULL, "status" character varying(20) NOT NULL DEFAULT 'pending', "created_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(), CONSTRAINT "PK_f5084c1d70060a05ddea8a53f4e" PRIMARY KEY ("id"))
+query: CREATE INDEX "IDX_a7a73da8f502565812cd0fdd6d" ON "mobile_deviation_events" ("trip_id") 
+query: CREATE INDEX "IDX_aee0418f8c2655aea00543f579" ON "mobile_deviation_events" ("user_id") 
+query: ALTER TABLE "verifications" ADD CONSTRAINT "FK_e9a134af366776c651168916616" FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE NO ACTION ON UPDATE NO ACTION
+query: ALTER TABLE "background_checks" ADD CONSTRAINT "FK_8187384dd9bbee387242f06ee2e" FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE NO ACTION ON UPDATE NO ACTION
+query: ALTER TABLE "profiles" ADD CONSTRAINT "FK_9e432b7df0d182f8d292902d1a2" FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE NO ACTION ON UPDATE NO ACTION
+query: ALTER TABLE "vehicles" ADD CONSTRAINT "FK_9c2e0a8772c9e43b32f57bfcfcc" FOREIGN KEY ("driver_id") REFERENCES "users"("id") ON DELETE NO ACTION ON UPDATE NO ACTION
+query: ALTER TABLE "trips" ADD CONSTRAINT "FK_44d36110fb38f45c2f15c946ddb" FOREIGN KEY ("driver_id") REFERENCES "users"("id") ON DELETE NO ACTION ON UPDATE NO ACTION
+query: ALTER TABLE "trips" ADD CONSTRAINT "FK_ab4b806373c2ee43946679d572e" FOREIGN KEY ("vehicle_id") REFERENCES "vehicles"("id") ON DELETE NO ACTION ON UPDATE NO ACTION
+query: ALTER TABLE "trip_preferences" ADD CONSTRAINT "FK_c2ffcfd3cc2af617ba71d13c401" FOREIGN KEY ("trip_id") REFERENCES "trips"("id") ON DELETE NO ACTION ON UPDATE NO ACTION
+query: ALTER TABLE "trip_zones" ADD CONSTRAINT "FK_21ccda3a0ee5d7d97507ed92a5c" FOREIGN KEY ("trip_id") REFERENCES "trips"("id") ON DELETE NO ACTION ON UPDATE NO ACTION
+query: ALTER TABLE "bookings" ADD CONSTRAINT "FK_45fa98a28a6944e39d8a5754bd1" FOREIGN KEY ("trip_id") REFERENCES "trips"("id") ON DELETE NO ACTION ON UPDATE NO ACTION
+query: ALTER TABLE "bookings" ADD CONSTRAINT "FK_ab08e50599da93ee316fcc884a1" FOREIGN KEY ("rider_id") REFERENCES "users"("id") ON DELETE NO ACTION ON UPDATE NO ACTION
+query: ALTER TABLE "booking_luggage" ADD CONSTRAINT "FK_d702b830b9d766b975e4a9e7cfd" FOREIGN KEY ("booking_id") REFERENCES "bookings"("id") ON DELETE NO ACTION ON UPDATE NO ACTION
+query: ALTER TABLE "booking_status_log" ADD CONSTRAINT "FK_54c667e5c83b454cf55efa96120" FOREIGN KEY ("booking_id") REFERENCES "bookings"("id") ON DELETE NO ACTION ON UPDATE NO ACTION
+query: ALTER TABLE "payments" ADD CONSTRAINT "FK_e86edf76dc2424f123b9023a2b2" FOREIGN KEY ("booking_id") REFERENCES "bookings"("id") ON DELETE NO ACTION ON UPDATE NO ACTION
+query: ALTER TABLE "payouts" ADD CONSTRAINT "FK_b652e954a4dbe464ee2a8b61864" FOREIGN KEY ("driver_id") REFERENCES "users"("id") ON DELETE NO ACTION ON UPDATE NO ACTION
+query: ALTER TABLE "refunds" ADD CONSTRAINT "FK_7f48aa5d56c42aeb495db016683" FOREIGN KEY ("payment_id") REFERENCES "payments"("id") ON DELETE NO ACTION ON UPDATE NO ACTION
+query: ALTER TABLE "insurance_policies" ADD CONSTRAINT "FK_e5aa8b079f553cc94e5973e9184" FOREIGN KEY ("booking_id") REFERENCES "bookings"("id") ON DELETE NO ACTION ON UPDATE NO ACTION
+query: ALTER TABLE "trip_pings" ADD CONSTRAINT "FK_20579851e5c09f490ef68e4d02b" FOREIGN KEY ("booking_id") REFERENCES "bookings"("id") ON DELETE NO ACTION ON UPDATE NO ACTION
+query: ALTER TABLE "sos_events" ADD CONSTRAINT "FK_91c987bfd526c86b9cca6817049" FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE NO ACTION ON UPDATE NO ACTION
+query: ALTER TABLE "sos_events" ADD CONSTRAINT "FK_5603765c8fbf5260223b0492f56" FOREIGN KEY ("booking_id") REFERENCES "bookings"("id") ON DELETE NO ACTION ON UPDATE NO ACTION
+query: ALTER TABLE "reports" ADD CONSTRAINT "FK_9459b9bf907a3807ef7143d2ead" FOREIGN KEY ("reporter_id") REFERENCES "users"("id") ON DELETE NO ACTION ON UPDATE NO ACTION
+query: ALTER TABLE "reports" ADD CONSTRAINT "FK_a9197bd0a7e06bb92648d9efed2" FOREIGN KEY ("reported_user_id") REFERENCES "users"("id") ON DELETE NO ACTION ON UPDATE NO ACTION
+query: ALTER TABLE "reports" ADD CONSTRAINT "FK_25f4dde2f56ab000aa8db7b2495" FOREIGN KEY ("booking_id") REFERENCES "bookings"("id") ON DELETE NO ACTION ON UPDATE NO ACTION
+query: ALTER TABLE "moderation_actions" ADD CONSTRAINT "FK_8dd6d136a903e4f003d61123c76" FOREIGN KEY ("report_id") REFERENCES "reports"("id") ON DELETE NO ACTION ON UPDATE NO ACTION
+query: ALTER TABLE "moderation_actions" ADD CONSTRAINT "FK_1e8fa48bfa1c578073553eb33d5" FOREIGN KEY ("taken_by") REFERENCES "users"("id") ON DELETE NO ACTION ON UPDATE NO ACTION
+query: ALTER TABLE "suspensions" ADD CONSTRAINT "FK_36215c5979c97e95daa61224bb5" FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE NO ACTION ON UPDATE NO ACTION
+query: ALTER TABLE "incidents" ADD CONSTRAINT "FK_66f302514887c0a1202dc48c239" FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE NO ACTION ON UPDATE NO ACTION
+query: ALTER TABLE "deviation_events" ADD CONSTRAINT "FK_396e28279350be63aa4c254a613" FOREIGN KEY ("booking_id") REFERENCES "bookings"("id") ON DELETE NO ACTION ON UPDATE NO ACTION
+query: ALTER TABLE "appeals" ADD CONSTRAINT "FK_dc35f7b9ece670abe7ff66932c4" FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE NO ACTION ON UPDATE NO ACTION
+query: ALTER TABLE "appeals" ADD CONSTRAINT "FK_1e833924836e28203d7585886a2" FOREIGN KEY ("action_id") REFERENCES "moderation_actions"("id") ON DELETE NO ACTION ON UPDATE NO ACTION
+query: ALTER TABLE "appeals" ADD CONSTRAINT "FK_77e8a00810d3a560ec75980fa9e" FOREIGN KEY ("reviewed_by") REFERENCES "users"("id") ON DELETE NO ACTION ON UPDATE NO ACTION
+query: ALTER TABLE "chat_conversations" ADD CONSTRAINT "FK_74e59c3afd8a7e56d170e5a59fa" FOREIGN KEY ("booking_id") REFERENCES "bookings"("id") ON DELETE NO ACTION ON UPDATE NO ACTION
+query: ALTER TABLE "chat_messages" ADD CONSTRAINT "FK_3d623662d4ee1219b23cf61e649" FOREIGN KEY ("conversation_id") REFERENCES "chat_conversations"("id") ON DELETE NO ACTION ON UPDATE NO ACTION
+query: ALTER TABLE "chat_blocks" ADD CONSTRAINT "FK_d417c882b341f8e817d4d507988" FOREIGN KEY ("blocker_id") REFERENCES "users"("id") ON DELETE NO ACTION ON UPDATE NO ACTION
+query: ALTER TABLE "chat_blocks" ADD CONSTRAINT "FK_8d9966d7fa07ea9170642aba7ff" FOREIGN KEY ("blocked_user_id") REFERENCES "users"("id") ON DELETE NO ACTION ON UPDATE NO ACTION
+query: ALTER TABLE "chat_blocks" ADD CONSTRAINT "FK_fe84b5fe7a21b872397a78cc8e2" FOREIGN KEY ("booking_id") REFERENCES "bookings"("id") ON DELETE NO ACTION ON UPDATE NO ACTION
+query: ALTER TABLE "call_records" ADD CONSTRAINT "FK_b1ae588d2d115509c06905274c4" FOREIGN KEY ("booking_id") REFERENCES "bookings"("id") ON DELETE NO ACTION ON UPDATE NO ACTION
+query: ALTER TABLE "call_records" ADD CONSTRAINT "FK_dd6073dc08ab4062d337916e346" FOREIGN KEY ("caller_id") REFERENCES "users"("id") ON DELETE NO ACTION ON UPDATE NO ACTION
+query: ALTER TABLE "call_records" ADD CONSTRAINT "FK_093ac5c1989fc7016057c810897" FOREIGN KEY ("receiver_id") REFERENCES "users"("id") ON DELETE NO ACTION ON UPDATE NO ACTION
+query: ALTER TABLE "conversations" ADD CONSTRAINT "FK_9bc96e73e2a6aba08e0473844ed" FOREIGN KEY ("booking_id") REFERENCES "bookings"("id") ON DELETE NO ACTION ON UPDATE NO ACTION
+query: ALTER TABLE "messages" ADD CONSTRAINT "FK_3bc55a7c3f9ed54b520bb5cfe23" FOREIGN KEY ("conversation_id") REFERENCES "conversations"("id") ON DELETE NO ACTION ON UPDATE NO ACTION
+query: ALTER TABLE "emergency_contacts" ADD CONSTRAINT "FK_1cf39ea46db44d95b34d58d3605" FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE NO ACTION ON UPDATE NO ACTION
+query: ALTER TABLE "saved_searches" ADD CONSTRAINT "FK_8f01d13ac8e7b451d244674274f" FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE NO ACTION ON UPDATE NO ACTION
+query: INSERT INTO "migrations"("timestamp", "name") VALUES ($1, $2) -- PARAMETERS: [1746284000000,"InitialTypeormBaseline1746284000000"]
+Migration InitialTypeormBaseline1746284000000 has been executed successfully.
+query: 
+      ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "biometric_consent_given" boolean NOT NULL DEFAULT false
+    
+query: 
+      ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "biometric_consent_at" timestamptz
+    
+query: 
+      ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "ytd_gross_volume" decimal(10,2) NOT NULL DEFAULT 0
+    
+query: 
+      ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "w9_on_file" boolean NOT NULL DEFAULT false
+    
+query: 
+      ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "w9_submitted_at" timestamptz
+    
+query: 
+      ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "tax_blocked" boolean NOT NULL DEFAULT false
+    
+query: 
+      ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "tax_notification_5k_sent" boolean NOT NULL DEFAULT false
+    
+query: 
+      ALTER TABLE "profiles" ADD COLUMN IF NOT EXISTS "category_assignment_reason" text
+    
+query: 
+      ALTER TABLE "profiles" ADD COLUMN IF NOT EXISTS "category_manually_overridden" boolean NOT NULL DEFAULT false
+    
+query: 
+      ALTER TABLE "profiles" ADD COLUMN IF NOT EXISTS "insurance_verified" boolean NOT NULL DEFAULT false
+    
+query: 
+      CREATE TABLE IF NOT EXISTS "audit_events" (
+        "id" uuid NOT NULL DEFAULT gen_random_uuid(),
+        "user_id" uuid,
+        "action" varchar(100) NOT NULL,
+        "entity_type" varchar(50) NOT NULL,
+        "entity_id" varchar(255),
+        "details" jsonb,
+        "ip_address" varchar(45),
+        "user_agent" text,
+        "created_at" timestamptz NOT NULL DEFAULT now(),
+        CONSTRAINT "PK_audit_events" PRIMARY KEY ("id")
+      )
+    
+query: 
+      CREATE TABLE IF NOT EXISTS "data_deletion_requests" (
+        "id" uuid NOT NULL DEFAULT gen_random_uuid(),
+        "user_id" uuid NOT NULL,
+        "status" varchar(20) NOT NULL DEFAULT 'pending',
+        "requested_at" timestamptz NOT NULL DEFAULT now(),
+        "completed_at" timestamptz,
+        "completed_by" uuid,
+        "notes" text,
+        CONSTRAINT "PK_data_deletion_requests" PRIMARY KEY ("id")
+      )
+    
+query: 
+      ALTER TABLE "sos_events" ADD COLUMN IF NOT EXISTS "noonlight_alarm_id" varchar(100)
+    
+query: 
+      ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "safe_word" varchar(50)
+    
+query: 
+      ALTER TABLE "bookings" ADD COLUMN IF NOT EXISTS "share_token" varchar(20)
+    
+query: 
+      ALTER TABLE "bookings" ADD COLUMN IF NOT EXISTS "last_known_location" geometry
+    
+query: 
+      ALTER TABLE "bookings" ADD COLUMN IF NOT EXISTS "last_ping_at" timestamptz
+    
+query: 
+      ALTER TABLE "trips" ADD COLUMN IF NOT EXISTS "mapbox_route_polyline" text
+    
+query: 
+      ALTER TABLE "trips" ADD COLUMN IF NOT EXISTS "expected_arrival_time" timestamptz
+    
+query: 
+      ALTER TABLE "trips" ADD COLUMN IF NOT EXISTS "origin_lat" float
+    
+query: 
+      ALTER TABLE "trips" ADD COLUMN IF NOT EXISTS "origin_lng" float
+    
+query: 
+      ALTER TABLE "trips" ADD COLUMN IF NOT EXISTS "dest_lat" float
+    
+query: 
+      ALTER TABLE "trips" ADD COLUMN IF NOT EXISTS "dest_lng" float
+    
+query: 
+      ALTER TABLE "profiles" ADD COLUMN IF NOT EXISTS "display_name" varchar(100)
+    
+query: 
+      CREATE TABLE IF NOT EXISTS "deviation_events" (
+        "id" uuid NOT NULL DEFAULT gen_random_uuid(),
+        "booking_id" uuid NOT NULL,
+        "actual_location" geometry,
+        "expected_location" geometry,
+        "deviation_distance_miles" float NOT NULL DEFAULT 0,
+        "time_off_route_seconds" int,
+        "status" varchar(20) NOT NULL DEFAULT 'pending',
+        "responded_at" timestamptz,
+        "response" text,
+        "ts_paged_at" timestamptz,
+        "contacts_notified_at" timestamptz,
+        "created_at" timestamptz NOT NULL DEFAULT now(),
+        CONSTRAINT "PK_deviation_events" PRIMARY KEY ("id")
+      )
+    
+query: 
+      CREATE TABLE IF NOT EXISTS "appeals" (
+        "id" uuid NOT NULL DEFAULT gen_random_uuid(),
+        "user_id" uuid NOT NULL,
+        "action_id" uuid NOT NULL,
+        "reason" varchar(2000) NOT NULL,
+        "evidence_url" varchar(255),
+        "status" varchar(20) NOT NULL DEFAULT 'pending',
+        "reviewed_by" uuid,
+        "decision" varchar(500),
+        "reviewed_at" timestamptz,
+        "created_at" timestamptz NOT NULL DEFAULT now(),
+        CONSTRAINT "PK_appeals" PRIMARY KEY ("id")
+      )
+    
+query: INSERT INTO "migrations"("timestamp", "name") VALUES ($1, $2) -- PARAMETERS: [1746284700000,"ComplianceColumnsAddition1746284700000"]
+Migration ComplianceColumnsAddition1746284700000 has been executed successfully.
+query: 
+      ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "selected_role" character varying(10) NOT NULL DEFAULT 'rider'
+    
+query: INSERT INTO "migrations"("timestamp", "name") VALUES ($1, $2) -- PARAMETERS: [1746285000000,"SelectedRoleColumnAddition1746285000000"]
+Migration SelectedRoleColumnAddition1746285000000 has been executed successfully.
+query: 
+      ALTER TABLE "users" ALTER COLUMN "password_hash" DROP NOT NULL
+    
+query: INSERT INTO "migrations"("timestamp", "name") VALUES ($1, $2) -- PARAMETERS: [1746286000000,"PasswordHashNullable1746286000000"]
+Migration PasswordHashNullable1746286000000 has been executed successfully.
+query: SELECT * FROM "information_schema"."tables" WHERE "table_schema" = 'public' AND "table_name" = 'trip_replies'
+query: INSERT INTO "migrations"("timestamp", "name") VALUES ($1, $2) -- PARAMETERS: [1746290000000,"TripReplyTable1746290000000"]
+Migration TripReplyTable1746290000000 has been executed successfully.
+query: SELECT * FROM current_schema()
+query: SELECT * FROM current_database()
+query: SELECT "table_schema", "table_name", obj_description(('"' || "table_schema" || '"."' || "table_name" || '"')::regclass, 'pg_class') AS table_comment FROM "information_schema"."tables" WHERE ("table_schema" = 'public' AND "table_name" = 'users')
+query: SELECT TRUE FROM information_schema.columns WHERE table_name = 'pg_class' and column_name = 'relispartition'
+query: SELECT columns.*, pg_catalog.col_description(('"' || table_catalog || '"."' || table_schema || '"."' || table_name || '"')::regclass::oid, ordinal_position) AS description, ('"' || "udt_schema" || '"."' || "udt_name" || '"')::"regtype"::text AS "regtype", pg_catalog.format_type("col_attr"."atttypid", "col_attr"."atttypmod") AS "format_type" FROM "information_schema"."columns" LEFT JOIN "pg_catalog"."pg_attribute" AS "col_attr" ON "col_attr"."attname" = "columns"."column_name" AND "col_attr"."attrelid" = ( SELECT "cls"."oid" FROM "pg_catalog"."pg_class" AS "cls" LEFT JOIN "pg_catalog"."pg_namespace" AS "ns" ON "ns"."oid" = "cls"."relnamespace" WHERE "cls"."relname" = "columns"."table_name" AND "ns"."nspname" = "columns"."table_schema" ) WHERE ("table_schema" = 'public' AND "table_name" = 'users')
+query: SELECT "ns"."nspname" AS "table_schema", "t"."relname" AS "table_name", "cnst"."conname" AS "constraint_name", pg_get_constraintdef("cnst"."oid") AS "expression", CASE "cnst"."contype" WHEN 'p' THEN 'PRIMARY' WHEN 'u' THEN 'UNIQUE' WHEN 'c' THEN 'CHECK' WHEN 'x' THEN 'EXCLUDE' END AS "constraint_type", "a"."attname" AS "column_name" FROM "pg_constraint" "cnst" INNER JOIN "pg_class" "t" ON "t"."oid" = "cnst"."conrelid" INNER JOIN "pg_namespace" "ns" ON "ns"."oid" = "cnst"."connamespace" LEFT JOIN "pg_attribute" "a" ON "a"."attrelid" = "cnst"."conrelid" AND "a"."attnum" = ANY ("cnst"."conkey") WHERE "t"."relkind" IN ('r', 'p') AND (("ns"."nspname" = 'public' AND "t"."relname" = 'users'))
+query: SELECT "ns"."nspname" AS "table_schema", "t"."relname" AS "table_name", "i"."relname" AS "constraint_name", "a"."attname" AS "column_name", CASE "ix"."indisunique" WHEN 't' THEN 'TRUE' ELSE'FALSE' END AS "is_unique", pg_get_expr("ix"."indpred", "ix"."indrelid") AS "condition", "types"."typname" AS "type_name", "am"."amname" AS "index_type" FROM "pg_class" "t" INNER JOIN "pg_index" "ix" ON "ix"."indrelid" = "t"."oid" INNER JOIN "pg_attribute" "a" ON "a"."attrelid" = "t"."oid"  AND "a"."attnum" = ANY ("ix"."indkey") INNER JOIN "pg_namespace" "ns" ON "ns"."oid" = "t"."relnamespace" INNER JOIN "pg_class" "i" ON "i"."oid" = "ix"."indexrelid" INNER JOIN "pg_type" "types" ON "types"."oid" = "a"."atttypid" INNER JOIN "pg_am" "am" ON "i"."relam" = "am"."oid" LEFT JOIN "pg_constraint" "cnst" ON "cnst"."conname" = "i"."relname" WHERE "t"."relkind" IN ('r', 'p') AND "cnst"."contype" IS NULL AND (("ns"."nspname" = 'public' AND "t"."relname" = 'users'))
+query: SELECT "con"."conname" AS "constraint_name", "con"."nspname" AS "table_schema", "con"."relname" AS "table_name", "att2"."attname" AS "column_name", "ns"."nspname" AS "referenced_table_schema", "cl"."relname" AS "referenced_table_name", "att"."attname" AS "referenced_column_name", "con"."confdeltype" AS "on_delete", "con"."confupdtype" AS "on_update", "con"."condeferrable" AS "deferrable", "con"."condeferred" AS "deferred" FROM ( SELECT UNNEST ("con1"."conkey") AS "parent", UNNEST ("con1"."confkey") AS "child", "con1"."confrelid", "con1"."conrelid", "con1"."conname", "con1"."contype", "ns"."nspname", "cl"."relname", "con1"."condeferrable", CASE WHEN "con1"."condeferred" THEN 'INITIALLY DEFERRED' ELSE 'INITIALLY IMMEDIATE' END as condeferred, CASE "con1"."confdeltype" WHEN 'a' THEN 'NO ACTION' WHEN 'r' THEN 'RESTRICT' WHEN 'c' THEN 'CASCADE' WHEN 'n' THEN 'SET NULL' WHEN 'd' THEN 'SET DEFAULT' END as "confdeltype", CASE "con1"."confupdtype" WHEN 'a' THEN 'NO ACTION' WHEN 'r' THEN 'RESTRICT' WHEN 'c' THEN 'CASCADE' WHEN 'n' THEN 'SET NULL' WHEN 'd' THEN 'SET DEFAULT' END as "confupdtype" FROM "pg_class" "cl" INNER JOIN "pg_namespace" "ns" ON "cl"."relnamespace" = "ns"."oid" INNER JOIN "pg_constraint" "con1" ON "con1"."conrelid" = "cl"."oid" WHERE "con1"."contype" = 'f' AND (("ns"."nspname" = 'public' AND "cl"."relname" = 'users')) ) "con" INNER JOIN "pg_attribute" "att" ON "att"."attrelid" = "con"."confrelid" AND "att"."attnum" = "con"."child" INNER JOIN "pg_class" "cl" ON "cl"."oid" = "con"."confrelid"  AND "cl"."relispartition" = 'f'INNER JOIN "pg_namespace" "ns" ON "cl"."relnamespace" = "ns"."oid" INNER JOIN "pg_attribute" "att2" ON "att2"."attrelid" = "con"."conrelid" AND "att2"."attnum" = "con"."parent"
+query: SELECT "udt_schema", "udt_name" FROM "information_schema"."columns" WHERE "table_schema" = 'public' AND "table_name" = 'users' AND "column_name"='role'
+query: SELECT "udt_schema", "udt_name" FROM "information_schema"."columns" WHERE "table_schema" = 'public' AND "table_name" = 'users' AND "column_name"='subscription_tier'
+query: SELECT "e"."enumlabel" AS "value" FROM "pg_enum" "e" INNER JOIN "pg_type" "t" ON "t"."oid" = "e"."enumtypid" INNER JOIN "pg_namespace" "n" ON "n"."oid" = "t"."typnamespace" WHERE "n"."nspname" = 'public' AND "t"."typname" = 'users_role_enum'
+query: SELECT "e"."enumlabel" AS "value" FROM "pg_enum" "e" INNER JOIN "pg_type" "t" ON "t"."oid" = "e"."enumtypid" INNER JOIN "pg_namespace" "n" ON "n"."oid" = "t"."typnamespace" WHERE "n"."nspname" = 'public' AND "t"."typname" = 'users_subscription_tier_enum'
+query: INSERT INTO "migrations"("timestamp", "name") VALUES ($1, $2) -- PARAMETERS: [1746291000000,"AddFoundingMemberColumn1746291000000"]
+Migration AddFoundingMemberColumn1746291000000 has been executed successfully.
+query: SELECT * FROM current_schema()
+query: SELECT * FROM current_database()
+query: SELECT "table_schema", "table_name", obj_description(('"' || "table_schema" || '"."' || "table_name" || '"')::regclass, 'pg_class') AS table_comment FROM "information_schema"."tables" WHERE ("table_schema" = 'public' AND "table_name" = 'users')
+query: SELECT TRUE FROM information_schema.columns WHERE table_name = 'pg_class' and column_name = 'relispartition'
+query: SELECT columns.*, pg_catalog.col_description(('"' || table_catalog || '"."' || table_schema || '"."' || table_name || '"')::regclass::oid, ordinal_position) AS description, ('"' || "udt_schema" || '"."' || "udt_name" || '"')::"regtype"::text AS "regtype", pg_catalog.format_type("col_attr"."atttypid", "col_attr"."atttypmod") AS "format_type" FROM "information_schema"."columns" LEFT JOIN "pg_catalog"."pg_attribute" AS "col_attr" ON "col_attr"."attname" = "columns"."column_name" AND "col_attr"."attrelid" = ( SELECT "cls"."oid" FROM "pg_catalog"."pg_class" AS "cls" LEFT JOIN "pg_catalog"."pg_namespace" AS "ns" ON "ns"."oid" = "cls"."relnamespace" WHERE "cls"."relname" = "columns"."table_name" AND "ns"."nspname" = "columns"."table_schema" ) WHERE ("table_schema" = 'public' AND "table_name" = 'users')
+query: SELECT "ns"."nspname" AS "table_schema", "t"."relname" AS "table_name", "cnst"."conname" AS "constraint_name", pg_get_constraintdef("cnst"."oid") AS "expression", CASE "cnst"."contype" WHEN 'p' THEN 'PRIMARY' WHEN 'u' THEN 'UNIQUE' WHEN 'c' THEN 'CHECK' WHEN 'x' THEN 'EXCLUDE' END AS "constraint_type", "a"."attname" AS "column_name" FROM "pg_constraint" "cnst" INNER JOIN "pg_class" "t" ON "t"."oid" = "cnst"."conrelid" INNER JOIN "pg_namespace" "ns" ON "ns"."oid" = "cnst"."connamespace" LEFT JOIN "pg_attribute" "a" ON "a"."attrelid" = "cnst"."conrelid" AND "a"."attnum" = ANY ("cnst"."conkey") WHERE "t"."relkind" IN ('r', 'p') AND (("ns"."nspname" = 'public' AND "t"."relname" = 'users'))
+query: SELECT "ns"."nspname" AS "table_schema", "t"."relname" AS "table_name", "i"."relname" AS "constraint_name", "a"."attname" AS "column_name", CASE "ix"."indisunique" WHEN 't' THEN 'TRUE' ELSE'FALSE' END AS "is_unique", pg_get_expr("ix"."indpred", "ix"."indrelid") AS "condition", "types"."typname" AS "type_name", "am"."amname" AS "index_type" FROM "pg_class" "t" INNER JOIN "pg_index" "ix" ON "ix"."indrelid" = "t"."oid" INNER JOIN "pg_attribute" "a" ON "a"."attrelid" = "t"."oid"  AND "a"."attnum" = ANY ("ix"."indkey") INNER JOIN "pg_namespace" "ns" ON "ns"."oid" = "t"."relnamespace" INNER JOIN "pg_class" "i" ON "i"."oid" = "ix"."indexrelid" INNER JOIN "pg_type" "types" ON "types"."oid" = "a"."atttypid" INNER JOIN "pg_am" "am" ON "i"."relam" = "am"."oid" LEFT JOIN "pg_constraint" "cnst" ON "cnst"."conname" = "i"."relname" WHERE "t"."relkind" IN ('r', 'p') AND "cnst"."contype" IS NULL AND (("ns"."nspname" = 'public' AND "t"."relname" = 'users'))
+query: SELECT "con"."conname" AS "constraint_name", "con"."nspname" AS "table_schema", "con"."relname" AS "table_name", "att2"."attname" AS "column_name", "ns"."nspname" AS "referenced_table_schema", "cl"."relname" AS "referenced_table_name", "att"."attname" AS "referenced_column_name", "con"."confdeltype" AS "on_delete", "con"."confupdtype" AS "on_update", "con"."condeferrable" AS "deferrable", "con"."condeferred" AS "deferred" FROM ( SELECT UNNEST ("con1"."conkey") AS "parent", UNNEST ("con1"."confkey") AS "child", "con1"."confrelid", "con1"."conrelid", "con1"."conname", "con1"."contype", "ns"."nspname", "cl"."relname", "con1"."condeferrable", CASE WHEN "con1"."condeferred" THEN 'INITIALLY DEFERRED' ELSE 'INITIALLY IMMEDIATE' END as condeferred, CASE "con1"."confdeltype" WHEN 'a' THEN 'NO ACTION' WHEN 'r' THEN 'RESTRICT' WHEN 'c' THEN 'CASCADE' WHEN 'n' THEN 'SET NULL' WHEN 'd' THEN 'SET DEFAULT' END as "confdeltype", CASE "con1"."confupdtype" WHEN 'a' THEN 'NO ACTION' WHEN 'r' THEN 'RESTRICT' WHEN 'c' THEN 'CASCADE' WHEN 'n' THEN 'SET NULL' WHEN 'd' THEN 'SET DEFAULT' END as "confupdtype" FROM "pg_class" "cl" INNER JOIN "pg_namespace" "ns" ON "cl"."relnamespace" = "ns"."oid" INNER JOIN "pg_constraint" "con1" ON "con1"."conrelid" = "cl"."oid" WHERE "con1"."contype" = 'f' AND (("ns"."nspname" = 'public' AND "cl"."relname" = 'users')) ) "con" INNER JOIN "pg_attribute" "att" ON "att"."attrelid" = "con"."confrelid" AND "att"."attnum" = "con"."child" INNER JOIN "pg_class" "cl" ON "cl"."oid" = "con"."confrelid"  AND "cl"."relispartition" = 'f'INNER JOIN "pg_namespace" "ns" ON "cl"."relnamespace" = "ns"."oid" INNER JOIN "pg_attribute" "att2" ON "att2"."attrelid" = "con"."conrelid" AND "att2"."attnum" = "con"."parent"
+query: SELECT "udt_schema", "udt_name" FROM "information_schema"."columns" WHERE "table_schema" = 'public' AND "table_name" = 'users' AND "column_name"='role'
+query: SELECT "udt_schema", "udt_name" FROM "information_schema"."columns" WHERE "table_schema" = 'public' AND "table_name" = 'users' AND "column_name"='subscription_tier'
+query: SELECT "e"."enumlabel" AS "value" FROM "pg_enum" "e" INNER JOIN "pg_type" "t" ON "t"."oid" = "e"."enumtypid" INNER JOIN "pg_namespace" "n" ON "n"."oid" = "t"."typnamespace" WHERE "n"."nspname" = 'public' AND "t"."typname" = 'users_role_enum'
+query: SELECT "e"."enumlabel" AS "value" FROM "pg_enum" "e" INNER JOIN "pg_type" "t" ON "t"."oid" = "e"."enumtypid" INNER JOIN "pg_namespace" "n" ON "n"."oid" = "t"."typnamespace" WHERE "n"."nspname" = 'public' AND "t"."typname" = 'users_subscription_tier_enum'
+query: INSERT INTO "migrations"("timestamp", "name") VALUES ($1, $2) -- PARAMETERS: [1746292000000,"AddSubscriptionColumns1746292000000"]
+Migration AddSubscriptionColumns1746292000000 has been executed successfully.
+query: SELECT * FROM current_schema()
+query: SELECT * FROM current_database()
+query: SELECT "table_schema", "table_name", obj_description(('"' || "table_schema" || '"."' || "table_name" || '"')::regclass, 'pg_class') AS table_comment FROM "information_schema"."tables" WHERE ("table_schema" = 'public' AND "table_name" = 'bookings')
+query: SELECT TRUE FROM information_schema.columns WHERE table_name = 'pg_class' and column_name = 'relispartition'
+query: SELECT columns.*, pg_catalog.col_description(('"' || table_catalog || '"."' || table_schema || '"."' || table_name || '"')::regclass::oid, ordinal_position) AS description, ('"' || "udt_schema" || '"."' || "udt_name" || '"')::"regtype"::text AS "regtype", pg_catalog.format_type("col_attr"."atttypid", "col_attr"."atttypmod") AS "format_type" FROM "information_schema"."columns" LEFT JOIN "pg_catalog"."pg_attribute" AS "col_attr" ON "col_attr"."attname" = "columns"."column_name" AND "col_attr"."attrelid" = ( SELECT "cls"."oid" FROM "pg_catalog"."pg_class" AS "cls" LEFT JOIN "pg_catalog"."pg_namespace" AS "ns" ON "ns"."oid" = "cls"."relnamespace" WHERE "cls"."relname" = "columns"."table_name" AND "ns"."nspname" = "columns"."table_schema" ) WHERE ("table_schema" = 'public' AND "table_name" = 'bookings')
+query: SELECT "ns"."nspname" AS "table_schema", "t"."relname" AS "table_name", "cnst"."conname" AS "constraint_name", pg_get_constraintdef("cnst"."oid") AS "expression", CASE "cnst"."contype" WHEN 'p' THEN 'PRIMARY' WHEN 'u' THEN 'UNIQUE' WHEN 'c' THEN 'CHECK' WHEN 'x' THEN 'EXCLUDE' END AS "constraint_type", "a"."attname" AS "column_name" FROM "pg_constraint" "cnst" INNER JOIN "pg_class" "t" ON "t"."oid" = "cnst"."conrelid" INNER JOIN "pg_namespace" "ns" ON "ns"."oid" = "cnst"."connamespace" LEFT JOIN "pg_attribute" "a" ON "a"."attrelid" = "cnst"."conrelid" AND "a"."attnum" = ANY ("cnst"."conkey") WHERE "t"."relkind" IN ('r', 'p') AND (("ns"."nspname" = 'public' AND "t"."relname" = 'bookings'))
+query: SELECT "ns"."nspname" AS "table_schema", "t"."relname" AS "table_name", "i"."relname" AS "constraint_name", "a"."attname" AS "column_name", CASE "ix"."indisunique" WHEN 't' THEN 'TRUE' ELSE'FALSE' END AS "is_unique", pg_get_expr("ix"."indpred", "ix"."indrelid") AS "condition", "types"."typname" AS "type_name", "am"."amname" AS "index_type" FROM "pg_class" "t" INNER JOIN "pg_index" "ix" ON "ix"."indrelid" = "t"."oid" INNER JOIN "pg_attribute" "a" ON "a"."attrelid" = "t"."oid"  AND "a"."attnum" = ANY ("ix"."indkey") INNER JOIN "pg_namespace" "ns" ON "ns"."oid" = "t"."relnamespace" INNER JOIN "pg_class" "i" ON "i"."oid" = "ix"."indexrelid" INNER JOIN "pg_type" "types" ON "types"."oid" = "a"."atttypid" INNER JOIN "pg_am" "am" ON "i"."relam" = "am"."oid" LEFT JOIN "pg_constraint" "cnst" ON "cnst"."conname" = "i"."relname" WHERE "t"."relkind" IN ('r', 'p') AND "cnst"."contype" IS NULL AND (("ns"."nspname" = 'public' AND "t"."relname" = 'bookings'))
+query: SELECT "con"."conname" AS "constraint_name", "con"."nspname" AS "table_schema", "con"."relname" AS "table_name", "att2"."attname" AS "column_name", "ns"."nspname" AS "referenced_table_schema", "cl"."relname" AS "referenced_table_name", "att"."attname" AS "referenced_column_name", "con"."confdeltype" AS "on_delete", "con"."confupdtype" AS "on_update", "con"."condeferrable" AS "deferrable", "con"."condeferred" AS "deferred" FROM ( SELECT UNNEST ("con1"."conkey") AS "parent", UNNEST ("con1"."confkey") AS "child", "con1"."confrelid", "con1"."conrelid", "con1"."conname", "con1"."contype", "ns"."nspname", "cl"."relname", "con1"."condeferrable", CASE WHEN "con1"."condeferred" THEN 'INITIALLY DEFERRED' ELSE 'INITIALLY IMMEDIATE' END as condeferred, CASE "con1"."confdeltype" WHEN 'a' THEN 'NO ACTION' WHEN 'r' THEN 'RESTRICT' WHEN 'c' THEN 'CASCADE' WHEN 'n' THEN 'SET NULL' WHEN 'd' THEN 'SET DEFAULT' END as "confdeltype", CASE "con1"."confupdtype" WHEN 'a' THEN 'NO ACTION' WHEN 'r' THEN 'RESTRICT' WHEN 'c' THEN 'CASCADE' WHEN 'n' THEN 'SET NULL' WHEN 'd' THEN 'SET DEFAULT' END as "confupdtype" FROM "pg_class" "cl" INNER JOIN "pg_namespace" "ns" ON "cl"."relnamespace" = "ns"."oid" INNER JOIN "pg_constraint" "con1" ON "con1"."conrelid" = "cl"."oid" WHERE "con1"."contype" = 'f' AND (("ns"."nspname" = 'public' AND "cl"."relname" = 'bookings')) ) "con" INNER JOIN "pg_attribute" "att" ON "att"."attrelid" = "con"."confrelid" AND "att"."attnum" = "con"."child" INNER JOIN "pg_class" "cl" ON "cl"."oid" = "con"."confrelid"  AND "cl"."relispartition" = 'f'INNER JOIN "pg_namespace" "ns" ON "cl"."relnamespace" = "ns"."oid" INNER JOIN "pg_attribute" "att2" ON "att2"."attrelid" = "con"."conrelid" AND "att2"."attnum" = "con"."parent"
+query: SELECT "udt_schema", "udt_name" FROM "information_schema"."columns" WHERE "table_schema" = 'public' AND "table_name" = 'bookings' AND "column_name"='status'
+query: SELECT "e"."enumlabel" AS "value" FROM "pg_enum" "e" INNER JOIN "pg_type" "t" ON "t"."oid" = "e"."enumtypid" INNER JOIN "pg_namespace" "n" ON "n"."oid" = "t"."typnamespace" WHERE "n"."nspname" = 'public' AND "t"."typname" = 'bookings_status_enum'
+query: INSERT INTO "migrations"("timestamp", "name") VALUES ($1, $2) -- PARAMETERS: [1746400000000,"AddLuggageInsuranceColumn1746400000000"]
+Migration AddLuggageInsuranceColumn1746400000000 has been executed successfully.
+query: 
+      ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "is_verified" boolean NOT NULL DEFAULT false
+    
+query: INSERT INTO "migrations"("timestamp", "name") VALUES ($1, $2) -- PARAMETERS: [1746500000000,"AddIsVerifiedColumn1746500000000"]
+Migration AddIsVerifiedColumn1746500000000 has been executed successfully.
+query: CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+query: 
+      CREATE TABLE IF NOT EXISTS "mobile_users" (
+        "id" uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
+        "name" varchar NOT NULL,
+        "email" varchar NOT NULL,
+        "phone" varchar(32),
+        "password_hash" varchar NOT NULL,
+        "role" varchar(12),
+        "rating" numeric(3,2) NOT NULL DEFAULT 5,
+        "trips" integer NOT NULL DEFAULT 0,
+        "is_verified" boolean NOT NULL DEFAULT false,
+        "onboarded" boolean NOT NULL DEFAULT false,
+        "is_founding_member" boolean NOT NULL DEFAULT false,
+        "stripe_customer_id" varchar(100),
+        "stripe_subscription_id" varchar(100),
+        "subscription_status" varchar(30),
+        "trial_ends_at" timestamptz,
+        "created_at" timestamptz NOT NULL DEFAULT now()
+      );
+    
+query: CREATE UNIQUE INDEX IF NOT EXISTS "IDX_mobile_users_email" ON "mobile_users" ("email");
+query: 
+      CREATE TABLE IF NOT EXISTS "mobile_sessions" (
+        "token" varchar(64) PRIMARY KEY,
+        "user_id" uuid NOT NULL,
+        "expires_at" timestamptz NOT NULL,
+        "created_at" timestamptz NOT NULL DEFAULT now()
+      );
+    
+query: CREATE INDEX IF NOT EXISTS "IDX_mobile_sessions_user" ON "mobile_sessions" ("user_id");
+query: 
+      CREATE TABLE IF NOT EXISTS "mobile_trips" (
+        "id" uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
+        "driver_id" uuid NOT NULL,
+        "from_city" text NOT NULL,
+        "to_city" text NOT NULL,
+        "departure_at" timestamptz NOT NULL,
+        "seats_available" integer NOT NULL,
+        "luggage_space" integer NOT NULL DEFAULT 0,
+        "price_per_seat" numeric(10,2) NOT NULL,
+        "note" text NOT NULL DEFAULT '',
+        "car" text,
+        "pref_smoking" boolean NOT NULL DEFAULT false,
+        "pref_pets" boolean NOT NULL DEFAULT false,
+        "pref_music" boolean NOT NULL DEFAULT true,
+        "pref_ac" boolean NOT NULL DEFAULT true,
+        "status" varchar(12) NOT NULL DEFAULT 'active',
+        "created_at" timestamptz NOT NULL DEFAULT now()
+      );
+    
+query: CREATE INDEX IF NOT EXISTS "IDX_mobile_trips_driver" ON "mobile_trips" ("driver_id");
+query: 
+      CREATE TABLE IF NOT EXISTS "mobile_trip_replies" (
+        "id" uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
+        "trip_id" uuid NOT NULL,
+        "user_id" uuid NOT NULL,
+        "text" text NOT NULL,
+        "created_at" timestamptz NOT NULL DEFAULT now()
+      );
+    
+query: CREATE INDEX IF NOT EXISTS "IDX_mobile_trip_replies_trip" ON "mobile_trip_replies" ("trip_id","created_at");
+query: 
+      CREATE TABLE IF NOT EXISTS "mobile_trip_reply_reads" (
+        "id" uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
+        "user_id" uuid NOT NULL,
+        "trip_id" uuid NOT NULL,
+        "last_read_at" timestamptz NOT NULL,
+        CONSTRAINT "UQ_mobile_reply_reads_user_trip" UNIQUE ("user_id","trip_id")
+      );
+    
+query: 
+      CREATE TABLE IF NOT EXISTS "mobile_bookings" (
+        "id" uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
+        "trip_id" uuid NOT NULL,
+        "rider_id" uuid NOT NULL,
+        "seats" integer NOT NULL,
+        "price_per_seat" numeric(10,2) NOT NULL,
+        "service_fee" numeric(10,2) NOT NULL,
+        "total_amount" numeric(10,2) NOT NULL,
+        "payment_method" varchar(12) NOT NULL,
+        "status" varchar(12) NOT NULL DEFAULT 'confirmed',
+        "created_at" timestamptz NOT NULL DEFAULT now(),
+        "completed_at" timestamptz
+      );
+    
+query: CREATE INDEX IF NOT EXISTS "IDX_mobile_bookings_trip" ON "mobile_bookings" ("trip_id");
+query: CREATE INDEX IF NOT EXISTS "IDX_mobile_bookings_rider" ON "mobile_bookings" ("rider_id");
+query: 
+      CREATE TABLE IF NOT EXISTS "mobile_trip_groups" (
+        "id" uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
+        "trip_id" uuid NOT NULL,
+        "pickup_hub_id" text,
+        "pickup_locked" boolean NOT NULL DEFAULT false,
+        "created_at" timestamptz NOT NULL DEFAULT now(),
+        CONSTRAINT "UQ_mobile_trip_groups_trip" UNIQUE ("trip_id")
+      );
+    
+query: 
+      CREATE TABLE IF NOT EXISTS "mobile_trip_group_members" (
+        "id" uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
+        "group_id" uuid NOT NULL,
+        "user_id" uuid NOT NULL,
+        "role" varchar(12) NOT NULL,
+        "joined_at" timestamptz NOT NULL DEFAULT now(),
+        CONSTRAINT "UQ_mobile_group_members" UNIQUE ("group_id","user_id")
+      );
+    
+query: CREATE INDEX IF NOT EXISTS "IDX_mobile_group_members_user" ON "mobile_trip_group_members" ("user_id");
+query: 
+      CREATE TABLE IF NOT EXISTS "mobile_trip_group_messages" (
+        "id" uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
+        "group_id" uuid NOT NULL,
+        "sender_id" uuid,
+        "text" text NOT NULL,
+        "is_system" boolean NOT NULL DEFAULT false,
+        "created_at" timestamptz NOT NULL DEFAULT now()
+      );
+    
+query: CREATE INDEX IF NOT EXISTS "IDX_mobile_group_messages_group" ON "mobile_trip_group_messages" ("group_id","created_at");
+query: 
+      CREATE TABLE IF NOT EXISTS "mobile_driver_trips" (
+        "id" uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
+        "driver_id" uuid NOT NULL,
+        "from_city" text NOT NULL,
+        "to_city" text NOT NULL,
+        "miles" integer NOT NULL,
+        "seats_booked" integer NOT NULL,
+        "gross_amount" numeric(10,2) NOT NULL,
+        "platform_fee" numeric(10,2) NOT NULL,
+        "net_amount" numeric(10,2) NOT NULL,
+        "completed_at" timestamptz NOT NULL,
+        "created_at" timestamptz NOT NULL DEFAULT now()
+      );
+    
+query: CREATE INDEX IF NOT EXISTS "IDX_mobile_driver_trips_driver" ON "mobile_driver_trips" ("driver_id","completed_at");
+query: INSERT INTO "migrations"("timestamp", "name") VALUES ($1, $2) -- PARAMETERS: [1746600000000,"MobileApiTables1746600000000"]
+Migration MobileApiTables1746600000000 has been executed successfully.
+query: CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+query: CREATE EXTENSION IF NOT EXISTS "pgcrypto";
+query: 
+      CREATE TABLE IF NOT EXISTS "mobile_vehicles" (
+        "id" uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
+        "user_id" uuid NOT NULL,
+        "make" varchar(60) NOT NULL,
+        "model" varchar(60) NOT NULL,
+        "year" integer NOT NULL,
+        "color" varchar(40) NOT NULL,
+        "license_plate" varchar(20) NOT NULL,
+        "state" varchar(2) NOT NULL DEFAULT 'TX',
+        "vin" varchar(17),
+        "created_at" timestamptz NOT NULL DEFAULT now(),
+        "updated_at" timestamptz NOT NULL DEFAULT now()
+      );
+    
+query: CREATE INDEX IF NOT EXISTS "IDX_mobile_vehicles_user" ON "mobile_vehicles" ("user_id");
+query: 
+      CREATE TABLE IF NOT EXISTS "mobile_ratings" (
+        "id" uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
+        "booking_id" uuid NOT NULL,
+        "rater_id" uuid NOT NULL,
+        "ratee_id" uuid NOT NULL,
+        "score" integer NOT NULL,
+        "comment" text,
+        "tags" text,
+        "created_at" timestamptz NOT NULL DEFAULT now(),
+        CONSTRAINT "UQ_mobile_ratings_booking_rater" UNIQUE ("booking_id", "rater_id")
+      );
+    
+query: CREATE INDEX IF NOT EXISTS "IDX_mobile_ratings_booking" ON "mobile_ratings" ("booking_id");
+query: CREATE INDEX IF NOT EXISTS "IDX_mobile_ratings_rater" ON "mobile_ratings" ("rater_id");
+query: CREATE INDEX IF NOT EXISTS "IDX_mobile_ratings_ratee" ON "mobile_ratings" ("ratee_id");
+query: 
+      CREATE TABLE IF NOT EXISTS "mobile_conversations" (
+        "id" uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
+        "user_low_id" uuid NOT NULL,
+        "user_high_id" uuid NOT NULL,
+        "last_message" text,
+        "last_message_at" timestamptz,
+        "trip_label" text,
+        "created_at" timestamptz NOT NULL DEFAULT now(),
+        CONSTRAINT "UQ_mobile_conversations_users" UNIQUE ("user_low_id", "user_high_id")
+      );
+    
+query: CREATE INDEX IF NOT EXISTS "IDX_mobile_conversations_low" ON "mobile_conversations" ("user_low_id");
+query: CREATE INDEX IF NOT EXISTS "IDX_mobile_conversations_high" ON "mobile_conversations" ("user_high_id");
+query: 
+      CREATE TABLE IF NOT EXISTS "mobile_direct_messages" (
+        "id" uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
+        "conversation_id" uuid NOT NULL,
+        "sender_id" uuid NOT NULL,
+        "text" text NOT NULL,
+        "read_at" timestamptz,
+        "created_at" timestamptz NOT NULL DEFAULT now()
+      );
+    
+query: CREATE INDEX IF NOT EXISTS "IDX_mobile_direct_messages_conversation" ON "mobile_direct_messages" ("conversation_id");
+query: CREATE INDEX IF NOT EXISTS "IDX_mobile_direct_messages_sender" ON "mobile_direct_messages" ("sender_id");
+query: 
+      CREATE TABLE IF NOT EXISTS "mobile_live_locations" (
+        "id" uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
+        "trip_id" uuid NOT NULL,
+        "user_id" uuid NOT NULL,
+        "role" varchar(12) NOT NULL,
+        "latitude" double precision NOT NULL,
+        "longitude" double precision NOT NULL,
+        "heading" double precision,
+        "speed" double precision,
+        "updated_at" timestamptz NOT NULL DEFAULT now(),
+        CONSTRAINT "UQ_mobile_live_locations_trip_user" UNIQUE ("trip_id", "user_id")
+      );
+    
+query: CREATE INDEX IF NOT EXISTS "IDX_mobile_live_locations_trip" ON "mobile_live_locations" ("trip_id");
+query: CREATE INDEX IF NOT EXISTS "IDX_mobile_live_locations_user" ON "mobile_live_locations" ("user_id");
+query: INSERT INTO "migrations"("timestamp", "name") VALUES ($1, $2) -- PARAMETERS: [1788047999000,"MobileApiRemainingBaseTables1788047999000"]
+Migration MobileApiRemainingBaseTables1788047999000 has been executed successfully.
+query: 
+      ALTER TABLE "mobile_users"
+        ADD COLUMN IF NOT EXISTS "bio" text,
+        ADD COLUMN IF NOT EXISTS "languages" text,
+        ADD COLUMN IF NOT EXISTS "emergency_name" varchar(120),
+        ADD COLUMN IF NOT EXISTS "emergency_phone" varchar(32),
+        ADD COLUMN IF NOT EXISTS "photo_url" text,
+        ADD COLUMN IF NOT EXISTS "ride_preferences" text,
+        ADD COLUMN IF NOT EXISTS "notification_settings" text,
+        ADD COLUMN IF NOT EXISTS "oauth_provider" varchar(20),
+        ADD COLUMN IF NOT EXISTS "oauth_subject" varchar(128),
+        ADD COLUMN IF NOT EXISTS "deletion_requested_at" timestamptz;
+    
+query: 
+      ALTER TABLE "mobile_trips"
+        ADD COLUMN IF NOT EXISTS "start_video_url" text,
+        ADD COLUMN IF NOT EXISTS "started_at" timestamptz;
+    
+query: 
+      ALTER TABLE "mobile_bookings"
+        ADD COLUMN IF NOT EXISTS "payment_intent_id" varchar(64);
+    
+query: 
+      ALTER TABLE "mobile_bookings"
+      ALTER COLUMN "status" SET DEFAULT 'pending';
+    
+query: INSERT INTO "migrations"("timestamp", "name") VALUES ($1, $2) -- PARAMETERS: [1788047999500,"MobileApiEntityColumns1788047999500"]
+Migration MobileApiEntityColumns1788047999500 has been executed successfully.
+query: 
+      ALTER TABLE "mobile_vehicles"
+        ADD COLUMN IF NOT EXISTS "seat_count" integer,
+        ADD COLUMN IF NOT EXISTS "door_count" integer,
+        ADD COLUMN IF NOT EXISTS "photo_front_url" text,
+        ADD COLUMN IF NOT EXISTS "photo_rear_url" text,
+        ADD COLUMN IF NOT EXISTS "photo_left_url" text,
+        ADD COLUMN IF NOT EXISTS "photo_right_url" text,
+        ADD COLUMN IF NOT EXISTS "photo_interior_url" text,
+        ADD COLUMN IF NOT EXISTS "insurance_doc_url" text,
+        ADD COLUMN IF NOT EXISTS "insurance_expires_at" date,
+        ADD COLUMN IF NOT EXISTS "registration_doc_url" text,
+        ADD COLUMN IF NOT EXISTS "registration_expires_at" date,
+        ADD COLUMN IF NOT EXISTS "verification_status" varchar(16) NOT NULL DEFAULT 'incomplete',
+        ADD COLUMN IF NOT EXISTS "verification_note" text;
+    
+query: 
+      DO $$
+      BEGIN
+        IF EXISTS (
+          SELECT 1 FROM information_schema.columns
+          WHERE table_name = 'mobile_vehicles' AND column_name = 'vin'
+            AND character_maximum_length IS DISTINCT FROM 17
+        ) THEN
+          UPDATE "mobile_vehicles"
+          SET "vin" = NULL
+          WHERE "vin" IS NOT NULL AND "vin" !~ '^[A-HJ-NPR-Z0-9]{17}$';
+          ALTER TABLE "mobile_vehicles" ALTER COLUMN "vin" TYPE varchar(17);
+        END IF;
+      END $$;
+    
+query: 
+      DO $$
+      BEGIN
+        IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'CHK_mobile_vehicles_status') THEN
+          ALTER TABLE "mobile_vehicles"
+          ADD CONSTRAINT "CHK_mobile_vehicles_status"
+          CHECK ("verification_status" IN ('incomplete','pending_review','approved','rejected'));
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'CHK_mobile_vehicles_counts') THEN
+          ALTER TABLE "mobile_vehicles"
+          ADD CONSTRAINT "CHK_mobile_vehicles_counts"
+          CHECK (
+            ("seat_count" IS NULL OR ("seat_count" BETWEEN 1 AND 8))
+            AND ("door_count" IS NULL OR ("door_count" BETWEEN 2 AND 6))
+          );
+        END IF;
+      END $$;
+    
+query: 
+      CREATE UNIQUE INDEX IF NOT EXISTS "UQ_mobile_vehicles_vin"
+      ON "mobile_vehicles" ("vin") WHERE "vin" IS NOT NULL;
+    
+query: 
+      UPDATE "mobile_vehicles" SET "verification_status" = 'incomplete'
+      WHERE "verification_status" IS NULL;
+    
+query: 
+      ALTER TABLE "mobile_users"
+        ADD COLUMN IF NOT EXISTS "checkr_candidate_id" varchar(64),
+        ADD COLUMN IF NOT EXISTS "background_check_status" varchar(24) NOT NULL DEFAULT 'not_started',
+        ADD COLUMN IF NOT EXISTS "ssn_verified" boolean NOT NULL DEFAULT false,
+        ADD COLUMN IF NOT EXISTS "ssn_last4" varchar(4),
+        ADD COLUMN IF NOT EXISTS "background_check_completed_at" timestamptz;
+    
+query: 
+      CREATE UNIQUE INDEX IF NOT EXISTS "UQ_mobile_users_checkr_candidate"
+      ON "mobile_users" ("checkr_candidate_id") WHERE "checkr_candidate_id" IS NOT NULL;
+    
+query: 
+      DO $$
+      BEGIN
+        IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'CHK_mobile_users_bg_status') THEN
+          ALTER TABLE "mobile_users"
+          ADD CONSTRAINT "CHK_mobile_users_bg_status"
+          CHECK ("background_check_status" IN
+            ('not_started','invitation_sent','pending','clear','consider','suspended'));
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'CHK_mobile_users_ssn_last4') THEN
+          ALTER TABLE "mobile_users"
+          ADD CONSTRAINT "CHK_mobile_users_ssn_last4"
+          CHECK ("ssn_last4" IS NULL OR "ssn_last4" ~ '^[0-9]{4}$');
+        END IF;
+      END $$;
+    
+query: INSERT INTO "migrations"("timestamp", "name") VALUES ($1, $2) -- PARAMETERS: [1788048000000,"MobileVehicleAndBackgroundCheck1788048000000"]
+Migration MobileVehicleAndBackgroundCheck1788048000000 has been executed successfully.
+query: 
+      ALTER TABLE "mobile_bookings"
+        ADD COLUMN IF NOT EXISTS "luggage_tier" varchar(12) NOT NULL DEFAULT 'carry_on',
+        ADD COLUMN IF NOT EXISTS "luggage_surcharge" numeric(10,2) NOT NULL DEFAULT 0,
+        ADD COLUMN IF NOT EXISTS "insurance_opted_in" boolean NOT NULL DEFAULT true,
+        ADD COLUMN IF NOT EXISTS "insurance_premium" numeric(10,2) NOT NULL DEFAULT 0,
+        ADD COLUMN IF NOT EXISTS "luggage_insurance_opted_in" boolean NOT NULL DEFAULT false,
+        ADD COLUMN IF NOT EXISTS "luggage_insurance_premium" numeric(10,2) NOT NULL DEFAULT 0,
+        ADD COLUMN IF NOT EXISTS "pickup_miles" integer,
+        ADD COLUMN IF NOT EXISTS "dropoff_miles" integer,
+        ADD COLUMN IF NOT EXISTS "miles_travelled" integer,
+        ADD COLUMN IF NOT EXISTS "picked_up_at" timestamptz,
+        ADD COLUMN IF NOT EXISTS "dropped_off_at" timestamptz;
+    
+query: 
+      DO $$
+      BEGIN
+        IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'CHK_mobile_bookings_luggage_tier') THEN
+          ALTER TABLE "mobile_bookings" ADD CONSTRAINT "CHK_mobile_bookings_luggage_tier"
+          CHECK ("luggage_tier" IN ('carry_on', 'standard', 'large', 'oversized'));
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'CHK_mobile_bookings_amounts_nonneg') THEN
+          ALTER TABLE "mobile_bookings" ADD CONSTRAINT "CHK_mobile_bookings_amounts_nonneg"
+          CHECK ("luggage_surcharge" >= 0 AND "insurance_premium" >= 0 AND "luggage_insurance_premium" >= 0);
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'CHK_mobile_bookings_miles_order') THEN
+          ALTER TABLE "mobile_bookings" ADD CONSTRAINT "CHK_mobile_bookings_miles_order"
+          CHECK ("pickup_miles" IS NULL OR "dropoff_miles" IS NULL OR "dropoff_miles" >= "pickup_miles");
+        END IF;
+      END $$;
+    
+query: 
+      CREATE TABLE IF NOT EXISTS "mobile_odometer_readings" (
+        "id" uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+        "trip_id" uuid NOT NULL,
+        "booking_id" uuid NOT NULL,
+        "sailor_id" uuid NOT NULL,
+        "voyager_id" uuid NOT NULL,
+        "kind" varchar(8) NOT NULL,
+        "miles" integer NOT NULL,
+        "photo_url" text NOT NULL,
+        "latitude" numeric(9,6),
+        "longitude" numeric(9,6),
+        "recorded_at" timestamptz NOT NULL,
+        "created_at" timestamptz NOT NULL DEFAULT now()
+      );
+    
+query: CREATE UNIQUE INDEX IF NOT EXISTS "UQ_mobile_odometer_booking_kind" ON "mobile_odometer_readings" ("booking_id", "kind");
+query: CREATE INDEX IF NOT EXISTS "IDX_mobile_odometer_trip_recorded" ON "mobile_odometer_readings" ("trip_id", "recorded_at");
+query: CREATE INDEX IF NOT EXISTS "IDX_mobile_odometer_trip" ON "mobile_odometer_readings" ("trip_id");
+query: CREATE INDEX IF NOT EXISTS "IDX_mobile_odometer_booking" ON "mobile_odometer_readings" ("booking_id");
+query: 
+      DO $$
+      BEGIN
+        IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'CHK_mobile_odometer_kind') THEN
+          ALTER TABLE "mobile_odometer_readings" ADD CONSTRAINT "CHK_mobile_odometer_kind"
+          CHECK ("kind" IN ('pickup', 'dropoff'));
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'CHK_mobile_odometer_miles_nonneg') THEN
+          ALTER TABLE "mobile_odometer_readings" ADD CONSTRAINT "CHK_mobile_odometer_miles_nonneg"
+          CHECK ("miles" >= 0);
+        END IF;
+      END $$;
+    
+query: INSERT INTO "migrations"("timestamp", "name") VALUES ($1, $2) -- PARAMETERS: [1788048001000,"MobileBookingLuggageAndOdometer1788048001000"]
+Migration MobileBookingLuggageAndOdometer1788048001000 has been executed successfully.
+query: 
+      CREATE TABLE IF NOT EXISTS "mobile_sos_events" (
+        "id" uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+        "user_id" uuid NOT NULL REFERENCES "mobile_users"("id") ON DELETE CASCADE,
+        "trip_id" uuid,
+        "status" varchar(20) NOT NULL DEFAULT 'active',
+        "latitude" double precision,
+        "longitude" double precision,
+        "noonlight_alarm_id" varchar(100),
+        "contact_notified" boolean NOT NULL DEFAULT false,
+        "created_at" timestamptz NOT NULL DEFAULT now()
+      );
+    
+query: CREATE INDEX IF NOT EXISTS "idx_mobile_sos_events_user" ON "mobile_sos_events" ("user_id");
+query: CREATE INDEX IF NOT EXISTS "idx_mobile_sos_events_trip" ON "mobile_sos_events" ("trip_id");
+query: CREATE INDEX IF NOT EXISTS "idx_mobile_sos_events_alarm" ON "mobile_sos_events" ("noonlight_alarm_id");
+query: 
+      ALTER TABLE "mobile_trips"
+      ADD COLUMN IF NOT EXISTS "route_polyline" text,
+      ADD COLUMN IF NOT EXISTS "route_fetched_at" timestamptz;
+    
+query: 
+      CREATE TABLE IF NOT EXISTS "mobile_deviation_events" (
+        "id" uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+        "trip_id" uuid NOT NULL REFERENCES "mobile_trips"("id") ON DELETE CASCADE,
+        "user_id" uuid NOT NULL REFERENCES "mobile_users"("id") ON DELETE CASCADE,
+        "latitude" double precision NOT NULL,
+        "longitude" double precision NOT NULL,
+        "distance_miles" double precision NOT NULL,
+        "status" varchar(20) NOT NULL DEFAULT 'pending',
+        "created_at" timestamptz NOT NULL DEFAULT now()
+      );
+    
+query: CREATE INDEX IF NOT EXISTS "idx_mobile_deviation_trip" ON "mobile_deviation_events" ("trip_id");
+query: CREATE INDEX IF NOT EXISTS "idx_mobile_deviation_user" ON "mobile_deviation_events" ("user_id");
+query: CREATE INDEX IF NOT EXISTS "idx_mobile_deviation_recent" ON "mobile_deviation_events" ("trip_id", "created_at" DESC);
+query: INSERT INTO "migrations"("timestamp", "name") VALUES ($1, $2) -- PARAMETERS: [1788048002000,"MobileSafetyAndRouteDeviation1788048002000"]
+Migration MobileSafetyAndRouteDeviation1788048002000 has been executed successfully.
+query: CREATE INDEX IF NOT EXISTS "IDX_mobile_trips_active_departure" ON "mobile_trips" ("departure_at") WHERE "status" = 'active';
+query: CREATE INDEX IF NOT EXISTS "IDX_mobile_trips_route_active" ON "mobile_trips" (lower("from_city"), lower("to_city"), "departure_at") WHERE "status" = 'active';
+query: CREATE INDEX IF NOT EXISTS "IDX_mobile_trips_driver_departure" ON "mobile_trips" ("driver_id", "departure_at");
+query: CREATE INDEX IF NOT EXISTS "IDX_mobile_bookings_trip_status" ON "mobile_bookings" ("trip_id", "status");
+query: CREATE INDEX IF NOT EXISTS "IDX_mobile_bookings_rider_created" ON "mobile_bookings" ("rider_id", "created_at" DESC);
+query: CREATE INDEX IF NOT EXISTS "IDX_mobile_dm_conversation_created" ON "mobile_direct_messages" ("conversation_id", "created_at");
+query: CREATE INDEX IF NOT EXISTS "IDX_mobile_conversations_last_message" ON "mobile_conversations" ("last_message_at" DESC NULLS LAST);
+query: CREATE INDEX IF NOT EXISTS "IDX_mobile_sessions_expires" ON "mobile_sessions" ("expires_at");
+query: CREATE INDEX IF NOT EXISTS "IDX_mobile_driver_trips_completed" ON "mobile_driver_trips" ("driver_id", "completed_at" DESC);
+query: INSERT INTO "migrations"("timestamp", "name") VALUES ($1, $2) -- PARAMETERS: [1788048004000,"MobileReadPathIndexes1788048004000"]
+Migration MobileReadPathIndexes1788048004000 has been executed successfully.
+query: 
+      CREATE TABLE IF NOT EXISTS "mobile_checkr_webhook_events" (
+        "event_id" varchar(64) PRIMARY KEY,
+        "candidate_id" varchar(64),
+        "event_type" varchar(100) NOT NULL,
+        "received_at" timestamptz NOT NULL DEFAULT now()
+      );
+    
+query: CREATE INDEX IF NOT EXISTS "IDX_mobile_checkr_webhook_events_candidate" ON "mobile_checkr_webhook_events" ("candidate_id");
+query: ALTER TABLE "mobile_checkr_webhook_events" ENABLE ROW LEVEL SECURITY;
+query: INSERT INTO "migrations"("timestamp", "name") VALUES ($1, $2) -- PARAMETERS: [1788048005000,"MobileCheckrWebhookEvents1788048005000"]
+Migration MobileCheckrWebhookEvents1788048005000 has been executed successfully.
+query: CREATE TABLE "mobile_identity_verifications" (
+      "id" uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+      "user_id" uuid NOT NULL,
+      "status" varchar(16) NOT NULL DEFAULT 'pending_review'
+        CHECK ("status" IN ('pending_review', 'approved', 'rejected')),
+      "document_type" varchar(20) NOT NULL
+        CHECK ("document_type" IN ('drivers_license', 'state_id', 'passport')),
+      "id_front_key" text NOT NULL,
+      "id_back_key" text,
+      "selfie_key" text NOT NULL,
+      "review_note" text,
+      "reviewed_by" uuid,
+      "reviewed_at" timestamptz,
+      "submitted_at" timestamptz NOT NULL DEFAULT now(),
+      "created_at" timestamptz NOT NULL DEFAULT now(),
+      "updated_at" timestamptz NOT NULL DEFAULT now()
+    )
+query: CREATE INDEX "IDX_mobile_identity_user_submitted" ON "mobile_identity_verifications" ("user_id", "submitted_at" DESC)
+query: CREATE UNIQUE INDEX "IDX_mobile_identity_one_pending" ON "mobile_identity_verifications" ("user_id") WHERE "status" = 'pending_review'
+query: CREATE INDEX "IDX_mobile_identity_review_queue" ON "mobile_identity_verifications" ("status", "submitted_at" DESC, "id" DESC)
+query: ALTER TABLE "mobile_identity_verifications" ENABLE ROW LEVEL SECURITY
+query: REVOKE ALL ON "mobile_identity_verifications" FROM PUBLIC
+query: DO $$ BEGIN
+      IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'anon') THEN
+        REVOKE ALL ON "mobile_identity_verifications" FROM anon;
+      END IF;
+      IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'authenticated') THEN
+        REVOKE ALL ON "mobile_identity_verifications" FROM authenticated;
+      END IF;
+    END $$
+query: INSERT INTO "migrations"("timestamp", "name") VALUES ($1, $2) -- PARAMETERS: [1789149600000,"MobileIdentityVerifications1789149600000"]
+Migration MobileIdentityVerifications1789149600000 has been executed successfully.
+query: COMMIT

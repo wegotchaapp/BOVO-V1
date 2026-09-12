@@ -456,3 +456,118 @@ Post the failure the same way you would post a pass. A baseline that does not
 apply cleanly is the single most valuable thing you could find this week, and
 finding it here costs nothing — finding it during the first production deploy
 costs the launch. Do not patch around an error to get a green run; report it.
+
+---
+
+# 2026-09-11 — Sushant's app review: identity review backend
+
+Sushant tested the app on his phone and filed nine fixes. Eight are client or
+`mobile-api` work and are Claude's. One needs your lane end to end: **a user
+uploads a government ID and a selfie from Settings, and a person on the ops team
+approves or rejects it in the admin dashboard.** Sushant chose manual review over
+Stripe Identity (`DECISIONS.md` #6), so there is no vendor in this.
+
+Branch from `claude/app-review-fixes` at the commit that adds this section — it
+carries the entity you build against. Work in `~/Desktop/bovogo-codex` on a new
+branch `codex/identity-review`. Your worktree holds an uncommitted edit to
+`backend/src/modules/safety/safety.service.spec.ts`: stash it with a message.
+Do not discard it, and do not commit it on this branch — `safety/**` is Claude's.
+
+## 5. Identity review — 2026-09-11
+
+### 5.1 Migration
+
+`backend/src/database/migrations/<next timestamp>-MobileIdentityVerifications.ts`
+creates `mobile_identity_verifications` to match `MobileIdentityVerification` in
+`backend/src/modules/mobile-api/entities/mobile.entities.ts`. Read the entity;
+it is the contract. If it is wrong, report it here rather than editing it.
+
+- `id uuid` primary key, `DEFAULT gen_random_uuid()` — the item 2 lesson.
+- `user_id uuid NOT NULL`.
+- `status varchar(16) NOT NULL DEFAULT 'pending_review'`, CHECK in
+  `pending_review`, `approved`, `rejected`.
+- `document_type varchar(20) NOT NULL`, CHECK in `drivers_license`, `state_id`,
+  `passport`.
+- `id_front_key text NOT NULL`, `id_back_key text NULL`, `selfie_key text NOT NULL`.
+- `review_note text NULL`, `reviewed_by uuid NULL`, `reviewed_at timestamptz NULL`.
+  Confirm `reviewed_by` matches the type of the platform admin's user id.
+- `submitted_at`, `created_at`, `updated_at`: `timestamptz NOT NULL DEFAULT now()`.
+- Index on `(user_id, submitted_at DESC)`.
+- Partial unique index on `(user_id) WHERE status = 'pending_review'` — one open
+  submission per user. The upload route relies on it to refuse a double submit.
+- Foreign key on `user_id`: do whatever the existing migrations do for
+  `mobile_vehicles.user_id`, and say which that was. Account purge deletes these
+  rows explicitly (Claude adds that), so neither choice loses data.
+- A `down` that reverses it cleanly.
+
+Prove it: up on an empty local database after the baseline, up again as a no-op,
+down, up. **`backend/.env` points at production.** Set `DATABASE_URL` to a local
+database explicitly on every command, and if you have no local Postgres, do not
+run migrations — say so.
+
+### 5.2 Private storage
+
+These are government IDs. **They must never be publicly reachable** — not under
+`/uploads` (served unauthenticated by `main.ts:84-85`), not in a public bucket,
+not in a log line, not in an API response.
+
+Build `PrivateMediaService` in a new module, `backend/src/modules/private-media/`,
+and export it with exactly these signatures — Claude's upload route calls them:
+
+```ts
+put(key: string, body: Buffer, contentType: string): Promise<void>
+read(key: string): Promise<{ body: Buffer; contentType: string }>
+remove(key: string): Promise<void>
+```
+
+- S3 when real credentials are present — reuse the `AKIA` detection in
+  `mobile-vehicles.service.ts` — bucket from `PRIVATE_MEDIA_BUCKET`, default
+  `bovogo-private-media`, server-side encryption on, no ACL.
+- Otherwise a local directory, `<cwd>/private-media/`, which nothing serves.
+  Add it to `.gitignore`.
+- Refuse keys that contain `..` or start with `/`.
+- `remove` on a missing key is a no-op, not an error.
+
+### 5.3 Admin API
+
+In `backend/src/modules/admin/`, behind the existing `AuthGuard('jwt')` and
+`AdminGuard`:
+
+| Route | Does |
+| --- | --- |
+| `GET /admin/identity-verifications?status=` | Newest first; default `pending_review`. User name and email, document type, status, submitted and reviewed times. Never a storage key |
+| `GET /admin/identity-verifications/:id` | The same, plus the review note and which image slots exist |
+| `GET /admin/identity-verifications/:id/files/:slot` | `slot` is `id_front`, `id_back` or `selfie`. Streams bytes from `PrivateMediaService.read` with `Cache-Control: no-store`. 404 for an unknown slot or a missing file |
+| `POST /admin/identity-verifications/:id/approve` | Only from `pending_review`, else 409. Sets `approved`, `reviewed_by`, `reviewed_at`, and `mobile_users.is_verified = true` in one transaction |
+| `POST /admin/identity-verifications/:id/reject` | Body `{ note }`, required, 1–500 characters, else 400. Only from `pending_review`, else 409. Sets `rejected`, the note, reviewer and time. Leaves `is_verified` alone |
+
+Record approve, reject and each file view in the admin audit log if the module
+has one. Vehicle review in `admin.service.ts` is the nearest precedent — follow
+its shape.
+
+Tests: 401 without a JWT, 403 for a non-admin, approve and reject transitions,
+409 on a row that is not pending, 400 on a reject without a note, 404 on an
+unknown slot, and no list or detail response containing a storage key.
+
+### 5.4 Admin page
+
+`admin/src/pages/IdentityVerifications.tsx` at route `identity-verifications`,
+with a nav entry beside Vehicle Review: a status-filtered queue, a detail view
+showing the three images, Approve, and Reject with a required note. Fetch images
+with the admin's token and render them from blob URLs, so no token ends up in an
+`<img src>`. Admin lint and build stay green.
+
+### 5.5 Not in this item
+
+- `backend/src/modules/mobile-api/**`. The user-facing upload and status routes
+  are Claude's and are specified in `CONTRACTS.md`.
+- Anything under `mobile/**`, and no installs there.
+- Production, in any form. No push, merge, deploy or PR.
+
+### 5.6 Deliver
+
+Small commits on `codex/identity-review`, and the evidence §6.4 of the agreement
+asks for — commands, verbatim results, changed files, and what you did not
+verify — in `FINDINGS.md` under a 2026-09-11 heading. If your sandbox will not
+let you commit, leave the work uncommitted in your worktree and say so; Claude
+will commit it by path.

@@ -10,7 +10,8 @@ export class AuditEvent {
   @PrimaryGeneratedColumn('uuid')
   id!: string;
 
-  @Column({ type: 'uuid', nullable: true })
+  // Keep the API property names while mapping the migration-built audit schema.
+  @Column({ name: 'user_id', type: 'uuid', nullable: true })
   actor_id!: string | null;
 
   @Column({ type: 'varchar', length: 50 })
@@ -22,7 +23,7 @@ export class AuditEvent {
   @Column({ type: 'varchar', length: 100 })
   action!: string;
 
-  @Column('jsonb', { nullable: true })
+  @Column('jsonb', { name: 'details', nullable: true })
   metadata!: Record<string, unknown> | null;
 
   @Column({ type: 'varchar', length: 45, nullable: true })

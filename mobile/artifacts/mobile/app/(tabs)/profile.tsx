@@ -20,7 +20,7 @@ import { useAuth } from "@/context/AuthContext";
 import { useColors } from "@/hooks/useColors";
 import { CARD_SHADOW, GOLD_INK, GOLD_ON_DARK } from "@/constants/colors";
 import { openSupportConversation } from "@/lib/conversations";
-import { confirm, showAlert } from "@/lib/alert";
+import { showAlert } from "@/lib/alert";
 
 interface MenuItem {
   icon: string;
@@ -50,14 +50,7 @@ export default function ProfileTab() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const {
-    user,
-    logout,
-    deleteAccount,
-    cancelAccountDeletion,
-    deletionScheduledAt,
-    patchMe,
-  } = useAuth();
+  const { user, cancelAccountDeletion, deletionScheduledAt, patchMe } = useAuth();
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
 
   async function handleEditPhoto() {
@@ -121,8 +114,7 @@ export default function ProfileTab() {
           {
             title: "Voyager",
             items: [
-              { icon: "send", label: "Post an Adventure", sublabel: "Announce your next drive", route: "/post-trip", badge: "New" },
-              { icon: "truck", label: "My Vehicle", sublabel: "Manage your registered car", route: "/vehicle" },
+              { icon: "truck", label: "My Vehicles", sublabel: "Add a vehicle or check its review", route: "/vehicles" },
               { icon: "dollar-sign", label: "Savings", sublabel: "Cost-sharing dashboard", route: "/earnings" },
             ],
           },
@@ -131,7 +123,7 @@ export default function ProfileTab() {
     {
       title: "Safety",
       items: [
-        { icon: "shield", label: "Verifications", sublabel: user?.isVerified ? "ID verified ✓" : "What we check, and what we don't", action: () => router.push("/verify") },
+        { icon: "shield", label: "Verifications", sublabel: user?.isVerified ? "ID verified ✓" : "Add your government ID and a selfie", action: () => router.push("/verify") },
         { icon: "alert-triangle", label: "Safety Center", sublabel: "SOS, emergency contacts", route: "/safety" },
       ],
     },
@@ -159,43 +151,13 @@ export default function ProfileTab() {
           action: () =>
             Alert.alert(
               "Privacy & Data",
-              "You can schedule account deletion below (7-day grace period). For a data export, message Bovogo Support from Help & Support.",
+              "You can schedule account deletion from Settings (7-day grace period). For a data export, message Bovogo Support from Help & Support.",
             ),
         },
-        { icon: "settings", label: "Settings", route: "/settings" },
+        { icon: "settings", label: "Settings", sublabel: "Verification, log out, delete account", route: "/settings" },
       ],
     },
   ];
-
-  async function handleLogout() {
-    const ok = await confirm("Log Out", "Are you sure you want to log out?", {
-      confirmText: "Log Out",
-      cancelText: "Cancel",
-      destructive: true,
-    });
-    if (!ok) return;
-    await logout();
-    router.replace("/");
-  }
-
-  async function handleDeleteAccount() {
-    const step1 = await confirm(
-      "Delete Account",
-      "Are you sure you want to delete your Bovogo account?\n\nYour profile, adventure history, and data will be permanently erased after a 7-day grace period. You can contact support within 7 days to cancel this request.",
-      { confirmText: "Schedule Deletion", cancelText: "Cancel", destructive: true },
-    );
-    if (!step1) return;
-
-    const step2 = await confirm(
-      "Confirm Account Deletion",
-      "This will log you out immediately. Your data will be permanently deleted in 7 days.\n\nContact support@wegotcha.com within 7 days to reverse this.",
-      { confirmText: "Yes, Delete My Account", cancelText: "Go Back", destructive: true },
-    );
-    if (!step2) return;
-
-    await deleteAccount();
-    router.replace("/");
-  }
 
   const deletionDate = deletionScheduledAt
     ? new Date(new Date(deletionScheduledAt).getTime() + 7 * 24 * 60 * 60 * 1000)
@@ -433,32 +395,6 @@ export default function ProfileTab() {
         </View>
       ))}
 
-      <TouchableOpacity
-        style={[styles.logoutBtn, { backgroundColor: "#FEF0F0" }]}
-        onPress={handleLogout}
-        activeOpacity={0.8}
-      >
-        <Feather name="log-out" size={16} color={colors.destructive} />
-        <Text style={[styles.logoutText, { color: colors.destructive }]}>Log Out</Text>
-      </TouchableOpacity>
-
-      {/* Delete Account — separate, clearly destructive */}
-      <TouchableOpacity
-        style={[styles.deleteBtn, { borderColor: "#FECACA" }]}
-        onPress={handleDeleteAccount}
-        activeOpacity={0.8}
-      >
-        <Feather name="trash-2" size={15} color="#DC2626" />
-        <Text style={[styles.deleteText, { color: "#DC2626" }]}>Delete Account</Text>
-      </TouchableOpacity>
-
-      <View style={styles.deleteNote}>
-        <Feather name="info" size={11} color={colors.mutedForeground} />
-        <Text style={[styles.deleteNoteText, { color: colors.mutedForeground }]}>
-          Account data is retained for 7 days after deletion request, then permanently erased.
-        </Text>
-      </View>
-
       <View style={styles.footer}>
         <Text style={[styles.version, { color: colors.mutedForeground }]}>Bovogo v1.0.0 — Texas MVP</Text>
         <Text style={[styles.compliance, { color: colors.mutedForeground }]}>
@@ -556,34 +492,6 @@ const styles = StyleSheet.create({
   newBadge: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: 20 },
   newBadgeText: { color: GOLD_INK, fontSize: 9, fontFamily: "Inter_700Bold", letterSpacing: 0.3 },
   menuSub: { fontSize: 12, fontFamily: "Inter_400Regular" },
-  logoutBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 10,
-    height: 52,
-    borderRadius: 16,
-  },
-  logoutText: { fontSize: 15, fontFamily: "Inter_600SemiBold" },
-  deleteBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 9,
-    height: 48,
-    borderRadius: 16,
-    borderWidth: 1,
-    backgroundColor: "#FFF5F5",
-  },
-  deleteText: { fontSize: 14, fontFamily: "Inter_500Medium" },
-  deleteNote: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    gap: 7,
-    paddingHorizontal: 4,
-    marginTop: -6,
-  },
-  deleteNoteText: { flex: 1, fontSize: 11, fontFamily: "Inter_400Regular", lineHeight: 16 },
   // ── Travel+ subscription card ─────────────────────────────────────────
   travelPlusCard: {
     backgroundColor: "#1B3D2F",

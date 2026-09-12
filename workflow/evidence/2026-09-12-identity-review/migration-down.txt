@@ -1,0 +1,13 @@
+query: SELECT version()
+query: SELECT * FROM current_schema()
+query: CREATE EXTENSION IF NOT EXISTS "uuid-ossp"
+query: SELECT * FROM "information_schema"."tables" WHERE "table_schema" = 'public' AND "table_name" = 'migrations'
+query: SELECT * FROM "migrations" "migrations" ORDER BY "id" DESC
+18 migrations are already loaded in the database.
+MobileIdentityVerifications1789149600000 is the last executed migration. It was executed on Fri Sep 11 2026 23:30:00 GMT+0530 (India Standard Time).
+Now reverting it...
+query: START TRANSACTION
+query: DROP TABLE "mobile_identity_verifications"
+query: DELETE FROM "migrations" WHERE "timestamp" = $1 AND "name" = $2 -- PARAMETERS: [1789149600000,"MobileIdentityVerifications1789149600000"]
+Migration MobileIdentityVerifications1789149600000 has been reverted successfully.
+query: COMMIT

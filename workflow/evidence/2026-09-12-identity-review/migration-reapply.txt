@@ -1,0 +1,47 @@
+
+> wegotcha-backend@0.0.1 migration:run
+> typeorm migration:run -d dist/database/data-source.js
+
+query: SELECT version()
+query: SELECT * FROM current_schema()
+query: CREATE EXTENSION IF NOT EXISTS "uuid-ossp"
+query: SELECT * FROM "information_schema"."tables" WHERE "table_schema" = 'public' AND "table_name" = 'migrations'
+query: SELECT * FROM "migrations" "migrations" ORDER BY "id" DESC
+17 migrations are already loaded in the database.
+18 migrations were found in the source code.
+MobileCheckrWebhookEvents1788048005000 is the last executed migration. It was executed on Sun Aug 30 2026 05:30:05 GMT+0530 (India Standard Time).
+1 migrations are new migrations must be executed.
+query: START TRANSACTION
+query: CREATE TABLE "mobile_identity_verifications" (
+      "id" uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+      "user_id" uuid NOT NULL,
+      "status" varchar(16) NOT NULL DEFAULT 'pending_review'
+        CHECK ("status" IN ('pending_review', 'approved', 'rejected')),
+      "document_type" varchar(20) NOT NULL
+        CHECK ("document_type" IN ('drivers_license', 'state_id', 'passport')),
+      "id_front_key" text NOT NULL,
+      "id_back_key" text,
+      "selfie_key" text NOT NULL,
+      "review_note" text,
+      "reviewed_by" uuid,
+      "reviewed_at" timestamptz,
+      "submitted_at" timestamptz NOT NULL DEFAULT now(),
+      "created_at" timestamptz NOT NULL DEFAULT now(),
+      "updated_at" timestamptz NOT NULL DEFAULT now()
+    )
+query: CREATE INDEX "IDX_mobile_identity_user_submitted" ON "mobile_identity_verifications" ("user_id", "submitted_at" DESC)
+query: CREATE UNIQUE INDEX "IDX_mobile_identity_one_pending" ON "mobile_identity_verifications" ("user_id") WHERE "status" = 'pending_review'
+query: CREATE INDEX "IDX_mobile_identity_review_queue" ON "mobile_identity_verifications" ("status", "submitted_at" DESC, "id" DESC)
+query: ALTER TABLE "mobile_identity_verifications" ENABLE ROW LEVEL SECURITY
+query: REVOKE ALL ON "mobile_identity_verifications" FROM PUBLIC
+query: DO $$ BEGIN
+      IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'anon') THEN
+        REVOKE ALL ON "mobile_identity_verifications" FROM anon;
+      END IF;
+      IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'authenticated') THEN
+        REVOKE ALL ON "mobile_identity_verifications" FROM authenticated;
+      END IF;
+    END $$
+query: INSERT INTO "migrations"("timestamp", "name") VALUES ($1, $2) -- PARAMETERS: [1789149600000,"MobileIdentityVerifications1789149600000"]
+Migration MobileIdentityVerifications1789149600000 has been executed successfully.
+query: COMMIT

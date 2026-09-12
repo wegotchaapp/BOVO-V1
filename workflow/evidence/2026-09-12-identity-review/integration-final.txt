@@ -1,0 +1,13 @@
+PASS All five routes reject missing JWT (401) and non-admin (403); invalid, expired and forged tokens rejected
+PASS Queue/detail expose allowlisted metadata only, validate status/page and return 404 for missing submissions
+PASS Private image streaming, no-store, audit of viewer and slot, unknown/absent/missing image 404
+PASS Reject requires 1–500 characters; approval atomically verifies the user; reviewed submissions return 409
+PASS Rejection trims the note, records an audit and preserves both false and true verified flags
+PASS Concurrent approve/reject: exactly one commits, the other gets 409, with one audit event
+PASS Database enforces one pending submission and both status/document CHECK constraints
+PASS Failed audit rolls back approval and user verification; failed view audit does not disclose image bytes
+PASS RLS denies client reads/inserts/updates/deletes even when a client is accidentally granted table privileges
+Migration count: 18
+Public table count: 71
+Identity indexes: IDX_mobile_identity_one_pending, IDX_mobile_identity_review_queue, IDX_mobile_identity_user_submitted, mobile_identity_verifications_pkey
+9 integration groups passed

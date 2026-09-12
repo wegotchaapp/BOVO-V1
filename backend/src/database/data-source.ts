@@ -1,4 +1,5 @@
 import 'dotenv/config';
+import { PrivateQueryLogger } from './private-query.logger';
 import * as path from 'path';
 import { DataSource } from 'typeorm';
 import { User } from './entities/user.entity';
@@ -58,6 +59,7 @@ import {
 import { TripReply, TripReplyRead } from './entities/trip-reply.entity';
 import { ComplianceLog } from './entities/compliance-log.entity';
 import {
+  MobileIdentityVerification,
   MobileUser,
   MobileVehicle,
   MobileSession,
@@ -137,6 +139,7 @@ export const AppDataSource = new DataSource({
     TripReply,
     TripReplyRead,
     ComplianceLog,
+    MobileIdentityVerification,
     MobileUser,
     MobileVehicle,
     MobileSession,
@@ -166,4 +169,5 @@ export const AppDataSource = new DataSource({
     ),
   ],
   logging: true,
+  logger: new PrivateQueryLogger(true),
 });

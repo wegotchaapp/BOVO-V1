@@ -12,10 +12,14 @@ import { ComplianceLog } from '../../database/entities/compliance-log.entity';
 import { SupportTicket } from '../../database/entities/support-ticket.entity';
 import { SupportTicketMessage } from '../../database/entities/support-ticket-message.entity';
 import { SupportAgent } from '../../database/entities/support-agent.entity';
+import { PrivateMediaModule } from '../private-media/private-media.module';
+import { IdentityReviewController } from './identity-review.controller';
+import { IdentityReviewService } from './identity-review.service';
 import { AdminController } from './admin.controller';
 import { AdminService } from './admin.service';
 import { AdminGuard } from './admin.guard';
 import {
+  MobileIdentityVerification,
   MobileDriverTrip,
   MobileUser,
   MobileVehicle,
@@ -28,6 +32,7 @@ import {
  */
 @Module({
   imports: [
+    PrivateMediaModule,
     PassportModule.register({ defaultStrategy: 'jwt' }),
     TypeOrmModule.forFeature([
       User,
@@ -39,6 +44,7 @@ import {
       Incident,
       Vehicle,
       MobileVehicle,
+      MobileIdentityVerification,
       MobileUser,
       MobileDriverTrip,
       AuditEvent,
@@ -48,7 +54,7 @@ import {
       SupportAgent,
     ]),
   ],
-  controllers: [AdminController],
-  providers: [AdminService, AdminGuard],
+  controllers: [AdminController, IdentityReviewController],
+  providers: [AdminService, AdminGuard, IdentityReviewService],
 })
 export class AdminModule {}

@@ -1,3 +1,4 @@
+import { PrivateQueryLogger } from './database/private-query.logger';
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
@@ -68,6 +69,9 @@ import { MobileApiModule } from './modules/mobile-api/mobile-api.module';
           config.get<string>('DATABASE_SYNCHRONIZE') === 'true' &&
           config.get<string>('NODE_ENV') !== 'production',
         logging: config.get<string>('NODE_ENV') !== 'production',
+        logger: new PrivateQueryLogger(
+          config.get<string>('NODE_ENV') !== 'production',
+        ),
         extra: {
           /**
            * Connections per app instance. Supabase's DIRECT connection

@@ -17,6 +17,8 @@ out/
 
 # ── Local upload storage (dev fallback for S3) ──────────────────────────────
 uploads/
+/backend/private-media/
+/private-media/
 
 # ── Local Postgres cluster + DB artifacts (created for local bring-up) ──────
 .pgdata/

@@ -1,3 +1,4 @@
+import { CheckoutComplete } from "@/components/checkout/CheckoutComplete";
 import { Feather } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React from "react";
@@ -51,6 +52,12 @@ export default function BookingConfirmed() {
 
   const booking = bookingRes.data;
   const error = bookingRes.error?.message ?? null;
+
+  if (
+    booking &&
+    (booking.status === "confirmed" || booking.status === "completed")
+  )
+    return <CheckoutComplete booking={booking} />;
 
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: colors.background }]}>

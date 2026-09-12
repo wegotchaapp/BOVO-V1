@@ -1,5 +1,13 @@
+import { HoldToConfirm } from "./HoldToConfirm";
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { Modal, Platform, Pressable, StyleSheet, Text, View } from "react-native";
+import {
+  Modal,
+  Platform,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
 
 import { CARD_SHADOW, STRONG_SHADOW } from "@/constants/colors";
 import { useColors } from "@/hooks/useColors";
@@ -19,6 +27,7 @@ export interface AlertButton {
   text: string;
   onPress?: () => void | Promise<void>;
   style?: AlertButtonStyle;
+  hold?: boolean;
 }
 
 export interface AlertRequest {
@@ -44,11 +53,14 @@ function emit() {
  * Enqueue a dialog. Falls back to the browser's blocking dialogs only if the
  * host has not mounted yet (e.g. an error thrown during the very first render).
  */
-export function enqueueAlert(request: Omit<AlertRequest, "resolve" | "dismissIndex"> & {
-  resolve: (index: number) => void;
-  dismissIndex?: number;
-}) {
-  const buttons = request.buttons.length > 0 ? request.buttons : [{ text: "OK" }];
+export function enqueueAlert(
+  request: Omit<AlertRequest, "resolve" | "dismissIndex"> & {
+    resolve: (index: number) => void;
+    dismissIndex?: number;
+  },
+) {
+  const buttons =
+    request.buttons.length > 0 ? request.buttons : [{ text: "OK" }];
   const cancelIndex = buttons.findIndex((b) => b.style === "cancel");
 
   const entry: AlertRequest = {
@@ -62,7 +74,9 @@ export function enqueueAlert(request: Omit<AlertRequest, "resolve" | "dismissInd
   if (!subscriber) {
     // No host mounted — degrade rather than swallow the message entirely.
     if (Platform.OS === "web" && typeof window !== "undefined") {
-      const full = entry.message ? `${entry.title}\n\n${entry.message}` : entry.title;
+      const full = entry.message
+        ? `${entry.title}\n\n${entry.message}`
+        : entry.title;
       if (entry.buttons.length > 1 && cancelIndex >= 0) {
         const confirmed = window.confirm(full);
         const primary = entry.buttons.findIndex((b) => b.style !== "cancel");
@@ -100,27 +114,26 @@ export function AlertHost() {
     busy.current = false;
   }, [current]);
 
-  const choose = useCallback(
-    (index: number) => {
-      if (busy.current) return;
-      busy.current = true;
+  const choose = useCallback((index: number) => {
+    if (busy.current) return;
+    busy.current = true;
 
-      const entry = queue.shift();
-      emit();
-      if (!entry) return;
+    const entry = queue.shift();
+    emit();
+    if (!entry) return;
 
-      const button = index >= 0 ? entry.buttons[index] : undefined;
-      entry.resolve(index);
-      void button?.onPress?.();
-    },
-    [],
-  );
+    const button = index >= 0 ? entry.buttons[index] : undefined;
+    entry.resolve(index);
+    void button?.onPress?.();
+  }, []);
 
   if (!current) return null;
 
   const { title, message, buttons, dismissIndex } = current;
   // Two buttons sit side by side; three or more stack for legibility.
-  const stacked = buttons.length > 2;
+  const stacked =
+    buttons.length > 2 ||
+    buttons.some((button) => button.style === "destructive" || button.hold);
 
   return (
     <Modal
@@ -141,9 +154,13 @@ export function AlertHost() {
           style={[styles.card, STRONG_SHADOW, { backgroundColor: colors.card }]}
           onPress={() => {}}
         >
-          <Text style={[styles.title, { color: colors.foreground }]}>{title}</Text>
+          <Text style={[styles.title, { color: colors.foreground }]}>
+            {title}
+          </Text>
           {message ? (
-            <Text style={[styles.message, { color: colors.mutedForeground }]}>{message}</Text>
+            <Text style={[styles.message, { color: colors.mutedForeground }]}>
+              {message}
+            </Text>
           ) : null}
 
           <View style={[styles.actions, stacked && styles.actionsStacked]}>
@@ -157,6 +174,20 @@ export function AlertHost() {
                   : colors.primary;
               const foreground = cancel ? colors.foreground : "#FFFFFF";
 
+              if (destructive || button.hold)
+                return (
+                  <HoldToConfirm
+                    key={`${button.text}-${index}`}
+                    label={`Hold to ${button.text.toLowerCase()}`}
+                    tone={destructive ? "destructive" : "primary"}
+                    onConfirm={() => choose(index)}
+                    style={{
+                      height: 48,
+                      borderRadius: 24,
+                      ...(!stacked ? { flex: 1 } : {}),
+                    }}
+                  />
+                );
               return (
                 <Pressable
                   key={`${button.text}-${index}`}
@@ -164,12 +195,17 @@ export function AlertHost() {
                     styles.button,
                     !stacked && styles.buttonInline,
                     CARD_SHADOW,
-                    { backgroundColor: background, opacity: pressed ? 0.85 : 1 },
+                    {
+                      backgroundColor: background,
+                      opacity: pressed ? 0.85 : 1,
+                    },
                   ]}
                   onPress={() => choose(index)}
                   accessibilityRole="button"
                 >
-                  <Text style={[styles.buttonText, { color: foreground }]}>{button.text}</Text>
+                  <Text style={[styles.buttonText, { color: foreground }]}>
+                    {button.text}
+                  </Text>
                 </Pressable>
               );
             })}

@@ -523,6 +523,7 @@ export default function TripsTab() {
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       <View style={[styles.header, { paddingTop: insets.top + (Platform.OS === "web" ? 67 : 16) }]}>
         <Text style={[styles.heading, { color: colors.primary }]}>My Adventures</Text>
+        <TouchableOpacity accessibilityRole="button" onPress={() => router.push("/ticket-history")} style={{ paddingVertical: 8 }}><Text style={{ color: colors.primary, fontFamily: "Inter_600SemiBold" }}>View ticket collection →</Text></TouchableOpacity>
         {/* A white track with a hairline edge, not a muted fill: the inactive
             label measured 4.32:1 on `muted` and clears 4.96:1 on white. */}
         <View style={[styles.tabRow, { borderColor: colors.border }]}>

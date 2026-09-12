@@ -1,3 +1,4 @@
+import { HoldToConfirm } from "@/components/HoldToConfirm";
 import { Feather } from "@expo/vector-icons";
 import { useFocusEffect, useRouter } from "expo-router";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -805,28 +806,7 @@ export default function PostTrip() {
             </View>
 
             {/* Post button */}
-            <TouchableOpacity
-              style={[
-                styles.postBtn,
-                {
-                  backgroundColor: isValid ? colors.primary : colors.muted,
-                  opacity: submitting ? 0.7 : 1,
-                },
-              ]}
-              onPress={handlePost}
-              disabled={!isValid || submitting}
-              activeOpacity={0.88}
-              accessibilityLabel="Post trip"
-            >
-              {submitting ? (
-                <Text style={[styles.postBtnText, { color: "#fff" }]}>Posting…</Text>
-              ) : (
-                <>
-                  <Feather name="send" size={16} color={isValid ? "#fff" : colors.mutedForeground} />
-                  <Text style={[styles.postBtnText, { color: isValid ? "#fff" : colors.mutedForeground }]}>Post Adventure</Text>
-                </>
-              )}
-            </TouchableOpacity>
+            <HoldToConfirm label="Hold to post Adventure" onConfirm={handlePost} busy={submitting} busyLabel="Posting…" icon="send" style={{ marginTop: 12 }} />
           </View>
 
           {/* Live preview */}

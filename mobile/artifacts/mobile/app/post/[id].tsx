@@ -1,17 +1,14 @@
 import { Feather } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   ActivityIndicator,
-  Keyboard,
-  KeyboardAvoidingView,
   Platform,
   RefreshControl,
   SafeAreaView,
   ScrollView,
   StyleSheet,
   Text,
-  TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
@@ -23,14 +20,11 @@ import {
   formatTripDate,
   formatTripTime,
   type Trip,
-  type TripReply,
   type TripDetailMeta,
 } from "@/data/trips";
-import { getTrip, replyToTrip } from "@/lib/trips";
-import { findPublicReplyPii, publicReplyPiiMessage } from "@/lib/pii-guard";
+import { getTrip } from "@/lib/trips";
 import { shareTripSummary } from "@/lib/share";
 import { useAuth } from "@/context/AuthContext";
-import { useUnread } from "@/context/UnreadContext";
 import { useColors } from "@/hooks/useColors";
 import { CARD_SHADOW } from "@/constants/colors";
 import { formatUsd } from "@/lib/pricing";
@@ -57,22 +51,22 @@ function Avatar({ name, size = 44, isDriver = false }: { name: string; size?: nu
   );
 }
 
+/**
+ * A Voyager's announcement. Posts are not threads: there are no public replies,
+ * and a Sailor talks to the Voyager only after booking, in the private
+ * Adventure group.
+ */
 export default function PostDetail() {
   const colors = useColors();
   const router = useRouter();
   const { user } = useAuth();
-  const { markTripRead } = useUnread();
   const { id } = useLocalSearchParams<{ id: string }>();
 
   const [post, setPost] = useState<Trip | null>(null);
-  const [replies, setReplies] = useState<TripReply[]>([]);
   const [meta, setMeta] = useState<TripDetailMeta | null>(null);
-  const [replyText, setReplyText] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [sending, setSending] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
-  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   async function onRefresh() {
     if (!id) return;
@@ -80,7 +74,6 @@ export default function PostDetail() {
     try {
       const data = await getTrip(id);
       setPost(data.trip);
-      setReplies(data.replies);
       setMeta(data.meta);
     } catch {
       // Keep existing content on refresh failure.
@@ -88,19 +81,6 @@ export default function PostDetail() {
       setRefreshing(false);
     }
   }
-
-  // Silent background refresh — keeps replies in sync without a loading flash.
-  const silentRefresh = useCallback(async () => {
-    if (!id) return;
-    try {
-      const data = await getTrip(id);
-      setPost(data.trip);
-      setReplies(data.replies);
-      setMeta(data.meta);
-    } catch {
-      // Ignore poll errors silently.
-    }
-  }, [id]);
 
   useEffect(() => {
     if (!id) return;
@@ -111,10 +91,7 @@ export default function PostDetail() {
       .then((data) => {
         if (cancelled) return;
         setPost(data.trip);
-        setReplies(data.replies);
         setMeta(data.meta);
-        // Mark replies as read when the user opens the post.
-        markTripRead(id);
       })
       .catch((err: Error) => {
         if (!cancelled) setError(err.message ?? "Couldn't load post");
@@ -123,45 +100,10 @@ export default function PostDetail() {
         if (!cancelled) setLoading(false);
       });
 
-    // Poll every 8 seconds to pick up new replies from other users.
-    pollRef.current = setInterval(silentRefresh, 8000);
-
     return () => {
       cancelled = true;
-      if (pollRef.current) clearInterval(pollRef.current);
     };
-  }, [id, markTripRead, silentRefresh]);
-
-  const isVoyager = !!user && !!post && user.id === post.driver.id;
-  const voyagerAlreadyReplied =
-    isVoyager && replies.some((r) => r.isDriverReply || r.userId === user?.id);
-
-  async function sendReply() {
-    if (!post || !replyText.trim() || sending) return;
-    if (voyagerAlreadyReplied) {
-      Alert.alert(
-        "One reply only",
-        "Voyagers can only post one public reply on their adventure.",
-      );
-      return;
-    }
-    const piiHit = findPublicReplyPii(replyText);
-    if (piiHit) {
-      Alert.alert("Keep it public-safe", publicReplyPiiMessage(piiHit));
-      return;
-    }
-    Keyboard.dismiss();
-    setSending(true);
-    try {
-      const reply = await replyToTrip(post.id, replyText.trim());
-      setReplies((prev) => [...prev, reply]);
-      setReplyText("");
-    } catch (err) {
-      Alert.alert("Couldn't send reply", err instanceof Error ? err.message : "Please try again.");
-    } finally {
-      setSending(false);
-    }
-  }
+  }, [id]);
 
   function handleBook() {
     if (!post) return;
@@ -191,6 +133,8 @@ export default function PostDetail() {
       </SafeAreaView>
     );
   }
+
+  const isOwnPost = !!user && user.id === post.driver.id;
 
   const prefIcons = [
     { icon: "wind", label: "Non-smoking", active: !post.preferences.smoking },
@@ -228,269 +172,163 @@ export default function PostDetail() {
         </TouchableOpacity>
       </View>
 
-      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
-        <ScrollView
-          contentContainerStyle={styles.scroll}
-          showsVerticalScrollIndicator={false}
-          keyboardShouldPersistTaps="handled"
-          keyboardDismissMode="on-drag"
-          refreshControl={
-            <RefreshControl
-              refreshing={refreshing}
-              onRefresh={onRefresh}
-              tintColor={colors.primary}
-            />
-          }
-        >
-          <View style={[styles.postCard, CARD_SHADOW]}>
-            <View style={styles.driverRow}>
-              <Avatar name={post.driver.name} size={48} isDriver />
-              <View style={styles.driverInfo}>
-                <View style={styles.driverNameRow}>
-                  <Text style={[styles.driverName, { color: colors.foreground }]}>{post.driver.name}</Text>
-                  {post.driver.isTopDriver && (
-                    <View style={[styles.topBadge, { backgroundColor: "#C4954A" }]}>
-                      <Feather name="award" size={10} color="#111210" />
-                      <Text style={[styles.topBadgeText, { color: "#111210" }]}>Top Voyager</Text>
-                    </View>
-                  )}
-                </View>
-                <View style={styles.ratingRow}>
-                  <Feather name="star" size={11} color="#C4954A" />
-                  <Text style={[styles.ratingText, { color: colors.mutedForeground }]}>
-                    {post.driver.rating.toFixed(1)} · {post.driver.trips} adventure{post.driver.trips !== 1 ? "s" : ""}
-                  </Text>
-                </View>
-              </View>
-              <Text style={[styles.postedAt, { color: colors.mutedForeground }]}>{formatTimeAgo(post.createdAt)}</Text>
-            </View>
-
-            <View style={styles.routeBlock}>
-              <View style={styles.routeRow}>
-                <View style={[styles.dot, { backgroundColor: colors.primary }]} />
-                <View>
-                  <Text style={[styles.cityLabel, { color: colors.foreground }]}>{post.fromCity}</Text>
-                  <Text style={[styles.timeLabel, { color: colors.mutedForeground }]}>
-                    {formatTripTime(post.departureAt)} · Departure
-                  </Text>
-                </View>
-              </View>
-              <View style={[styles.routeLine, { borderLeftColor: colors.border }]} />
-              <View style={styles.routeRow}>
-                <View style={[styles.dot, { backgroundColor: colors.accent }]} />
-                <Text style={[styles.cityLabel, { color: colors.foreground }]}>{post.toCity}</Text>
-              </View>
-            </View>
-
-            <View style={[styles.metaRow, { backgroundColor: colors.muted, borderRadius: 14 }]}>
-              <View style={styles.metaItem}>
-                <Feather name="calendar" size={13} color={colors.mutedForeground} />
-                <Text style={[styles.metaText, { color: colors.foreground }]}>{formatTripDate(post.departureAt)}</Text>
-              </View>
-              <View style={[styles.metaSep, { backgroundColor: colors.border }]} />
-              <View style={styles.metaItem}>
-                <Feather name="users" size={13} color={colors.mutedForeground} />
-                <Text style={[styles.metaText, { color: colors.foreground }]}>
-                  {post.seatsAvailable} seat{post.seatsAvailable !== 1 ? "s" : ""} left
-                </Text>
-              </View>
-              <View style={[styles.metaSep, { backgroundColor: colors.border }]} />
-              <View style={styles.metaItem}>
-                <Feather name="briefcase" size={13} color={colors.mutedForeground} />
-                <Text style={[styles.metaText, { color: colors.foreground }]}>
-                  {post.luggageSpace} bag{post.luggageSpace !== 1 ? "s" : ""}
-                </Text>
-              </View>
-              <View style={[styles.metaSep, { backgroundColor: colors.border }]} />
-              <View style={styles.metaItem}>
-                <Text style={[styles.priceText, { color: colors.primary }]}>{formatUsd(post.pricePerSeat)}</Text>
-                <Text style={[styles.metaText, { color: colors.mutedForeground }]}>/seat</Text>
-              </View>
-            </View>
-
-            {post.note ? <Text style={[styles.note, { color: colors.foreground }]}>{post.note}</Text> : null}
-
-            <View style={styles.prefRow}>
-              {prefIcons.map((p) => (
-                <View
-                  key={p.label}
-                  style={[
-                    styles.prefChip,
-                    {
-                      backgroundColor: p.active ? colors.secondary : colors.muted,
-                      borderColor: p.active ? colors.primary : colors.border,
-                    },
-                  ]}
-                >
-                  <Feather name={p.icon as any} size={11} color={p.active ? colors.primary : colors.mutedForeground} />
-                  <Text style={[styles.prefText, { color: p.active ? colors.primary : colors.mutedForeground }]}>
-                    {p.label}
-                  </Text>
-                </View>
-              ))}
-            </View>
-
-            <View style={[styles.refundNotice, { backgroundColor: "#FFF8EC", borderColor: "#F0C97A" }]}>
-              <Feather name="info" size={14} color="#C4954A" style={{ marginTop: 1 }} />
-              <Text style={[styles.refundNoticeText, { color: "#7A5A1E" }]}>
-                <Text style={{ fontFamily: "Inter_600SemiBold" }}>Refund Policy: </Text>
-                Full refund available only if the Adventure is cancelled by the Voyager or Sailor at least{" "}
-                <Text style={{ fontFamily: "Inter_600SemiBold" }}>6 hours before</Text> the scheduled start time.
-                Cancellations after that window are non-refundable.
-              </Text>
-            </View>
-          </View>
-
-          <View style={styles.repliesSection}>
-            <Text style={[styles.sectionTitle, { color: colors.foreground }]}>
-              Public questions{" "}
-              <Text style={{ color: colors.mutedForeground, fontFamily: "Inter_400Regular" }}>
-                ({replies.length})
-              </Text>
-            </Text>
-            <View style={[styles.publicNotice, { backgroundColor: "#EBF2ED", borderColor: colors.primary }]}>
-              <Feather name="shield" size={14} color={colors.primary} />
-              <Text style={[styles.publicNoticeText, { color: colors.primary }]}>
-                Anyone can read these replies. Do not share phone numbers, emails, addresses, or other personal info.
-                Book your seat to chat privately with the Voyager.
-              </Text>
-            </View>
-
-            {replies.length === 0 && (
-              <View style={[styles.emptyReplies, { backgroundColor: colors.muted }]}>
-                <Feather name="message-circle" size={22} color={colors.mutedForeground} />
-                <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>
-                  Be the first to reply!
-                </Text>
-              </View>
-            )}
-
-            {replies.map((reply) => {
-              const isOwnPost = !!user && user.id === post.driver.id;
-              const canOpenGroup = isOwnPost && reply.hasBookedSeat && meta?.viewerGroupId;
-              return (
-                <View
-                  key={reply.id}
-                  style={[styles.replyCard, CARD_SHADOW, reply.isDriverReply && { borderLeftWidth: 3, borderLeftColor: colors.primary }]}
-                >
-                  <View style={styles.replyHeader}>
-                    <Avatar name={reply.userName} size={36} isDriver={reply.isDriverReply} />
-                    <View style={styles.replyMeta}>
-                      <View style={styles.replyNameRow}>
-                        <Text style={[styles.replyName, { color: colors.foreground }]}>{reply.userName}</Text>
-                        {reply.isDriverReply && (
-                          <View style={[styles.driverTag, { backgroundColor: colors.secondary }]}>
-                            <Text style={[styles.driverTagText, { color: colors.primary }]}>Voyager</Text>
-                          </View>
-                        )}
-                      </View>
-                      <Text style={[styles.replyTime, { color: colors.mutedForeground }]}>{formatTimeAgo(reply.createdAt)}</Text>
-                    </View>
+      <ScrollView
+        contentContainerStyle={styles.scroll}
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor={colors.primary}
+          />
+        }
+      >
+        <View style={[styles.postCard, CARD_SHADOW]}>
+          <View style={styles.driverRow}>
+            <Avatar name={post.driver.name} size={48} isDriver />
+            <View style={styles.driverInfo}>
+              <View style={styles.driverNameRow}>
+                <Text style={[styles.driverName, { color: colors.foreground }]}>{post.driver.name}</Text>
+                {post.driver.isTopDriver && (
+                  <View style={[styles.topBadge, { backgroundColor: "#C4954A" }]}>
+                    <Feather name="award" size={10} color="#111210" />
+                    <Text style={[styles.topBadgeText, { color: "#111210" }]}>Top Voyager</Text>
                   </View>
-                  <Text style={[styles.replyText, { color: colors.foreground }]}>{reply.text}</Text>
-                  {canOpenGroup && (
-                    <TouchableOpacity
-                      style={[styles.messageBtn, { backgroundColor: colors.secondary, borderColor: colors.primary }]}
-                      onPress={() =>
-                        router.push({
-                          pathname: "/group/[id]",
-                          params: { id: meta!.viewerGroupId! },
-                        })
-                      }
-                      activeOpacity={0.85}
-                    >
-                      <Feather name="users" size={14} color={colors.primary} />
-                      <Text style={[styles.messageBtnText, { color: colors.primary }]}>
-                        Open Adventure group
-                      </Text>
-                    </TouchableOpacity>
-                  )}
-                </View>
-              );
-            })}
+                )}
+              </View>
+              <View style={styles.ratingRow}>
+                <Feather name="star" size={11} color="#C4954A" />
+                <Text style={[styles.ratingText, { color: colors.mutedForeground }]}>
+                  {post.driver.rating.toFixed(1)} · {post.driver.trips} adventure{post.driver.trips !== 1 ? "s" : ""}
+                </Text>
+              </View>
+            </View>
+            <Text style={[styles.postedAt, { color: colors.mutedForeground }]}>{formatTimeAgo(post.createdAt)}</Text>
           </View>
-        </ScrollView>
 
-        <>
-          {voyagerAlreadyReplied ? (
-            <View style={[styles.inputBar, { backgroundColor: colors.background, borderTopColor: colors.border }]}>
-              <View style={[styles.voyagerHint, { backgroundColor: colors.muted }]}>
-                <Feather name="check-circle" size={12} color={colors.mutedForeground} />
-                <Text style={[styles.voyagerHintText, { color: colors.mutedForeground }]}>
-                  You already posted your one public reply on this adventure
+          <View style={styles.routeBlock}>
+            <View style={styles.routeRow}>
+              <View style={[styles.dot, { backgroundColor: colors.primary }]} />
+              <View>
+                <Text style={[styles.cityLabel, { color: colors.foreground }]}>{post.fromCity}</Text>
+                <Text style={[styles.timeLabel, { color: colors.mutedForeground }]}>
+                  {formatTripTime(post.departureAt)} · Departure
                 </Text>
               </View>
             </View>
-          ) : (
-          <View style={[styles.inputBar, { backgroundColor: colors.background, borderTopColor: colors.border }]}>
-            {isVoyager && (
-              <View style={[styles.voyagerHint, { backgroundColor: colors.secondary }]}>
-                <Feather name="navigation" size={12} color={colors.primary} />
-                <Text style={[styles.voyagerHintText, { color: colors.primary }]}>
-                  One public reply as Voyager — visible to all
-                </Text>
-              </View>
-            )}
-            <View style={[styles.inputWrap, { backgroundColor: colors.card, borderColor: colors.border }]}>
-              <TextInput
-                style={[styles.input, { color: colors.foreground }]}
-                placeholder={isVoyager ? "Reply to your Sailors..." : "Ask a public question (no personal info)..."}
-                placeholderTextColor={colors.mutedForeground}
-                value={replyText}
-                onChangeText={setReplyText}
-                multiline
-                maxLength={300}
-                editable={!sending}
-              />
-              <TouchableOpacity
-                style={[styles.sendBtn, { backgroundColor: replyText.trim() && !sending ? colors.primary : colors.muted }]}
-                onPress={sendReply}
-                disabled={!replyText.trim() || sending}
-              >
-                <Feather name="send" size={16} color={replyText.trim() && !sending ? "#fff" : colors.mutedForeground} />
-              </TouchableOpacity>
+            <View style={[styles.routeLine, { borderLeftColor: colors.border }]} />
+            <View style={styles.routeRow}>
+              <View style={[styles.dot, { backgroundColor: colors.accent }]} />
+              <Text style={[styles.cityLabel, { color: colors.foreground }]}>{post.toCity}</Text>
             </View>
           </View>
-          )}
-          {user && user.id !== post.driver.id && meta?.viewerGroupId && (
-            <View style={[styles.bookBar, { backgroundColor: colors.card, borderTopColor: colors.border }]}>
-              <View style={{ flex: 1 }}>
-                <Text style={[styles.bookLabel, { color: colors.mutedForeground }]}>Seat booked</Text>
-                <Text style={[styles.bookPrice, { color: colors.primary, fontSize: 16 }]}>Private group chat is open</Text>
-              </View>
-              <TouchableOpacity
-                style={[styles.bookBtn, { backgroundColor: colors.primary }]}
-                onPress={() =>
-                  router.push({
-                    pathname: "/group/[id]",
-                    params: { id: meta.viewerGroupId ?? "" },
-                  })
-                }
-                activeOpacity={0.88}
-              >
-                <Feather name="message-circle" size={16} color="#fff" />
-                <Text style={styles.bookBtnText}>Open group</Text>
-              </TouchableOpacity>
+
+          <View style={[styles.metaRow, { backgroundColor: colors.muted, borderRadius: 14 }]}>
+            <View style={styles.metaItem}>
+              <Feather name="calendar" size={13} color={colors.mutedForeground} />
+              <Text style={[styles.metaText, { color: colors.foreground }]}>{formatTripDate(post.departureAt)}</Text>
             </View>
-          )}
-          {user && user.id !== post.driver.id && !meta?.viewerGroupId && (
-            <View style={[styles.bookBar, { backgroundColor: colors.card, borderTopColor: colors.border }]}>
-              <View>
-                <Text style={[styles.bookPrice, { color: colors.primary }]}>{formatUsd(post.pricePerSeat)}</Text>
-                <Text style={[styles.bookLabel, { color: colors.mutedForeground }]}>per seat</Text>
-              </View>
-              <TouchableOpacity
-                style={[styles.bookBtn, { backgroundColor: colors.primary }]}
-                onPress={handleBook}
-                activeOpacity={0.88}
-              >
-                <Feather name="plus-circle" size={16} color="#fff" />
-                <Text style={styles.bookBtnText}>Add as My Adventure</Text>
-              </TouchableOpacity>
+            <View style={[styles.metaSep, { backgroundColor: colors.border }]} />
+            <View style={styles.metaItem}>
+              <Feather name="users" size={13} color={colors.mutedForeground} />
+              <Text style={[styles.metaText, { color: colors.foreground }]}>
+                {post.seatsAvailable} seat{post.seatsAvailable !== 1 ? "s" : ""} left
+              </Text>
             </View>
-          )}
-        </>
-      </KeyboardAvoidingView>
+            <View style={[styles.metaSep, { backgroundColor: colors.border }]} />
+            <View style={styles.metaItem}>
+              <Feather name="briefcase" size={13} color={colors.mutedForeground} />
+              <Text style={[styles.metaText, { color: colors.foreground }]}>
+                {post.luggageSpace} bag{post.luggageSpace !== 1 ? "s" : ""}
+              </Text>
+            </View>
+            <View style={[styles.metaSep, { backgroundColor: colors.border }]} />
+            <View style={styles.metaItem}>
+              <Text style={[styles.priceText, { color: colors.primary }]}>{formatUsd(post.pricePerSeat)}</Text>
+              <Text style={[styles.metaText, { color: colors.mutedForeground }]}>/seat</Text>
+            </View>
+          </View>
+
+          {post.note ? <Text style={[styles.note, { color: colors.foreground }]}>{post.note}</Text> : null}
+
+          <View style={styles.prefRow}>
+            {prefIcons.map((p) => (
+              <View
+                key={p.label}
+                style={[
+                  styles.prefChip,
+                  {
+                    backgroundColor: p.active ? colors.secondary : colors.muted,
+                    borderColor: p.active ? colors.primary : colors.border,
+                  },
+                ]}
+              >
+                <Feather name={p.icon as any} size={11} color={p.active ? colors.primary : colors.mutedForeground} />
+                <Text style={[styles.prefText, { color: p.active ? colors.primary : colors.mutedForeground }]}>
+                  {p.label}
+                </Text>
+              </View>
+            ))}
+          </View>
+
+          <View style={[styles.refundNotice, { backgroundColor: "#FFF8EC", borderColor: "#F0C97A" }]}>
+            <Feather name="info" size={14} color="#C4954A" style={{ marginTop: 1 }} />
+            <Text style={[styles.refundNoticeText, { color: "#7A5A1E" }]}>
+              <Text style={{ fontFamily: "Inter_600SemiBold" }}>Refund Policy: </Text>
+              Full refund available only if the Adventure is cancelled by the Voyager or Sailor at least{" "}
+              <Text style={{ fontFamily: "Inter_600SemiBold" }}>6 hours before</Text> the scheduled start time.
+              Cancellations after that window are non-refundable.
+            </Text>
+          </View>
+        </View>
+
+        {!isOwnPost && !meta?.viewerGroupId ? (
+          <View style={[styles.chatNotice, { backgroundColor: "#EBF2ED", borderColor: colors.primary }]}>
+            <Feather name="lock" size={14} color={colors.primary} />
+            <Text style={[styles.chatNoticeText, { color: colors.primary }]}>
+              Book a seat to message the Voyager in your private Adventure group.
+            </Text>
+          </View>
+        ) : null}
+      </ScrollView>
+
+      {user && !isOwnPost && meta?.viewerGroupId && (
+        <View style={[styles.bookBar, { backgroundColor: colors.card, borderTopColor: colors.border }]}>
+          <View style={{ flex: 1 }}>
+            <Text style={[styles.bookLabel, { color: colors.mutedForeground }]}>Seat booked</Text>
+            <Text style={[styles.bookPrice, { color: colors.primary, fontSize: 16 }]}>Private group chat is open</Text>
+          </View>
+          <TouchableOpacity
+            style={[styles.bookBtn, { backgroundColor: colors.primary }]}
+            onPress={() =>
+              router.push({
+                pathname: "/group/[id]",
+                params: { id: meta.viewerGroupId ?? "" },
+              })
+            }
+            activeOpacity={0.88}
+          >
+            <Feather name="message-circle" size={16} color="#fff" />
+            <Text style={styles.bookBtnText}>Open group</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+      {user && !isOwnPost && !meta?.viewerGroupId && (
+        <View style={[styles.bookBar, { backgroundColor: colors.card, borderTopColor: colors.border }]}>
+          <View>
+            <Text style={[styles.bookPrice, { color: colors.primary }]}>{formatUsd(post.pricePerSeat)}</Text>
+            <Text style={[styles.bookLabel, { color: colors.mutedForeground }]}>per seat</Text>
+          </View>
+          <TouchableOpacity
+            style={[styles.bookBtn, { backgroundColor: colors.primary }]}
+            onPress={handleBook}
+            activeOpacity={0.88}
+          >
+            <Feather name="plus-circle" size={16} color="#fff" />
+            <Text style={styles.bookBtnText}>Add as My Adventure</Text>
+          </TouchableOpacity>
+        </View>
+      )}
     </SafeAreaView>
   );
 }
@@ -505,8 +343,8 @@ const styles = StyleSheet.create({
   header: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 20, paddingVertical: 14 },
   headerBtn: { width: 40, height: 40, borderRadius: 20, alignItems: "center", justifyContent: "center" },
   headerTitle: { fontSize: 17, fontFamily: "Inter_600SemiBold" },
-  scroll: { paddingHorizontal: 20, paddingBottom: 140 },
-  postCard: { backgroundColor: "#fff", borderRadius: 20, padding: 20, marginBottom: 20, gap: 16 },
+  scroll: { paddingHorizontal: 20, paddingBottom: 40 },
+  postCard: { backgroundColor: "#fff", borderRadius: 20, padding: 20, marginBottom: 16, gap: 16 },
   driverRow: { flexDirection: "row", alignItems: "center", gap: 12 },
   avatar: { alignItems: "center", justifyContent: "center" },
   avatarText: { fontFamily: "Inter_700Bold" },
@@ -533,8 +371,7 @@ const styles = StyleSheet.create({
   prefRow: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
   prefChip: { flexDirection: "row", alignItems: "center", gap: 5, paddingHorizontal: 10, paddingVertical: 5, borderRadius: 20, borderWidth: 1 },
   prefText: { fontSize: 11, fontFamily: "Inter_500Medium" },
-  repliesSection: { gap: 12 },
-  publicNotice: {
+  chatNotice: {
     flexDirection: "row",
     alignItems: "flex-start",
     gap: 9,
@@ -542,46 +379,7 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     borderWidth: 1,
   },
-  publicNoticeText: { flex: 1, fontSize: 12, fontFamily: "Inter_400Regular", lineHeight: 18 },
-  sectionTitle: { fontSize: 16, fontFamily: "Inter_600SemiBold", letterSpacing: -0.2 },
-  emptyReplies: { flexDirection: "row", alignItems: "center", gap: 10, padding: 16, borderRadius: 14, justifyContent: "center" },
-  emptyText: { fontSize: 14, fontFamily: "Inter_400Regular" },
-  replyCard: { backgroundColor: "#fff", borderRadius: 16, padding: 14, gap: 10 },
-  replyHeader: { flexDirection: "row", alignItems: "center", gap: 10 },
-  replyMeta: { flex: 1, gap: 2 },
-  replyNameRow: { flexDirection: "row", alignItems: "center", gap: 8 },
-  replyName: { fontSize: 14, fontFamily: "Inter_600SemiBold" },
-  driverTag: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: 20 },
-  driverTagText: { fontSize: 10, fontFamily: "Inter_600SemiBold" },
-  replyTime: { fontSize: 11, fontFamily: "Inter_400Regular" },
-  replyText: { fontSize: 14, fontFamily: "Inter_400Regular", lineHeight: 20 },
-  messageBtn: {
-    alignSelf: "flex-start",
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    paddingHorizontal: 12,
-    paddingVertical: 7,
-    borderRadius: 20,
-    borderWidth: 1,
-    marginTop: 2,
-  },
-  messageBtnText: { fontSize: 12, fontFamily: "Inter_600SemiBold" },
-  voyagerHint: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 10,
-    marginBottom: 8,
-    alignSelf: "flex-start",
-  },
-  voyagerHintText: { fontSize: 11, fontFamily: "Inter_600SemiBold" },
-  inputBar: { paddingHorizontal: 16, paddingVertical: 10, borderTopWidth: 1 },
-  inputWrap: { flexDirection: "row", alignItems: "flex-end", borderRadius: 22, borderWidth: 1.5, paddingHorizontal: 14, paddingVertical: 8, gap: 10 },
-  input: { flex: 1, fontSize: 14, fontFamily: "Inter_400Regular", maxHeight: 80, paddingTop: 4 },
-  sendBtn: { width: 34, height: 34, borderRadius: 17, alignItems: "center", justifyContent: "center" },
+  chatNoticeText: { flex: 1, fontSize: 12, fontFamily: "Inter_400Regular", lineHeight: 18 },
   bookBar: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 20, paddingVertical: 14, paddingBottom: Platform.OS === "ios" ? 28 : 14, borderTopWidth: 1 },
   bookPrice: { fontSize: 24, fontFamily: "Inter_700Bold", letterSpacing: -0.5 },
   bookLabel: { fontSize: 12, fontFamily: "Inter_400Regular" },

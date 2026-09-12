@@ -23,13 +23,19 @@ import {
 const UPLOADS_DIR = path.join(process.cwd(), 'uploads');
 const ODOMETER_BUCKET = 'bovogo-odometer-photos';
 
-const ALLOWED_IMAGE_MIME: Record<string, string> = {
-  'image/jpeg': 'jpg',
-  'image/jpg': 'jpg',
-  'image/png': 'png',
-  'image/heic': 'heic',
-  'image/webp': 'webp',
-};
+/**
+ * A `Map`, not an object literal: the MIME type comes straight off a multipart
+ * part, so a lookup by `constructor` or `__proto__` would otherwise return a
+ * truthy value inherited from `Object.prototype` and pass for a supported
+ * format, ending up interpolated into the stored key.
+ */
+const ALLOWED_IMAGE_MIME = new Map<string, string>([
+  ['image/jpeg', 'jpg'],
+  ['image/jpg', 'jpg'],
+  ['image/png', 'png'],
+  ['image/heic', 'heic'],
+  ['image/webp', 'webp'],
+]);
 
 /**
  * Guard rails on the typed reading. These catch fat-fingered entries (a missing
@@ -175,7 +181,7 @@ export class MobileOdometerService {
     if (!photo || !photo.buffer?.length) {
       throw new BadRequestException('A photo of the odometer is required.');
     }
-    const ext = ALLOWED_IMAGE_MIME[photo.mimetype];
+    const ext = ALLOWED_IMAGE_MIME.get(photo.mimetype);
     if (!ext) {
       throw new BadRequestException(
         'Unsupported image format. Please take the photo with your camera.',

@@ -1,7 +1,8 @@
 import { Feather } from "@expo/vector-icons";
-import { useRouter } from "expo-router";
-import React from "react";
+import { useFocusEffect, useRouter } from "expo-router";
+import React, { useCallback, useState } from "react";
 import {
+  ActivityIndicator,
   Platform,
   SafeAreaView,
   ScrollView,
@@ -11,16 +12,79 @@ import {
   View,
 } from "react-native";
 
-import { Alert } from "@/lib/alert";
+import { Alert, confirm, showAlert } from "@/lib/alert";
 
 import { useAuth } from "@/context/AuthContext";
 import { useColors } from "@/hooks/useColors";
 import { CARD_SHADOW } from "@/constants/colors";
+import { ApiError } from "@/lib/api";
+import { getIdentityVerification, type IdentityStatus } from "@/lib/identity";
+
+/** Matches the server's grace period before an account is purged. */
+const DELETION_GRACE_DAYS = 7;
+
+function identitySublabel(isVerified: boolean, status: IdentityStatus | null): string {
+  if (isVerified || status === "approved") return "Verified ✓";
+  if (status === "pending_review") return "Under review";
+  if (status === "rejected") return "Needs attention — tap to resubmit";
+  return "Upload your government ID and a selfie";
+}
+
+// Module scope keeps the component identity stable across renders.
+function MenuRow({
+  icon,
+  title,
+  sub,
+  onPress,
+}: {
+  icon: React.ComponentProps<typeof Feather>["name"];
+  title: string;
+  sub: string;
+  onPress: () => void;
+}) {
+  const colors = useColors();
+  return (
+    <TouchableOpacity
+      style={[styles.card, CARD_SHADOW, styles.menuRow]}
+      onPress={onPress}
+      activeOpacity={0.85}
+    >
+      <View style={[styles.iconWrap, { backgroundColor: colors.secondary }]}>
+        <Feather name={icon} size={18} color={colors.primary} />
+      </View>
+      <View style={{ flex: 1 }}>
+        <Text style={[styles.menuTitle, { color: colors.foreground }]}>{title}</Text>
+        <Text style={[styles.rowSub, { color: colors.mutedForeground }]}>{sub}</Text>
+      </View>
+      <Feather name="chevron-right" size={18} color={colors.mutedForeground} />
+    </TouchableOpacity>
+  );
+}
 
 export default function SettingsScreen() {
   const colors = useColors();
   const router = useRouter();
-  const { user, cancelAccountDeletion, deletionScheduledAt } = useAuth();
+  const { user, logout, deleteAccount, cancelAccountDeletion, deletionScheduledAt } = useAuth();
+  const [identityStatus, setIdentityStatus] = useState<IdentityStatus | null>(null);
+  const [busy, setBusy] = useState<"logout" | "delete" | null>(null);
+
+  const isDriver = user?.role === "driver";
+
+  // Refreshed on focus, so coming back from the upload screen shows the new state.
+  useFocusEffect(
+    useCallback(() => {
+      let cancelled = false;
+      getIdentityVerification()
+        .then((v) => {
+          if (!cancelled) setIdentityStatus(v?.status ?? null);
+        })
+        // The row falls back to the profile's verified flag.
+        .catch(() => {});
+      return () => {
+        cancelled = true;
+      };
+    }, []),
+  );
 
   async function handleCancelDeletion() {
     try {
@@ -29,6 +93,75 @@ export default function SettingsScreen() {
     } catch (e: any) {
       Alert.alert("Couldn't cancel", e?.message ?? "Please try again.");
     }
+  }
+
+  async function handleLogout() {
+    const ok = await confirm("Log out?", "You can sign back in any time.", {
+      confirmText: "Log out",
+      cancelText: "Cancel",
+      destructive: true,
+    });
+    if (!ok) return;
+    setBusy("logout");
+    await logout();
+    router.replace("/");
+  }
+
+  /**
+   * A session that has already ended cannot prove who is asking, so the only
+   * useful next step is signing back in. Sends them there instead of leaving a
+   * dead-end notice.
+   */
+  function promptSignIn() {
+    router.replace("/");
+    Alert.alert(
+      "Sign in to continue",
+      "Your session ended, so we couldn't confirm it's you. Sign in again, then delete your account from Settings.",
+      [
+        { text: "Not now", style: "cancel" },
+        { text: "Sign in", onPress: () => router.push("/login") },
+      ],
+    );
+  }
+
+  async function handleDeleteAccount() {
+    // `deleteAccount` no-ops without a signed-in user, which would otherwise
+    // read as a successful deletion that never happened.
+    if (!user) {
+      promptSignIn();
+      return;
+    }
+
+    const ok = await confirm(
+      "Delete your account?",
+      `You'll be signed out on every device. Your profile, adventures and data are permanently erased after ${DELETION_GRACE_DAYS} days. Sign back in before then if you change your mind.`,
+      { confirmText: "Delete account", cancelText: "Keep account", destructive: true },
+    );
+    if (!ok) return;
+
+    setBusy("delete");
+    try {
+      await deleteAccount();
+    } catch (e) {
+      setBusy(null);
+      // The shared 401 handler has signed the user out by now.
+      if (e instanceof ApiError && e.status === 401) {
+        promptSignIn();
+        return;
+      }
+      Alert.alert(
+        "Couldn't delete your account",
+        e instanceof Error ? e.message : "Please try again in a moment.",
+      );
+      return;
+    }
+
+    const purgeOn = new Date(Date.now() + DELETION_GRACE_DAYS * 24 * 60 * 60 * 1000);
+    router.replace("/");
+    void showAlert(
+      "Account deletion scheduled",
+      `You've been signed out. Your account will be permanently deleted on ${purgeOn.toLocaleDateString("en-US", { month: "long", day: "numeric" })}. Sign in before then to cancel.`,
+    );
   }
 
   return (
@@ -51,49 +184,46 @@ export default function SettingsScreen() {
           ) : null}
         </View>
 
-        <TouchableOpacity
-          style={[styles.card, CARD_SHADOW, styles.menuRow]}
-          onPress={() => router.push("/notifications")}
-          activeOpacity={0.85}
-        >
-          <View style={[styles.iconWrap, { backgroundColor: colors.secondary }]}>
-            <Feather name="bell" size={18} color={colors.primary} />
-          </View>
-          <View style={{ flex: 1 }}>
-            <Text style={[styles.menuTitle, { color: colors.foreground }]}>Notifications</Text>
-            <Text style={[styles.rowSub, { color: colors.mutedForeground }]}>
-              Push, email, and trip alerts
-            </Text>
-          </View>
-          <Feather name="chevron-right" size={18} color={colors.mutedForeground} />
-        </TouchableOpacity>
+        <MenuRow
+          icon="credit-card"
+          title="Identity verification"
+          sub={identitySublabel(!!user?.isVerified, identityStatus)}
+          onPress={() => router.push("/verify")}
+        />
 
-        <TouchableOpacity
-          style={[styles.card, CARD_SHADOW, styles.menuRow]}
+        {isDriver ? (
+          <MenuRow
+            icon="truck"
+            title="My vehicles"
+            sub="Add a vehicle or check its review"
+            onPress={() => router.push("/vehicles")}
+          />
+        ) : null}
+
+        <MenuRow
+          icon="bell"
+          title="Notifications"
+          sub="Push, email, and trip alerts"
+          onPress={() => router.push("/notifications")}
+        />
+
+        <MenuRow
+          icon="sliders"
+          title="Travel preferences"
+          sub={
+            user?.preferencesCount
+              ? `${user.preferencesCount} of 10 set`
+              : "Set your travel preferences"
+          }
           onPress={() => router.push("/preferences")}
-          activeOpacity={0.85}
-        >
-          <View style={[styles.iconWrap, { backgroundColor: colors.secondary }]}>
-            <Feather name="sliders" size={18} color={colors.primary} />
-          </View>
-          <View style={{ flex: 1 }}>
-            <Text style={[styles.menuTitle, { color: colors.foreground }]}>
-              Travel preferences
-            </Text>
-            <Text style={[styles.rowSub, { color: colors.mutedForeground }]}>
-              {user?.preferencesCount
-                ? `${user.preferencesCount} of 10 set`
-                : "Set your travel preferences"}
-            </Text>
-          </View>
-          <Feather name="chevron-right" size={18} color={colors.mutedForeground} />
-        </TouchableOpacity>
+        />
 
         <View style={[styles.card, CARD_SHADOW]}>
           <Text style={[styles.sectionLabel, { color: colors.mutedForeground }]}>PRIVACY</Text>
           <Text style={[styles.privacyText, { color: colors.foreground }]}>
-            You can request account deletion from your profile. Bovogo keeps data for a 7-day
-            grace period (CCPA), then permanently erases it from our servers.
+            Deleting your account signs you out everywhere. Bovogo keeps your data for a{" "}
+            {DELETION_GRACE_DAYS}-day grace period (CCPA), then permanently erases it from our
+            servers.
           </Text>
           {deletionScheduledAt ? (
             <TouchableOpacity
@@ -106,6 +236,44 @@ export default function SettingsScreen() {
             </TouchableOpacity>
           ) : null}
         </View>
+
+        <TouchableOpacity
+          style={[styles.logoutBtn, { backgroundColor: "#FEF0F0", opacity: busy ? 0.6 : 1 }]}
+          onPress={handleLogout}
+          disabled={!!busy}
+          activeOpacity={0.8}
+        >
+          {busy === "logout" ? (
+            <ActivityIndicator color={colors.destructive} />
+          ) : (
+            <>
+              <Feather name="log-out" size={16} color={colors.destructive} />
+              <Text style={[styles.logoutText, { color: colors.destructive }]}>Log Out</Text>
+            </>
+          )}
+        </TouchableOpacity>
+
+        {/* Once deletion is scheduled the only useful action is cancelling it. */}
+        {!deletionScheduledAt ? (
+          <TouchableOpacity
+            style={[styles.deleteBtn, { borderColor: "#FECACA", opacity: busy === "logout" ? 0.6 : 1 }]}
+            onPress={handleDeleteAccount}
+            disabled={!!busy}
+            activeOpacity={0.8}
+          >
+            {busy === "delete" ? (
+              <>
+                <ActivityIndicator size="small" color="#DC2626" />
+                <Text style={[styles.deleteText, { color: "#DC2626" }]}>Deleting…</Text>
+              </>
+            ) : (
+              <>
+                <Feather name="trash-2" size={15} color="#DC2626" />
+                <Text style={[styles.deleteText, { color: "#DC2626" }]}>Delete Account</Text>
+              </>
+            )}
+          </TouchableOpacity>
+        ) : null}
       </ScrollView>
     </SafeAreaView>
   );
@@ -156,4 +324,25 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   cancelBtnText: { fontSize: 14, fontFamily: "Inter_600SemiBold" },
+  logoutBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 10,
+    height: 52,
+    borderRadius: 16,
+    marginTop: 6,
+  },
+  logoutText: { fontSize: 15, fontFamily: "Inter_600SemiBold" },
+  deleteBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 9,
+    height: 48,
+    borderRadius: 16,
+    borderWidth: 1,
+    backgroundColor: "#FFF5F5",
+  },
+  deleteText: { fontSize: 14, fontFamily: "Inter_500Medium" },
 });

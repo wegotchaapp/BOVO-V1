@@ -20,7 +20,7 @@ import {
   MobileTripsService,
   UploadedVideoFile,
 } from '../services/mobile-trips.service';
-import { CreateReplyBody, CreateTripBody } from '../dto/mobile.dto';
+import { CreateTripBody } from '../dto/mobile.dto';
 import { MobileAuthGuard, MobileAuthUser } from '../mobile-auth.guard';
 import { MobileUser } from '../entities/mobile.entities';
 
@@ -84,13 +84,13 @@ export class MobileTripsController {
     return this.trips.start(user.id, id);
   }
 
+  /**
+   * Replies on adventures are switched off. The route stays so an older build
+   * gets a clear refusal rather than a 404, and the service refuses every call.
+   */
   @Post(':id/replies')
-  reply(
-    @MobileAuthUser() user: MobileUser,
-    @Param('id') id: string,
-    @Body() dto: CreateReplyBody,
-  ) {
-    return this.trips.reply(user.id, id, dto);
+  reply() {
+    return this.trips.reply();
   }
 
   @Post(':id/mark-read')

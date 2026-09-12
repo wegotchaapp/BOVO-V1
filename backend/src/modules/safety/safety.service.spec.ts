@@ -48,8 +48,16 @@ import axios from 'axios';
 jest.mock('axios');
 const mockedAxios = axios as jest.Mocked<typeof axios>;
 
+/**
+ * Two paths here arm a five-minute escalation `setTimeout` in production code —
+ * `createDeviationEvent` and `checkTripOverruns`. Those describes install fake
+ * timers and clear them afterwards; without that the timers outlive the last
+ * assertion and Jest never exits. The escalation itself is asserted by advancing
+ * the clock, so the cleanup does not cost coverage.
+ */
 describe('SafetyService', () => {
   let service: SafetyService;
+  let module: TestingModule;
   let pingRepo: jest.Mocked<Repository<TripPing>>;
   let sosRepo: jest.Mocked<Repository<SosEvent>>;
   let incidentRepo: jest.Mocked<Repository<Incident>>;
@@ -140,7 +148,7 @@ describe('SafetyService', () => {
       delete: jest.fn(),
     });
 
-    const module: TestingModule = await Test.createTestingModule({
+    module = await Test.createTestingModule({
       providers: [
         SafetyService,
         {
@@ -255,7 +263,28 @@ describe('SafetyService', () => {
     mockedAxios.post.mockReset();
   });
 
+  afterEach(async () => {
+    await module.close();
+  });
+
+  /**
+   * Fake timers for a describe whose subject arms the escalation timeout.
+   * `clearAllTimers` is what actually lets the worker exit — closing the
+   * TestingModule cannot reach a raw `setTimeout` the service holds no handle to.
+   */
+  function withFakeTimers() {
+    beforeEach(() => {
+      jest.useFakeTimers();
+    });
+    afterEach(() => {
+      jest.clearAllTimers();
+      jest.useRealTimers();
+    });
+  }
+
   describe('receivePing', () => {
+    withFakeTimers();
+
     it('should store location ping and return deviation_triggered false when within route', async () => {
       bookingRepo.findOne.mockResolvedValue(mockActiveBookingWithRelations);
       pingRepo.save.mockResolvedValue({} as TripPing);
@@ -342,6 +371,46 @@ describe('SafetyService', () => {
       expect(deviationRepo.create).toHaveBeenCalled();
       expect(deviationRepo.save).toHaveBeenCalled();
       expect(result.deviation_triggered).toBe(true);
+    });
+
+    it('should escalate a deviation nobody answered after five minutes', async () => {
+      const saveSpy = jest.spyOn(deviationRepo, 'save');
+      const pushSpy = jest.spyOn(notificationsService, 'sendPush');
+      bookingRepo.findOne.mockResolvedValue(mockActiveBookingWithRelations);
+      pingRepo.save.mockResolvedValue({} as TripPing);
+      bookingRepo.update.mockResolvedValue({
+        raw: [],
+        affected: 1,
+        generatedMaps: [],
+      });
+      mockedAxios.get.mockResolvedValue({
+        data: {
+          features: [{ geometry: { coordinates: [[-118.2437, 34.0522]] } }],
+        },
+      });
+      deviationRepo.create.mockReturnValue({ id: 'dev-1' } as DeviationEvent);
+      deviationRepo.save.mockResolvedValue({ id: 'dev-1' } as DeviationEvent);
+      // Still unanswered when the timeout checks back.
+      deviationRepo.findOne.mockResolvedValue({
+        id: 'dev-1',
+        status: DeviationStatus.PENDING,
+      } as DeviationEvent);
+      userRepo.find.mockResolvedValue([{ id: 'ts-1' } as User]);
+
+      await service.receivePing('driver-1', 'booking-1', 34.15, -118.35);
+      deviationRepo.save.mockClear();
+
+      await jest.advanceTimersByTimeAsync(5 * 60 * 1000);
+
+      expect(saveSpy).toHaveBeenCalledWith(
+        expect.objectContaining({ status: DeviationStatus.ESCALATED }),
+      );
+      expect(pushSpy).toHaveBeenCalledWith(
+        'ts-1',
+        'URGENT: Safety Alert',
+        expect.stringContaining('booking-1'),
+        expect.objectContaining({ booking_id: 'booking-1' }),
+      );
     });
   });
 
@@ -910,6 +979,8 @@ describe('SafetyService', () => {
   });
 
   describe('checkTripOverruns', () => {
+    withFakeTimers();
+
     it('should detect trips overrun by more than 60 minutes', async () => {
       const overrunBooking = {
         ...mockActiveBookingWithRelations,

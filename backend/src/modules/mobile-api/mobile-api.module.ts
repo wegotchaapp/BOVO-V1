@@ -1,12 +1,14 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { NotificationsModule } from '../notifications/notifications.module';
+import { PrivateMediaModule } from '../private-media/private-media.module';
 import {
   MobileBooking,
   MobileConversation,
   MobileDeviationEvent,
   MobileDirectMessage,
   MobileDriverTrip,
+  MobileIdentityVerification,
   MobileLiveLocation,
   MobileOdometerReading,
   MobileRating,
@@ -35,6 +37,7 @@ import { MobileSubscriptionsService } from './services/mobile-subscriptions.serv
 import { MobileNotificationsService } from './services/mobile-notifications.service';
 import { MobileConversationsService } from './services/mobile-conversations.service';
 import { MobileVehiclesService } from './services/mobile-vehicles.service';
+import { MobileIdentityService } from './services/mobile-identity.service';
 import { MobileRatingsService } from './services/mobile-ratings.service';
 import { MobileSafetyService } from './services/mobile-safety.service';
 import { MobileEmailNotificationsService } from './services/mobile-email-notifications.service';
@@ -49,6 +52,7 @@ import { MobileSubscriptionsController } from './controllers/mobile-subscription
 import { MobileNotificationsController } from './controllers/mobile-notifications.controller';
 import { MobileConversationsController } from './controllers/mobile-conversations.controller';
 import { MobileVehiclesController } from './controllers/mobile-vehicles.controller';
+import { MobileIdentityController } from './controllers/mobile-identity.controller';
 import { MobileRatingsController } from './controllers/mobile-ratings.controller';
 import { MobilePreferencesController } from './controllers/mobile-preferences.controller';
 import { MobileSafetyController } from './controllers/mobile-safety.controller';
@@ -64,6 +68,8 @@ import { MobileSafetyController } from './controllers/mobile-safety.controller';
     NotificationsModule,
     NoonlightModule,
     RoutingModule,
+    // Government ID images: stored by key, never as a public URL.
+    PrivateMediaModule,
     TypeOrmModule.forFeature([
       MobileUser,
       MobileSession,
@@ -78,6 +84,7 @@ import { MobileSafetyController } from './controllers/mobile-safety.controller';
       MobileConversation,
       MobileDirectMessage,
       MobileVehicle,
+      MobileIdentityVerification,
       MobileRating,
       MobileDriverTrip,
       MobileOdometerReading,
@@ -97,6 +104,7 @@ import { MobileSafetyController } from './controllers/mobile-safety.controller';
     MobileNotificationsController,
     MobileConversationsController,
     MobileVehiclesController,
+    MobileIdentityController,
     MobileRatingsController,
     MobilePreferencesController,
     MobileSafetyController,
@@ -114,6 +122,7 @@ import { MobileSafetyController } from './controllers/mobile-safety.controller';
     MobileNotificationsService,
     MobileConversationsService,
     MobileVehiclesService,
+    MobileIdentityService,
     MobileRatingsService,
     MobileSafetyService,
     MobileEmailNotificationsService,

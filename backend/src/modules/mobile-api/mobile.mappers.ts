@@ -166,6 +166,29 @@ export function vehicleToDto(v: MobileVehicle, missing: string[] = []) {
   };
 }
 
+/**
+ * An identity submission as the app sees it. The storage keys are deliberately
+ * absent: those images are for the review team alone, and nothing that reaches
+ * a client may point at them.
+ */
+export function identityVerificationToDto(v: {
+  id: string;
+  status: 'pending_review' | 'approved' | 'rejected';
+  document_type: 'drivers_license' | 'state_id' | 'passport';
+  submitted_at: Date;
+  reviewed_at: Date | null;
+  review_note: string | null;
+}) {
+  return {
+    id: v.id,
+    status: v.status,
+    documentType: v.document_type,
+    submittedAt: v.submitted_at.toISOString(),
+    reviewedAt: v.reviewed_at ? v.reviewed_at.toISOString() : null,
+    reviewNote: v.review_note,
+  };
+}
+
 export function tripToDto(
   t: MobileTrip,
   driver: DriverSummary,

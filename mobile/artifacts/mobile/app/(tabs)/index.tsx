@@ -20,25 +20,19 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { WeatherBackground } from "@/components/weather/WeatherBackground";
 import { DestinationWeatherInsight } from "@/components/weather/DestinationWeatherInsight";
+import { LocationPickerSheet } from "@/components/LocationPickerSheet";
 
 import { useColors } from "@/hooks/useColors";
 import { useAuth } from "@/context/AuthContext";
-import { useUnread } from "@/context/UnreadContext";
-import {
-  ALL_CITY_OPTIONS,
-  MVP_CITIES,
-  isMvpCity,
-  type CityOption,
-} from "@/data/cities";
+import { MVP_CITIES, isMvpCity } from "@/data/cities";
 import {
   formatTimeAgo,
   formatTripDate,
   formatTripTime,
   type Trip,
 } from "@/data/trips";
-import { filterNeighborhoods, getNeighborhoods } from "@/data/locations";
-import { cityShort } from "@/lib/city-coords";
-import { listTrips, deleteTrip } from "@/lib/trips";
+import { deleteTrip, listMyTrips, listTrips } from "@/lib/trips";
+import { isActivePost } from "@/lib/trip-activity";
 import { CARD_SHADOW } from "@/constants/colors";
 import { formatUsd } from "@/lib/pricing";
 
@@ -98,7 +92,7 @@ function DriverAvatar({ name, size = 40 }: { name: string; size?: number }) {
   );
 }
 
-function PostCard({ post, onPress, hasNewReplies }: { post: Trip; onPress: () => void; hasNewReplies?: boolean }) {
+function PostCard({ post, onPress }: { post: Trip; onPress: () => void }) {
   const colors = useColors();
   return (
     <TouchableOpacity style={[styles.postCard, CARD_SHADOW]} onPress={onPress} activeOpacity={0.88}>
@@ -169,13 +163,6 @@ function PostCard({ post, onPress, hasNewReplies }: { post: Trip; onPress: () =>
         <View style={[styles.postMetaChip, { backgroundColor: "#F0FAF4" }]}>
           <Text style={[styles.postPrice, { color: colors.primary }]}>{formatUsd(post.pricePerSeat)}/seat</Text>
         </View>
-        <View style={styles.postRepliesRow}>
-          <Feather name="message-circle" size={13} color={hasNewReplies ? colors.primary : colors.mutedForeground} />
-          <Text style={[styles.postRepliesCount, { color: hasNewReplies ? colors.primary : colors.mutedForeground }]}>{post.replyCount}</Text>
-          {hasNewReplies && (
-            <View style={[styles.newDot, { backgroundColor: colors.accent }]} />
-          )}
-        </View>
       </View>
     </TouchableOpacity>
   );
@@ -190,7 +177,6 @@ function SailorView({
   passengers, setPassengers, luggage, setLuggage,
   router, colors,
   posts, loading, error,
-  tripUnreads, markTripRead,
 }: any) {
   return (
     <>
@@ -286,7 +272,7 @@ function SailorView({
       <View style={styles.postsSectionHeader}>
         <View>
           <Text style={[styles.sectionTitle, { color: colors.foreground, marginBottom: 2 }]}>Voyager Posts</Text>
-          <Text style={[styles.postsSub, { color: colors.mutedForeground }]}>Voyagers announcing their adventures — reply to join</Text>
+          <Text style={[styles.postsSub, { color: colors.mutedForeground }]}>Voyagers announcing their adventures — tap one to book</Text>
         </View>
         <View style={[styles.liveChip, { backgroundColor: "#F0FAF4", borderColor: "#A8D5B5" }]}>
           <View style={[styles.liveDot, { backgroundColor: colors.success }]} />
@@ -315,11 +301,7 @@ function SailorView({
           <PostCard
             key={post.id}
             post={post}
-            hasNewReplies={!!tripUnreads[post.id]}
-            onPress={() => {
-              markTripRead(post.id);
-              router.push({ pathname: "/post/[id]", params: { id: post.id } });
-            }}
+            onPress={() => router.push({ pathname: "/post/[id]", params: { id: post.id } })}
           />
         ))
       )}
@@ -329,22 +311,25 @@ function SailorView({
 
 // ─── Voyager view ─────────────────────────────────────────────────────────────
 
-function VoyagerView({ router, colors, user, posts, loading, error, tripUnreads, markTripRead, onRefresh }: any) {
+function VoyagerView({ router, colors, user, myTrips, loading, error, onRefresh }: any) {
+  // Live posts only. This used to filter the public feed by driver, which meant
+  // anything the server still called `active` — including last week's
+  // departures — was listed as an active post.
   const myPosts: Trip[] = useMemo(
-    () => posts.filter((t: Trip) => user && t.driver.id === user.id),
-    [posts, user],
+    () => (myTrips as Trip[]).filter((t) => isActivePost(t)),
+    [myTrips],
   );
   const tripsThisMonth = useMemo(() => {
     const now = new Date();
-    return myPosts.filter((t) => {
+    return (myTrips as Trip[]).filter((t) => {
       const d = new Date(t.createdAt);
       return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth();
     }).length;
-  }, [myPosts]);
+  }, [myTrips]);
   const rating = typeof user?.rating === "number" ? user.rating : 0;
 
   const quickActions = [
-    { icon: "truck", label: "My Vehicle", route: "/vehicle" },
+    { icon: "truck", label: "My Vehicles", route: "/vehicles" },
     { icon: "dollar-sign", label: "Savings", route: "/earnings" },
     { icon: "map", label: "My Adventures", route: "/(tabs)/trips" },
     { icon: "shield", label: "Safety", route: "/safety" },
@@ -410,7 +395,7 @@ function VoyagerView({ router, colors, user, posts, loading, error, tripUnreads,
       <View style={styles.postsSectionHeader}>
         <View>
           <Text style={[styles.sectionTitle, { color: colors.foreground, marginBottom: 2 }]}>Your Active Posts</Text>
-          <Text style={[styles.postsSub, { color: colors.mutedForeground }]}>Sailors can see and reply to these</Text>
+          <Text style={[styles.postsSub, { color: colors.mutedForeground }]}>Sailors can see and book these</Text>
         </View>
         <View style={[styles.liveChip, { backgroundColor: "#F0FAF4", borderColor: "#A8D5B5" }]}>
           <View style={[styles.liveDot, { backgroundColor: colors.success }]} />
@@ -448,13 +433,6 @@ function VoyagerView({ router, colors, user, posts, loading, error, tripUnreads,
                 <View style={[styles.routeDot, { backgroundColor: colors.accent }]} />
                 <Text style={[styles.driverPostCity, { color: colors.foreground }]}>{post.toCity}</Text>
               </View>
-              <View style={[styles.driverPostReplies, { backgroundColor: !!tripUnreads[post.id] ? "#FEF3E2" : colors.muted }]}>
-                <Feather name="message-circle" size={12} color={!!tripUnreads[post.id] ? colors.accent : colors.primary} />
-                <Text style={[styles.driverPostRepliesCount, { color: !!tripUnreads[post.id] ? colors.accent : colors.primary }]}>{post.replyCount}</Text>
-                {!!tripUnreads[post.id] && (
-                  <View style={[styles.newDot, { backgroundColor: colors.accent }]} />
-                )}
-              </View>
             </View>
             <View style={styles.driverPostMeta}>
               <Text style={[styles.driverPostDate, { color: colors.mutedForeground }]}>
@@ -470,20 +448,17 @@ function VoyagerView({ router, colors, user, posts, loading, error, tripUnreads,
             <View style={styles.driverPostActions}>
               <TouchableOpacity
                 style={[styles.driverPostBtn, { backgroundColor: colors.secondary }]}
-                onPress={() => {
-                  markTripRead(post.id);
-                  router.push({ pathname: "/post/[id]", params: { id: post.id } });
-                }}
+                onPress={() => router.push({ pathname: "/post/[id]", params: { id: post.id } })}
               >
                 <Feather name="eye" size={13} color={colors.primary} />
-                <Text style={[styles.driverPostBtnText, { color: colors.primary }]}>View Replies</Text>
+                <Text style={[styles.driverPostBtnText, { color: colors.primary }]}>View post</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={[styles.driverPostBtn, { backgroundColor: "#FEF0F0" }]}
                 onPress={() =>
                   Alert.alert(
                     "Remove Post",
-                    `Remove your ${post.fromCity} → ${post.toCity} adventure? Sailors who replied will no longer see it.`,
+                    `Remove your ${post.fromCity} → ${post.toCity} adventure? Sailors will no longer see it.`,
                     [
                       { text: "Cancel", style: "cancel" },
                       {
@@ -563,7 +538,6 @@ export default function HomeTab() {
   const { height: viewportHeight } = useWindowDimensions();
   const router = useRouter();
   const { user } = useAuth();
-  const { tripUnreads, markTripRead } = useUnread();
 
   const [mode, setMode] = useState<"rider" | "driver">("rider");
   const [from, setFrom] = useState<string>(MVP_CITIES[0]);
@@ -581,10 +555,6 @@ export default function HomeTab() {
   });
   const [pickerVisible, setPickerVisible] = useState(false);
   const [pickerTarget, setPickerTarget] = useState<"from" | "to">("from");
-  // Two-step picker: choose a city, then an area within it (mirrors posting).
-  const [pickerStep, setPickerStep] = useState<"city" | "area">("city");
-  const [pickerTempCity, setPickerTempCity] = useState<string>("");
-  const [pickerSearch, setPickerSearch] = useState("");
   const [fromArea, setFromArea] = useState("");
   const [toArea, setToArea] = useState("");
 
@@ -592,6 +562,7 @@ export default function HomeTab() {
   const [luggage, setLuggage] = useState(0);
 
   const [posts, setPosts] = useState<Trip[]>([]);
+  const [myTrips, setMyTrips] = useState<Trip[]>([]);
   const [postsLoading, setPostsLoading] = useState(true);
   const [postsError, setPostsError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
@@ -599,12 +570,18 @@ export default function HomeTab() {
   const loadPosts = useCallback(async () => {
     setPostsError(null);
     try {
-      const rows = await listTrips();
-      setPosts(rows);
+      // The Voyager view needs their own posts rather than a slice of the
+      // public feed, which now leaves out anything that has already departed.
+      const [feed, mine] = await Promise.all([
+        listTrips(),
+        user ? listMyTrips() : Promise.resolve([] as Trip[]),
+      ]);
+      setPosts(feed);
+      setMyTrips(mine);
     } catch (err) {
       setPostsError(err instanceof Error ? err.message : "Couldn't load posts");
     }
-  }, []);
+  }, [user]);
 
   useFocusEffect(
     useCallback(() => {
@@ -627,43 +604,18 @@ export default function HomeTab() {
 
   function openPicker(target: "from" | "to") {
     setPickerTarget(target);
-    setPickerStep("city");
-    setPickerTempCity("");
-    setPickerSearch("");
     setPickerVisible(true);
   }
 
-  function selectCity(city: CityOption) {
-    if (city.status === "coming-soon") {
-      Alert.alert(
-        `${city.label} — Coming Soon`,
-        "We're starting with the Austin ↔ Houston corridor. We'll let you know when this city goes live.",
-      );
-      return;
-    }
-
+  /** One place decides what a chosen location means for this search. */
+  function selectLocation(city: string, area: string) {
     if (pickerTarget === "from") {
-      setFrom(city.label);
-      setFromArea("");
+      setFrom(city);
+      setFromArea(area);
     } else {
-      setTo(city.label);
-      setToArea("");
+      setTo(city);
+      setToArea(area);
     }
-
-    // Cities with mapped areas get a second step; the rest close immediately.
-    if (getNeighborhoods(city.label).length > 0) {
-      setPickerTempCity(city.label);
-      setPickerSearch("");
-      setPickerStep("area");
-      return;
-    }
-    setPickerVisible(false);
-  }
-
-  function selectArea(area: string) {
-    if (pickerTarget === "from") setFromArea(area);
-    else setToArea(area);
-    setPickerVisible(false);
   }
 
   function swapCities() {
@@ -773,13 +725,11 @@ export default function HomeTab() {
             openPicker={openPicker} swapCities={swapCities} search={search}
             router={router} colors={colors}
             posts={posts} loading={postsLoading} error={postsError}
-            tripUnreads={tripUnreads} markTripRead={markTripRead}
           />
         ) : (
           <VoyagerView
             router={router} colors={colors} user={user}
-            posts={posts} loading={postsLoading} error={postsError}
-            tripUnreads={tripUnreads} markTripRead={markTripRead}
+            myTrips={myTrips} loading={postsLoading} error={postsError}
             onRefresh={loadPosts}
           />
         )}
@@ -861,137 +811,16 @@ export default function HomeTab() {
         </View>
       </Modal>
 
-      {/* City → area picker modal */}
-      <Modal visible={pickerVisible} transparent animationType="slide" onRequestClose={() => setPickerVisible(false)}>
-        <View style={styles.overlay}>
-          <View style={[styles.sheet, { backgroundColor: colors.card }]}>
-            <View style={styles.sheetHandle} />
-            <View style={styles.sheetHeader}>
-              {pickerStep === "area" ? (
-                <TouchableOpacity
-                  onPress={() => {
-                    setPickerStep("city");
-                    setPickerSearch("");
-                  }}
-                  style={styles.sheetBackBtn}
-                  accessibilityRole="button"
-                  accessibilityLabel="Back to cities"
-                >
-                  <Feather name="chevron-left" size={20} color={colors.foreground} />
-                </TouchableOpacity>
-              ) : null}
-              <Text style={[styles.sheetTitle, { color: colors.foreground, flex: 1 }]}>
-                {pickerStep === "city"
-                  ? `Select ${pickerTarget === "from" ? "Origin" : "Destination"}`
-                  : `Area in ${cityShort(pickerTempCity)}`}
-              </Text>
-              <TouchableOpacity onPress={() => setPickerVisible(false)}>
-                <Feather name="x" size={22} color={colors.mutedForeground} />
-              </TouchableOpacity>
-            </View>
-
-            {/* Area lists run long, so they get a search box. */}
-            {pickerStep === "area" ? (
-              <View style={[styles.searchBox, { backgroundColor: colors.muted }]}>
-                <Feather name="search" size={15} color={colors.mutedForeground} />
-                <TextInput
-                  style={[styles.searchInput, { color: colors.foreground }]}
-                  placeholder="Search areas…"
-                  placeholderTextColor={colors.mutedForeground}
-                  value={pickerSearch}
-                  onChangeText={setPickerSearch}
-                  clearButtonMode="while-editing"
-                />
-              </View>
-            ) : null}
-
-            {pickerStep === "area" ? (
-              <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
-                {/* "Any area" keeps the search broad — it is the default. */}
-                <TouchableOpacity
-                  style={[styles.cityOption, { borderBottomColor: colors.border }]}
-                  onPress={() => selectArea("")}
-                  activeOpacity={0.7}
-                >
-                  <View style={[styles.cityIcon, { backgroundColor: colors.secondary }]}>
-                    <Feather name="globe" size={14} color={colors.primary} />
-                  </View>
-                  <Text style={[styles.cityOptionText, { color: colors.foreground }]}>
-                    Any area in {cityShort(pickerTempCity)}
-                  </Text>
-                  <Feather name="chevron-right" size={14} color={colors.mutedForeground} />
-                </TouchableOpacity>
-
-                {(() => {
-                  const areas = filterNeighborhoods(getNeighborhoods(pickerTempCity), pickerSearch);
-                  if (areas.length === 0) {
-                    return (
-                      <View style={styles.pickerEmpty}>
-                        <Text style={[styles.pickerEmptyText, { color: colors.mutedForeground }]}>
-                          No areas match "{pickerSearch}"
-                        </Text>
-                      </View>
-                    );
-                  }
-                  const selected = pickerTarget === "from" ? fromArea : toArea;
-                  return areas.map((area) => (
-                    <TouchableOpacity
-                      key={area}
-                      style={[styles.cityOption, { borderBottomColor: colors.border }]}
-                      onPress={() => selectArea(area)}
-                      activeOpacity={0.7}
-                    >
-                      <View style={[styles.cityIcon, { backgroundColor: colors.secondary }]}>
-                        <Feather name="map-pin" size={14} color={colors.primary} />
-                      </View>
-                      <Text style={[styles.cityOptionText, { color: colors.foreground }]}>{area}</Text>
-                      {selected === area ? (
-                        <Feather name="check" size={16} color={colors.primary} />
-                      ) : (
-                        <Feather name="chevron-right" size={14} color={colors.mutedForeground} />
-                      )}
-                    </TouchableOpacity>
-                  ));
-                })()}
-              </ScrollView>
-            ) : (
-            <ScrollView showsVerticalScrollIndicator={false}>
-              {ALL_CITY_OPTIONS.map((city) => {
-                const comingSoon = city.status === "coming-soon";
-                const areaCount = getNeighborhoods(city.label).length;
-                return (
-                  <TouchableOpacity
-                    key={city.label}
-                    style={[styles.cityOption, { borderBottomColor: colors.border, opacity: comingSoon ? 0.6 : 1 }]}
-                    onPress={() => selectCity(city)}
-                    activeOpacity={0.7}
-                  >
-                    <View style={[styles.cityIcon, { backgroundColor: comingSoon ? colors.muted : colors.secondary }]}>
-                      <Feather name="map-pin" size={14} color={comingSoon ? colors.mutedForeground : colors.primary} />
-                    </View>
-                    <View style={{ flex: 1 }}>
-                      <Text style={[styles.cityOptionText, { color: colors.foreground }]}>{city.label}</Text>
-                      {!comingSoon && areaCount > 0 ? (
-                        <Text style={[styles.cityOptionMeta, { color: colors.mutedForeground }]}>
-                          {areaCount} areas
-                        </Text>
-                      ) : null}
-                    </View>
-                    {comingSoon ? (
-                      <View style={[styles.comingSoonBadge, { backgroundColor: colors.muted }]}>
-                        <Text style={[styles.comingSoonText, { color: colors.mutedForeground }]}>Coming soon</Text>
-                      </View>
-                    ) : (
-                      <Feather name="chevron-right" size={14} color={colors.mutedForeground} />
-                    )}
-                  </TouchableOpacity>
-                );
-              })}
-            </ScrollView>
-            )}
-          </View>
-        </View>
-      </Modal>
+      {/* From / To picker — searches Bovogo's own areas and, with a Mapbox
+          token configured, addresses and places */}
+      <LocationPickerSheet
+        visible={pickerVisible}
+        target={pickerTarget}
+        currentCity={pickerTarget === "from" ? from : to}
+        currentArea={pickerTarget === "from" ? fromArea : toArea}
+        onClose={() => setPickerVisible(false)}
+        onSelect={selectLocation}
+      />
     </View>
   );
 }

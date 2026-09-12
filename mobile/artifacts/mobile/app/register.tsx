@@ -46,7 +46,9 @@ export default function Register() {
     setLoading(true);
     try {
       await register(name, email, phone, password);
-      router.push("/verify");
+      // Straight into profile setup. ID and selfie upload lives in Settings, so
+      // it no longer stands between a new account and the app.
+      router.replace("/onboarding");
     } catch (e: any) {
       const status = e?.status as number | undefined;
       if (status === 409) {

@@ -1,9 +1,8 @@
 import { Feather } from "@expo/vector-icons";
-import { useRouter } from "expo-router";
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import { useFocusEffect, useRouter } from "expo-router";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Keyboard,
-  KeyboardAvoidingView,
   Modal,
   Platform,
   SafeAreaView,
@@ -17,6 +16,7 @@ import {
 
 import { Alert } from "@/lib/alert";
 
+import { KeyboardAwareScrollViewCompat } from "@/components/KeyboardAwareScrollViewCompat";
 import { CARD_SHADOW, GOLD_ON_DARK } from "@/constants/colors";
 import { ALL_CITY_OPTIONS, MVP_CITIES, isMvpCity } from "@/data/cities";
 import { filterNeighborhoods, getNeighborhoods } from "@/data/locations";
@@ -29,6 +29,12 @@ import {
 } from "@/lib/pricing";
 import { showAlert, showSuccess } from "@/lib/alert";
 import { createTrip } from "@/lib/trips";
+import {
+  describeVehicle,
+  isReadyToDrive,
+  listMyVehicles,
+  type Vehicle,
+} from "@/lib/vehicles";
 
 const MAX_MESSAGE = 500;
 /** Route rail geometry — the connector is positioned from these, so they must agree
@@ -323,6 +329,34 @@ export default function PostTrip() {
   const [submitting, setSubmitting] = useState(false);
   const [touched, setTouched] = useState(false);
 
+  // Which car this adventure runs in. Only an approved vehicle can carry
+  // Sailors, and a Voyager may have several.
+  const [vehicles, setVehicles] = useState<Vehicle[] | null>(null);
+  const [vehicleId, setVehicleId] = useState<string | null>(null);
+
+  const loadVehicles = useCallback(async () => {
+    try {
+      const ready = (await listMyVehicles()).filter(isReadyToDrive);
+      setVehicles(ready);
+      // Keep the chosen car while it is still approved; otherwise fall back.
+      setVehicleId((current) =>
+        ready.some((v) => v.id === current) ? current : (ready[0]?.id ?? null),
+      );
+    } catch {
+      // The server refuses the post anyway when no vehicle is ready, so the
+      // picker stays quiet rather than blocking the composer.
+      setVehicles([]);
+    }
+  }, []);
+
+  // On focus, not just on mount: a Voyager sent to My Vehicles to add a car has
+  // to come back to a composer that knows about it, or Post stays disabled.
+  useFocusEffect(
+    useCallback(() => {
+      void loadVehicles();
+    }, [loadVehicles]),
+  );
+
   // The from/to buttons grow when a neighbourhood is chosen; the connector length
   // is derived from these rather than hard-coded so it stays attached to both dots.
   const fromH = fromNeighborhood ? 60 : 50;
@@ -406,7 +440,9 @@ export default function PostTrip() {
     seats >= 1 &&
     seats <= MAX_SEATS &&
     luggage >= 0 &&
-    luggage <= MAX_LUGGAGE;
+    luggage <= MAX_LUGGAGE &&
+    // With no approved vehicle the server refuses the post, so don't offer it.
+    (vehicles === null || vehicles.length > 0);
 
   async function handlePost() {
     Keyboard.dismiss();
@@ -426,10 +462,11 @@ export default function PostTrip() {
         luggageSpace: luggage,
         pricePerSeat,
         note: messageTrimmed,
+        ...(vehicleId ? { vehicleId } : {}),
       });
       await showSuccess(
         "Adventure Posted!",
-        "Your adventure is now live on the feed. Sailors can reply to join.",
+        "Your adventure is now live on the feed. Sailors can book a seat from it.",
         () => router.replace("/(tabs)"),
       );
     } catch (err) {
@@ -502,12 +539,16 @@ export default function PostTrip() {
         <View style={{ width: 40 }} />
       </View>
 
-      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
-        <ScrollView
+      {/* Keyboard-aware rather than KeyboardAvoidingView: under Android's
+          edge-to-edge windows the old behaviour left the keyboard sitting on
+          top of the message box and the Post button. */}
+      <View style={{ flex: 1 }}>
+        <KeyboardAwareScrollViewCompat
           contentContainerStyle={styles.scroll}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
           keyboardDismissMode="on-drag"
+          bottomOffset={24}
         >
           {/* Cost-share notice */}
           <View style={[styles.notice, { backgroundColor: colors.secondary }]}>
@@ -670,6 +711,54 @@ export default function PostTrip() {
               </View>
             </Field>
 
+            {/* Which car. Only an approved vehicle can carry Sailors, so this
+                is the Voyager's approved list — one is chosen for them. */}
+            {vehicles === null ? null : vehicles.length === 0 ? (
+              <TouchableOpacity
+                style={[styles.vehicleRow, { backgroundColor: colors.muted }]}
+                onPress={() => router.push("/vehicles")}
+                activeOpacity={0.85}
+              >
+                <Feather name="truck" size={15} color={colors.primary} />
+                <Text style={[styles.vehicleRowText, { color: colors.foreground }]}>
+                  No approved vehicle yet — add one before posting
+                </Text>
+                <Feather name="chevron-right" size={15} color={colors.mutedForeground} />
+              </TouchableOpacity>
+            ) : vehicles.length === 1 ? (
+              <View style={[styles.vehicleRow, { backgroundColor: colors.muted }]}>
+                <Feather name="truck" size={15} color={colors.primary} />
+                <Text style={[styles.vehicleRowText, { color: colors.foreground }]}>
+                  Driving {describeVehicle(vehicles[0])}
+                </Text>
+              </View>
+            ) : (
+              <Field label="Vehicle">
+                <View style={styles.vehicleChips}>
+                  {vehicles.map((v: Vehicle) => {
+                    const on = v.id === vehicleId;
+                    return (
+                      <TouchableOpacity
+                        key={v.id}
+                        style={[
+                          styles.vehicleChip,
+                          {
+                            backgroundColor: on ? colors.primary : colors.muted,
+                            borderColor: on ? colors.primary : colors.border,
+                          },
+                        ]}
+                        onPress={() => setVehicleId(v.id)}
+                      >
+                        <Text style={[styles.vehicleChipText, { color: on ? "#fff" : colors.foreground }]}>
+                          {describeVehicle(v)}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              </Field>
+            )}
+
             <View style={[styles.stepperRow, { borderTopColor: colors.border }]}>
               <Text style={[styles.stepperLabel, { color: colors.foreground }]}>No of Seats Available</Text>
               <Stepper value={seats} min={1} max={MAX_SEATS} onChange={setSeats} colors={colors} ariaLabel="seats" />
@@ -754,8 +843,8 @@ export default function PostTrip() {
             pricePerSeat={pricePerSeat}
             colors={colors}
           />
-        </ScrollView>
-      </KeyboardAvoidingView>
+        </KeyboardAwareScrollViewCompat>
+      </View>
 
       {/* Time picker modal — premium wheel style */}
       <Modal visible={timePickerOpen} transparent animationType="slide" onRequestClose={() => setTimePickerOpen(false)}>
@@ -1132,6 +1221,12 @@ const styles = StyleSheet.create({
   chipPrice: { fontSize: 11, fontFamily: "Inter_700Bold" },
 
   inputNeighborhood: { fontSize: 11, fontFamily: "Inter_400Regular", marginTop: 1 },
+
+  vehicleRow: { flexDirection: "row", alignItems: "center", gap: 10, borderRadius: 14, paddingHorizontal: 14, height: 50 },
+  vehicleRowText: { flex: 1, fontSize: 14, fontFamily: "Inter_500Medium" },
+  vehicleChips: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
+  vehicleChip: { paddingHorizontal: 14, paddingVertical: 9, borderRadius: 20, borderWidth: 1.5 },
+  vehicleChipText: { fontSize: 13, fontFamily: "Inter_500Medium" },
 
   // Modals
   overlay: { flex: 1, justifyContent: "flex-end", backgroundColor: "rgba(0,0,0,0.45)" },

@@ -6,7 +6,16 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { ConfigService } from '@nestjs/config';
-import { Between, FindOptionsWhere, ILike, In, Repository } from 'typeorm';
+import {
+  And,
+  FindOptionsWhere,
+  ILike,
+  In,
+  LessThan,
+  MoreThan,
+  MoreThanOrEqual,
+  Repository,
+} from 'typeorm';
 import { PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -16,13 +25,11 @@ import {
   MobileTrip,
   MobileTripGroup,
   MobileTripGroupMember,
-  MobileTripReply,
   MobileTripReplyRead,
   MobileUser,
 } from '../entities/mobile.entities';
-import { CreateTripBody, CreateReplyBody } from '../dto/mobile.dto';
-import { driverSummary, replyToDto, tripToDto } from '../mobile.mappers';
-import { findPublicReplyPii } from '../pii-guard';
+import { CreateTripBody } from '../dto/mobile.dto';
+import { driverSummary, tripToDto } from '../mobile.mappers';
 import { MobileEmailNotificationsService } from './mobile-email-notifications.service';
 import { seatPriceForRoute } from '../mobile-pricing';
 import { MobileVehiclesService } from './mobile-vehicles.service';
@@ -71,8 +78,6 @@ export class MobileTripsService {
     private readonly config: ConfigService,
     @InjectRepository(MobileTrip)
     private readonly trips: Repository<MobileTrip>,
-    @InjectRepository(MobileTripReply)
-    private readonly replies: Repository<MobileTripReply>,
     @InjectRepository(MobileTripReplyRead)
     private readonly reads: Repository<MobileTripReplyRead>,
     @InjectRepository(MobileUser)
@@ -97,7 +102,14 @@ export class MobileTripsService {
   }
 
   async list(from?: string, to?: string, date?: string) {
-    const where: FindOptionsWhere<MobileTrip> = { status: 'active' };
+    const now = new Date();
+    // Only adventures that have not left. A post stays `active` past its
+    // departure unless the Voyager starts the ride, so without the time bound
+    // the feed showed last week's posts as live.
+    const where: FindOptionsWhere<MobileTrip> = {
+      status: 'active',
+      departure_at: MoreThan(now),
+    };
     if (from) where.from_city = ILike(from);
     if (to) where.to_city = ILike(to);
 
@@ -107,9 +119,20 @@ export class MobileTripsService {
     if (date) {
       const start = new Date(`${date}T00:00:00`);
       if (!Number.isNaN(start.getTime())) {
-        const end = new Date(start);
-        end.setDate(end.getDate() + 1);
-        where.departure_at = Between(start, end);
+        const nextMidnight = new Date(start);
+        nextMidnight.setDate(nextMidnight.getDate() + 1);
+        // Three separate bounds, because the two lower ones differ in
+        // strictness: a departure at exactly `now` has left, but a departure at
+        // exactly 00:00 on the day being searched is that day's first one and
+        // must show. Collapsing them into one `MoreThan(max(start, now))` hid
+        // every midnight departure on a future day. The upper bound stays
+        // exclusive — 00:00 belongs to the next day, which `Between` would not
+        // respect.
+        where.departure_at = And(
+          MoreThan(now),
+          MoreThanOrEqual(start),
+          LessThan(nextMidnight),
+        );
       }
     }
 
@@ -134,10 +157,6 @@ export class MobileTripsService {
     if (!trip) throw new NotFoundException('Trip not found');
 
     const driver = await this.users.findOne({ where: { id: trip.driver_id } });
-    const replyRows = await this.replies.find({
-      where: { trip_id: id },
-      order: { created_at: 'ASC' },
-    });
 
     const confirmedBookings = await this.bookings.find({
       where: { trip_id: id, status: 'confirmed' },
@@ -145,27 +164,11 @@ export class MobileTripsService {
     const bookedRiderIds = [
       ...new Set(confirmedBookings.map((b) => b.rider_id)),
     ];
-    const bookedRiderSet = new Set(bookedRiderIds);
-
-    const authorIds = [...new Set(replyRows.map((r) => r.user_id))];
-    const authors = authorIds.length
-      ? await this.users.find({ where: { id: In(authorIds) } })
-      : [];
-    const nameById = new Map(authors.map((a) => [a.id, a.name]));
-
-    const replies = replyRows.map((r) =>
-      replyToDto(
-        r,
-        r.user_id === trip.driver_id,
-        nameById.get(r.user_id) ?? 'Unknown',
-        bookedRiderSet.has(r.user_id),
-      ),
-    );
 
     let viewerHasBooked = false;
     let viewerGroupId: string | null = null;
     if (viewerId) {
-      viewerHasBooked = bookedRiderSet.has(viewerId);
+      viewerHasBooked = bookedRiderIds.includes(viewerId);
       const group = await this.groups.findOne({ where: { trip_id: id } });
       if (group) {
         const membership = await this.groupMembers.findOne({
@@ -186,9 +189,11 @@ export class MobileTripsService {
             trips: 0,
           },
         ),
-        replies.length,
+        0,
       ),
-      replies,
+      // Posts take no public replies. Earlier replies stay in the database but
+      // are no longer served; the field remains so the client contract holds.
+      replies: [],
       meta: {
         bookedRiderIds,
         viewerHasBooked,
@@ -198,10 +203,14 @@ export class MobileTripsService {
   }
 
   async create(driverId: string, dto: CreateTripBody) {
-    // A Voyager may only post once their vehicle is fully documented: VIN,
-    // seat/door counts, all five photos, insurance and registration. Enforced
-    // here rather than only in the UI so it cannot be bypassed via the API.
-    const vehicle = await this.vehiclesService.assertReadyToDrive(driverId);
+    // A Voyager may only post with an approved vehicle that is fully
+    // documented: VIN, seat/door counts, all five photos, insurance and
+    // registration. Enforced here rather than only in the UI so it cannot be
+    // bypassed via the API.
+    const vehicle = await this.vehiclesService.assertReadyToDrive(
+      driverId,
+      dto.vehicleId,
+    );
 
     const departure = new Date(dto.departureAt);
     if (Number.isNaN(departure.getTime())) {
@@ -378,53 +387,16 @@ export class MobileTripsService {
     fs.writeFileSync(filePath, buffer);
   }
 
-  async reply(userId: string, tripId: string, dto: CreateReplyBody) {
-    const trip = await this.trips.findOne({ where: { id: tripId } });
-    if (!trip) throw new NotFoundException('Trip not found');
-
-    const text = dto.text.trim();
-    if (!text) {
-      throw new BadRequestException('Reply cannot be empty.');
-    }
-
-    const piiHit = findPublicReplyPii(text);
-    if (piiHit) {
-      throw new BadRequestException(
-        `Public replies cannot include ${piiHit}. Book your seat to chat privately with the Voyager.`,
-      );
-    }
-
-    // Voyagers may post only one public reply per adventure.
-    if (userId === trip.driver_id) {
-      const existingDriverReply = await this.replies.findOne({
-        where: { trip_id: tripId, user_id: userId },
-      });
-      if (existingDriverReply) {
-        throw new BadRequestException(
-          'Voyagers can only post one public reply on their adventure.',
-        );
-      }
-    }
-
-    const inserted = await this.replies.save(
-      this.replies.create({
-        trip_id: tripId,
-        user_id: userId,
-        text,
-      }),
+  /**
+   * Public replies on adventures are switched off: a Sailor talks to a Voyager
+   * only after booking, in the private Adventure group. Refused here as well as
+   * removed from the app, so an older build or a direct API call cannot post
+   * one.
+   */
+  reply(): never {
+    throw new ForbiddenException(
+      'Replies on adventures are turned off. Book a seat to message the Voyager in your Adventure group.',
     );
-    const author = await this.users.findOne({ where: { id: userId } });
-    const hasBookedSeat = !!(await this.bookings.findOne({
-      where: { trip_id: tripId, rider_id: userId, status: 'confirmed' },
-    }));
-    return {
-      reply: replyToDto(
-        inserted,
-        userId === trip.driver_id,
-        author?.name ?? 'Unknown',
-        hasBookedSeat,
-      ),
-    };
   }
 
   async markRead(userId: string, tripId: string) {
@@ -446,39 +418,11 @@ export class MobileTripsService {
     return { ok: true };
   }
 
-  /**
-   * Reply counts, computed in the database. Loading the reply rows themselves
-   * would mean pulling 10,000 records into memory to produce 50 integers on a
-   * busy feed.
-   */
-  private replyCountsFor(
-    tripIds: string[],
-  ): Promise<{ trip_id: string; count: string }[]> {
-    if (tripIds.length === 0) return Promise.resolve([]);
-    return this.replies
-      .createQueryBuilder('r')
-      .select('r.trip_id', 'trip_id')
-      .addSelect('COUNT(*)', 'count')
-      .where('r.trip_id IN (:...tripIds)', { tripIds })
-      .groupBy('r.trip_id')
-      .getRawMany();
-  }
-
   private async decorate(rows: MobileTrip[]) {
     if (rows.length === 0) return [];
     const driverIds = [...new Set(rows.map((r) => r.driver_id))];
-    const tripIds = rows.map((r) => r.id);
-
-    // Independent queries — issue them together rather than back to back, so
-    // the feed costs one round-trip's latency instead of two.
-    const [drivers, countRows] = await Promise.all([
-      this.users.find({ where: { id: In(driverIds) } }),
-      this.replyCountsFor(tripIds),
-    ]);
+    const drivers = await this.users.find({ where: { id: In(driverIds) } });
     const driverById = new Map(drivers.map((d) => [d.id, d]));
-    const counts = new Map<string, number>(
-      countRows.map((r) => [r.trip_id, Number(r.count)]),
-    );
 
     return rows.map((t) => {
       const d = driverById.get(t.driver_id);
@@ -487,7 +431,8 @@ export class MobileTripsService {
         driverSummary(
           d ?? { id: t.driver_id, name: 'Voyager', rating: 5, trips: 0 },
         ),
-        counts.get(t.id) ?? 0,
+        // Posts take no replies, so there is nothing to count.
+        0,
       );
     });
   }

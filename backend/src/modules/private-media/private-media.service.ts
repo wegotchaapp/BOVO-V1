@@ -2,6 +2,7 @@ import {
   BadRequestException,
   Injectable,
   NotFoundException,
+  OnModuleInit,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import {
@@ -31,7 +32,7 @@ function missing(error: unknown): boolean {
 
 /** No public URL is ever generated. The local directory is outside /uploads. */
 @Injectable()
-export class PrivateMediaService {
+export class PrivateMediaService implements OnModuleInit {
   private readonly s3: S3Client | null;
   private readonly bucket: string;
   private readonly root = join(process.cwd(), 'private-media');
@@ -39,15 +40,46 @@ export class PrivateMediaService {
   constructor(config: ConfigService) {
     const accessKeyId = config.get<string>('AWS_ACCESS_KEY_ID');
     const secretAccessKey = config.get<string>('AWS_SECRET_ACCESS_KEY');
+    const production = config.get<string>('NODE_ENV') === 'production';
+    const validKey =
+      !!accessKeyId && /^(AKIA|ASIA)[0-9A-Z]{16}$/.test(accessKeyId);
+    const driver =
+      config.get<string>('PRIVATE_MEDIA_DRIVER') ||
+      (production || (validKey && secretAccessKey) ? 's3' : 'local');
+    if (driver !== 's3' && driver !== 'local') {
+      throw new Error('PRIVATE_MEDIA_DRIVER must be s3 or local');
+    }
+    if (production && driver === 'local') {
+      throw new Error('Production identity media requires S3 storage');
+    }
+    if (
+      driver === 's3' &&
+      (accessKeyId || secretAccessKey) &&
+      (!validKey || !secretAccessKey)
+    ) {
+      throw new Error('Invalid AWS credentials for private media storage');
+    }
+    const sessionToken = config.get<string>('AWS_SESSION_TOKEN');
+    if (driver === 's3' && accessKeyId?.startsWith('ASIA') && !sessionToken) {
+      throw new Error('Temporary AWS credentials require AWS_SESSION_TOKEN');
+    }
     this.s3 =
-      accessKeyId && secretAccessKey && /^AKIA[0-9A-Z]{16}$/.test(accessKeyId)
+      driver === 's3'
         ? new S3Client({
             region: config.get<string>('AWS_REGION') || 'us-east-1',
-            credentials: { accessKeyId, secretAccessKey },
+            ...(accessKeyId && secretAccessKey
+              ? { credentials: { accessKeyId, secretAccessKey, sessionToken } }
+              : {}),
           })
         : null;
     this.bucket =
       config.get<string>('PRIVATE_MEDIA_BUCKET') || 'bovogo-private-media';
+  }
+
+  async onModuleInit(): Promise<void> {
+    // Resolve the SDK credential chain (including instance/IRSA credentials) at
+    // boot. A configured cloud backend must never fall back to ephemeral disk.
+    if (this.s3) await this.s3.config.credentials();
   }
 
   private validateKey(key: string): void {

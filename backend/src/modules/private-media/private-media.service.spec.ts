@@ -76,6 +76,64 @@ describe('PrivateMediaService', () => {
     ).rejects.toBeInstanceOf(BadRequestException);
   });
 
+  it('refuses production local storage and invalid driver settings', () => {
+    expect(
+      () =>
+        new PrivateMediaService(
+          new ConfigService({
+            NODE_ENV: 'production',
+            PRIVATE_MEDIA_DRIVER: 'local',
+          }),
+        ),
+    ).toThrow('requires S3');
+    expect(
+      () =>
+        new PrivateMediaService(
+          new ConfigService({
+            PRIVATE_MEDIA_DRIVER: 'typo',
+          }),
+        ),
+    ).toThrow('must be s3 or local');
+    expect(
+      () =>
+        new PrivateMediaService(
+          new ConfigService({
+            NODE_ENV: 'production',
+            AWS_ACCESS_KEY_ID: 'placeholder',
+          }),
+        ),
+    ).toThrow('Invalid AWS credentials');
+  });
+
+  it('uses S3 by default in production without static credentials', async () => {
+    const send = jest
+      .spyOn(S3Client.prototype, 'send')
+      .mockResolvedValue({} as never);
+    const cloud = new PrivateMediaService(
+      new ConfigService({ NODE_ENV: 'production' }),
+    );
+    await cloud.put('identity/front', Buffer.from('test'), 'image/png');
+    expect(send).toHaveBeenCalledWith(expect.any(PutObjectCommand));
+    await expect(stat(join(dir, 'private-media'))).rejects.toMatchObject({
+      code: 'ENOENT',
+    });
+  });
+
+  it('accepts temporary credentials only with their session token', async () => {
+    const config = {
+      PRIVATE_MEDIA_DRIVER: 's3',
+      AWS_ACCESS_KEY_ID: 'ASIAABCDEFGHIJKLMNOP',
+      AWS_SECRET_ACCESS_KEY: 'test-secret',
+    };
+    expect(() => new PrivateMediaService(new ConfigService(config))).toThrow(
+      'AWS_SESSION_TOKEN',
+    );
+    const cloud = new PrivateMediaService(
+      new ConfigService({ ...config, AWS_SESSION_TOKEN: 'test-session' }),
+    );
+    await expect(cloud.onModuleInit()).resolves.toBeUndefined();
+  });
+
   it('uses encrypted S3 without a public ACL and never falls back after an S3 failure', async () => {
     const send = jest
       .spyOn(S3Client.prototype, 'send')

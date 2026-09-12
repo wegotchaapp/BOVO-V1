@@ -32,7 +32,7 @@ export class PrivateQueryLogger extends SimpleConsoleLogger {
       );
     else
       super.logQueryError(
-        error instanceof Error ? error.message : error,
+        error instanceof Error ? error.stack || error.message : error,
         query,
         parameters,
         runner,

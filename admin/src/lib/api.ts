@@ -77,3 +77,25 @@ export async function createSupportAgent(dto: RequestPayload) { const r = await 
 export async function toggleSupportAgent(id: string, active: boolean) { const r = await api.patch(`/admin/support-agents/${id}/toggle`, { active }); return r.data; }
 
 export default api;
+
+export type IdentityStatus = 'pending_review' | 'approved' | 'rejected';
+export type IdentitySlot = 'id_front' | 'id_back' | 'selfie';
+export interface IdentityVerification {
+  id: string; userId: string; ownerName: string | null; ownerEmail: string | null;
+  documentType: 'drivers_license' | 'state_id' | 'passport'; status: IdentityStatus;
+  submittedAt: string; reviewedAt: string | null; reviewNote?: string | null;
+  reviewedBy?: string | null; files?: Record<IdentitySlot, boolean>;
+}
+export interface IdentityQueue { verifications: IdentityVerification[]; total: number; page: number; pageSize: number }
+export async function getIdentityQueue(status: IdentityStatus, page: number, signal?: AbortSignal) {
+  const r = await api.get<IdentityQueue>('/admin/identity-verifications', { params: { status, page }, signal }); return r.data;
+}
+export async function getIdentityDetail(id: string, signal?: AbortSignal) {
+  const r = await api.get<{ verification: IdentityVerification }>(`/admin/identity-verifications/${id}`, { signal }); return r.data.verification;
+}
+export async function getIdentityImage(id: string, slot: IdentitySlot, signal?: AbortSignal) {
+  const r = await api.get<Blob>(`/admin/identity-verifications/${id}/files/${slot}`, { responseType: 'blob', signal }); return r.data;
+}
+export async function decideIdentity(id: string, approved: boolean, note?: string) {
+  await api.post(`/admin/identity-verifications/${id}/${approved ? 'approve' : 'reject'}`, approved ? {} : { note });
+}

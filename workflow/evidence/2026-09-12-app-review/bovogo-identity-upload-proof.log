@@ -1,0 +1,5 @@
+PASS concurrent submissions: one pending row, one 409, no keys returned
+[Nest] 5750  - 09/12/2026, 7:26:44 PM   ERROR [MobileIdentityService] Account purge aborted for user 339bffb9-e6c2-47f7-869d-9e9c3f30db1f: 2 of 2 identity images could not be erased.
+PASS storage outage preserves purge records; retry removes rows and private bytes
+PASS deletion/upload race leaves no identity row or private bytes
+PASS ambiguous write failure compensates possibly-stored bytes

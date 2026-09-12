@@ -1,0 +1,1252 @@
+
+> wegotcha-backend@0.0.1 lint
+> eslint "{src,apps,libs,test}/**/*.ts"
+
+
+/Users/Sush/Desktop/bovogo-codex/backend/src/common/gateways/realtime.gateway.ts
+  28:3   error    Async method 'handleConnection' has no 'await' expression                                                                                                           @typescript-eslint/require-await
+  30:13  error    Unsafe assignment of an `any` value                                                                                                                                 @typescript-eslint/no-unsafe-assignment
+  36:13  error    Unsafe assignment of an `any` value                                                                                                                                 @typescript-eslint/no-unsafe-assignment
+  36:46  warning  Unsafe argument of type `any` assigned to a parameter of type `string`                                                                                              @typescript-eslint/no-unsafe-argument
+  37:7   error    Unsafe assignment of an `any` value                                                                                                                                 @typescript-eslint/no-unsafe-assignment
+  37:19  error    Unsafe member access .userId on an `any` value                                                                                                                      @typescript-eslint/no-unsafe-member-access
+  37:36  error    Unsafe member access .sub on an `any` value                                                                                                                         @typescript-eslint/no-unsafe-member-access
+  38:7   error    Unsafe assignment of an `any` value                                                                                                                                 @typescript-eslint/no-unsafe-assignment
+  38:19  error    Unsafe member access .userRole on an `any` value                                                                                                                    @typescript-eslint/no-unsafe-member-access
+  38:38  error    Unsafe member access .role on an `any` value                                                                                                                        @typescript-eslint/no-unsafe-member-access
+  40:7   warning  Promises must be awaited, end with a call to .catch, end with a call to .then with a rejection handler or be explicitly marked as ignored with the `void` operator  @typescript-eslint/no-floating-promises
+  40:35  error    Unsafe member access .sub on an `any` value                                                                                                                         @typescript-eslint/no-unsafe-member-access
+  46:20  error    'client' is defined but never used                                                                                                                                  @typescript-eslint/no-unused-vars
+  55:5   warning  Promises must be awaited, end with a call to .catch, end with a call to .then with a rejection handler or be explicitly marked as ignored with the `void` operator  @typescript-eslint/no-floating-promises
+  63:5   warning  Promises must be awaited, end with a call to .catch, end with a call to .then with a rejection handler or be explicitly marked as ignored with the `void` operator  @typescript-eslint/no-floating-promises
+  71:5   warning  Promises must be awaited, end with a call to .catch, end with a call to .then with a rejection handler or be explicitly marked as ignored with the `void` operator  @typescript-eslint/no-floating-promises
+  79:5   warning  Promises must be awaited, end with a call to .catch, end with a call to .then with a rejection handler or be explicitly marked as ignored with the `void` operator  @typescript-eslint/no-floating-promises
+
+/Users/Sush/Desktop/bovogo-codex/backend/src/jobs/adverse-action.scheduler.ts
+  57:77  error  Invalid type "unknown" of template literal expression  @typescript-eslint/restrict-template-expressions
+
+/Users/Sush/Desktop/bovogo-codex/backend/src/jobs/recheck.processor.ts
+  66:63  error  Invalid type "unknown" of template literal expression  @typescript-eslint/restrict-template-expressions
+  88:13  error  Unsafe assignment of an `any` value                    @typescript-eslint/no-unsafe-assignment
+  90:36  error  Unsafe member access .error on an `any` value          @typescript-eslint/no-unsafe-member-access
+  94:5   error  Unsafe return of a value of type `Promise<any>`        @typescript-eslint/no-unsafe-return
+
+/Users/Sush/Desktop/bovogo-codex/backend/src/jobs/recheck.scheduler.ts
+  52:66  error  Invalid type "unknown" of template literal expression  @typescript-eslint/restrict-template-expressions
+
+/Users/Sush/Desktop/bovogo-codex/backend/src/modules/admin/admin.controller.ts
+   31:33  warning  Unsafe argument of type `any` assigned to a parameter of type `PageParams`                                                                           @typescript-eslint/no-unsafe-argument
+   57:33  warning  Unsafe argument of type `any` assigned to a parameter of type `PageParams`                                                                           @typescript-eslint/no-unsafe-argument
+   68:36  warning  Unsafe argument of type `any` assigned to a parameter of type `PageParams`                                                                           @typescript-eslint/no-unsafe-argument
+   73:36  warning  Unsafe argument of type `any` assigned to a parameter of type `PageParams`                                                                           @typescript-eslint/no-unsafe-argument
+   84:37  warning  Unsafe argument of type `any` assigned to a parameter of type `PageParams`                                                                           @typescript-eslint/no-unsafe-argument
+  101:41  warning  Unsafe argument of type `any` assigned to a parameter of type `PageParams`                                                                           @typescript-eslint/no-unsafe-argument
+  148:33  warning  Unsafe argument of type `any` assigned to a parameter of type `PageParams`                                                                           @typescript-eslint/no-unsafe-argument
+  169:35  warning  Unsafe argument of type `any` assigned to a parameter of type `PageParams`                                                                           @typescript-eslint/no-unsafe-argument
+  189:44  warning  Unsafe argument of type `any` assigned to a parameter of type `{ body: string; author_name?: string | undefined; internal?: boolean | undefined; }`  @typescript-eslint/no-unsafe-argument
+  200:35  warning  Unsafe argument of type `any` assigned to a parameter of type `{ name: string; email: string; password: string; role?: string | undefined; }`        @typescript-eslint/no-unsafe-argument
+
+/Users/Sush/Desktop/bovogo-codex/backend/src/modules/admin/admin.guard.ts
+  16:11  error  Unsafe assignment of an `any` value           @typescript-eslint/no-unsafe-assignment
+  17:14  error  Unsafe member access .user on an `any` value  @typescript-eslint/no-unsafe-member-access
+  17:26  error  Unsafe member access .user on an `any` value  @typescript-eslint/no-unsafe-member-access
+
+/Users/Sush/Desktop/bovogo-codex/backend/src/modules/admin/admin.service.ts
+  268:13  error  Unsafe assignment of an `any` value                 @typescript-eslint/no-unsafe-assignment
+  315:15  error  Unsafe assignment of an `any` value                 @typescript-eslint/no-unsafe-assignment
+  615:26  error  'password_hash' is defined but never used           @typescript-eslint/no-unused-vars
+  633:13  error  'password_hash' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+/Users/Sush/Desktop/bovogo-codex/backend/src/modules/audit/audit.controller.ts
+  7:3  error  'ForbiddenException' is defined but never used  @typescript-eslint/no-unused-vars
+
+/Users/Sush/Desktop/bovogo-codex/backend/src/modules/audit/audit.service.ts
+  90:3   error  Async method 'deleteEvent' has no 'await' expression  @typescript-eslint/require-await
+  90:21  error  '_id' is defined but never used                       @typescript-eslint/no-unused-vars
+  96:3   error  Async method 'updateEvent' has no 'await' expression  @typescript-eslint/require-await
+  96:21  error  '_id' is defined but never used                       @typescript-eslint/no-unused-vars
+  96:34  error  '_data' is defined but never used                     @typescript-eslint/no-unused-vars
+
+/Users/Sush/Desktop/bovogo-codex/backend/src/modules/auth/auth.controller.ts
+   17:3   error    'ApiBody' is defined but never used                                                 @typescript-eslint/no-unused-vars
+   35:10  error    'Roles' is defined but never used                                                   @typescript-eslint/no-unused-vars
+   36:10  error    'UserRole' is defined but never used                                                @typescript-eslint/no-unused-vars
+   89:50  error    'req' is defined but never used                                                     @typescript-eslint/no-unused-vars
+   99:49  error    'req' is defined but never used                                                     @typescript-eslint/no-unused-vars
+  149:7   warning  Unsafe argument of type `any` assigned to a parameter of type `string | undefined`  @typescript-eslint/no-unsafe-argument
+  149:11  error    Unsafe member access .headers on an `any` value                                     @typescript-eslint/no-unsafe-member-access
+  169:38  warning  Unsafe argument of type `any` assigned to a parameter of type `string`              @typescript-eslint/no-unsafe-argument
+  169:42  error    Unsafe member access .user on an `any` value                                        @typescript-eslint/no-unsafe-member-access
+  180:47  warning  Unsafe argument of type `any` assigned to a parameter of type `string | undefined`  @typescript-eslint/no-unsafe-argument
+  180:51  error    Unsafe member access .headers on an `any` value                                     @typescript-eslint/no-unsafe-member-access
+  188:45  warning  Unsafe argument of type `any` assigned to a parameter of type `string | undefined`  @typescript-eslint/no-unsafe-argument
+  188:49  error    Unsafe member access .headers on an `any` value                                     @typescript-eslint/no-unsafe-member-access
+  221:40  warning  Unsafe argument of type `any` assigned to a parameter of type `string`              @typescript-eslint/no-unsafe-argument
+  221:44  error    Unsafe member access .user on an `any` value                                        @typescript-eslint/no-unsafe-member-access
+  232:43  warning  Unsafe argument of type `any` assigned to a parameter of type `string`              @typescript-eslint/no-unsafe-argument
+  232:47  error    Unsafe member access .user on an `any` value                                        @typescript-eslint/no-unsafe-member-access
+  243:52  warning  Unsafe argument of type `any` assigned to a parameter of type `string`              @typescript-eslint/no-unsafe-argument
+  243:56  error    Unsafe member access .user on an `any` value                                        @typescript-eslint/no-unsafe-member-access
+  254:40  warning  Unsafe argument of type `any` assigned to a parameter of type `string`              @typescript-eslint/no-unsafe-argument
+  254:44  error    Unsafe member access .user on an `any` value                                        @typescript-eslint/no-unsafe-member-access
+
+/Users/Sush/Desktop/bovogo-codex/backend/src/modules/auth/auth.module.ts
+  5:10  error  'ConfigModule' is defined but never used  @typescript-eslint/no-unused-vars
+
+/Users/Sush/Desktop/bovogo-codex/backend/src/modules/auth/auth.service.ts
+   26:10  error  'UserRole' is defined but never used                    @typescript-eslint/no-unused-vars
+  373:13  error  Unsafe assignment of an `any` value                     @typescript-eslint/no-unsafe-assignment
+  381:9   error  Unsafe assignment of an `any` value                     @typescript-eslint/no-unsafe-assignment
+  433:9   error  'name' is assigned a value but never used               @typescript-eslint/no-unused-vars
+  434:9   error  'socialId' is assigned a value but never used           @typescript-eslint/no-unused-vars
+  692:13  error  'encodedServiceSid' is assigned a value but never used  @typescript-eslint/no-unused-vars
+  751:13  error  Unsafe assignment of an `any` value                     @typescript-eslint/no-unsafe-assignment
+  752:19  error  Unsafe member access .status on an `any` value          @typescript-eslint/no-unsafe-member-access
+  810:13  error  Unsafe assignment of an `any` value                     @typescript-eslint/no-unsafe-assignment
+  816:9   error  Unsafe assignment of an `any` value                     @typescript-eslint/no-unsafe-assignment
+  816:24  error  Unsafe member access .email on an `any` value           @typescript-eslint/no-unsafe-member-access
+  817:9   error  Unsafe assignment of an `any` value                     @typescript-eslint/no-unsafe-assignment
+  817:23  error  Unsafe member access .name on an `any` value            @typescript-eslint/no-unsafe-member-access
+  818:9   error  Unsafe assignment of an `any` value                     @typescript-eslint/no-unsafe-assignment
+  818:22  error  Unsafe member access .sub on an `any` value             @typescript-eslint/no-unsafe-member-access
+  832:13  error  Unsafe assignment of an `any` value                     @typescript-eslint/no-unsafe-assignment
+  834:16  error  Unsafe member access .error on an `any` value           @typescript-eslint/no-unsafe-member-access
+  834:31  error  Unsafe member access .email on an `any` value           @typescript-eslint/no-unsafe-member-access
+  839:9   error  Unsafe assignment of an `any` value                     @typescript-eslint/no-unsafe-assignment
+  839:21  error  Unsafe member access .email on an `any` value           @typescript-eslint/no-unsafe-member-access
+  840:9   error  Unsafe assignment of an `any` value                     @typescript-eslint/no-unsafe-assignment
+  840:20  error  Unsafe member access .name on an `any` value            @typescript-eslint/no-unsafe-member-access
+  841:9   error  Unsafe assignment of an `any` value                     @typescript-eslint/no-unsafe-assignment
+  841:19  error  Unsafe member access .sub on an `any` value             @typescript-eslint/no-unsafe-member-access
+  853:13  error  'password_hash' is assigned a value but never used      @typescript-eslint/no-unused-vars
+  853:28  error  'deleted_at' is assigned a value but never used         @typescript-eslint/no-unused-vars
+
+/Users/Sush/Desktop/bovogo-codex/backend/src/modules/auth/emergency-contacts.service.ts
+  103:30  error  'this.getUserName(contact.user_id)' will use Object's default stringification format ('[object Object]') when stringified  @typescript-eslint/no-base-to-string
+  103:30  error  Invalid type "Promise<string>" of template literal expression                                                              @typescript-eslint/restrict-template-expressions
+
+/Users/Sush/Desktop/bovogo-codex/backend/src/modules/bookings/bookings.controller.ts
+    9:3   error    'HttpCode' is defined but never used                                    @typescript-eslint/no-unused-vars
+   10:3   error    'HttpStatus' is defined but never used                                  @typescript-eslint/no-unused-vars
+   27:47  warning  Unsafe argument of type `any` assigned to a parameter of type `string`  @typescript-eslint/no-unsafe-argument
+   27:51  error    Unsafe member access .user on an `any` value                            @typescript-eslint/no-unsafe-member-access
+   41:50  warning  Unsafe argument of type `any` assigned to a parameter of type `string`  @typescript-eslint/no-unsafe-argument
+   41:54  error    Unsafe member access .user on an `any` value                            @typescript-eslint/no-unsafe-member-access
+   48:51  warning  Unsafe argument of type `any` assigned to a parameter of type `string`  @typescript-eslint/no-unsafe-argument
+   48:55  error    Unsafe member access .user on an `any` value                            @typescript-eslint/no-unsafe-member-access
+   55:52  warning  Unsafe argument of type `any` assigned to a parameter of type `string`  @typescript-eslint/no-unsafe-argument
+   55:56  error    Unsafe member access .user on an `any` value                            @typescript-eslint/no-unsafe-member-access
+   66:47  warning  Unsafe argument of type `any` assigned to a parameter of type `string`  @typescript-eslint/no-unsafe-argument
+   66:51  error    Unsafe member access .user on an `any` value                            @typescript-eslint/no-unsafe-member-access
+   73:53  warning  Unsafe argument of type `any` assigned to a parameter of type `string`  @typescript-eslint/no-unsafe-argument
+   73:57  error    Unsafe member access .user on an `any` value                            @typescript-eslint/no-unsafe-member-access
+   80:47  warning  Unsafe argument of type `any` assigned to a parameter of type `string`  @typescript-eslint/no-unsafe-argument
+   80:51  error    Unsafe member access .user on an `any` value                            @typescript-eslint/no-unsafe-member-access
+   87:51  warning  Unsafe argument of type `any` assigned to a parameter of type `string`  @typescript-eslint/no-unsafe-argument
+   87:55  error    Unsafe member access .user on an `any` value                            @typescript-eslint/no-unsafe-member-access
+   96:59  warning  Unsafe argument of type `any` assigned to a parameter of type `string`  @typescript-eslint/no-unsafe-argument
+   96:63  error    Unsafe member access .user on an `any` value                            @typescript-eslint/no-unsafe-member-access
+  111:7   warning  Unsafe argument of type `any` assigned to a parameter of type `string`  @typescript-eslint/no-unsafe-argument
+  111:11  error    Unsafe member access .user on an `any` value                            @typescript-eslint/no-unsafe-member-access
+
+/Users/Sush/Desktop/bovogo-codex/backend/src/modules/bookings/bookings.service.ts
+  578:5   error    'mimeType' is defined but never used                                       @typescript-eslint/no-unused-vars
+  663:11  error    Unsafe assignment of an `any` value                                        @typescript-eslint/no-unsafe-assignment
+  670:20  error    Unsafe member access .count on an `any` value                              @typescript-eslint/no-unsafe-member-access
+  670:37  warning  Unsafe argument of type `any` assigned to a parameter of type `string`     @typescript-eslint/no-unsafe-argument
+  670:44  error    Unsafe member access .count on an `any` value                              @typescript-eslint/no-unsafe-member-access
+  673:3   error    Async method 'incrementDriverCancellationCount' has no 'await' expression  @typescript-eslint/require-await
+
+/Users/Sush/Desktop/bovogo-codex/backend/src/modules/chat/call.controller.ts
+   1:28  error    'Get' is defined but never used                                         @typescript-eslint/no-unused-vars
+  17:48  warning  Unsafe argument of type `any` assigned to a parameter of type `string`  @typescript-eslint/no-unsafe-argument
+  17:52  error    Unsafe member access .user on an `any` value                            @typescript-eslint/no-unsafe-member-access
+
+/Users/Sush/Desktop/bovogo-codex/backend/src/modules/chat/call.service.ts
+   74:9   error    Unsafe assignment of an `any` value                                     @typescript-eslint/no-unsafe-assignment
+   96:33  warning  Unsafe argument of type `any` assigned to a parameter of type `string`  @typescript-eslint/no-unsafe-argument
+   98:9   error    Unsafe assignment of an `any` value                                     @typescript-eslint/no-unsafe-assignment
+  117:9   error    Unsafe assignment of an `any` value                                     @typescript-eslint/no-unsafe-assignment
+  130:11  error    Unsafe assignment of an `any` value                                     @typescript-eslint/no-unsafe-assignment
+  133:16  error    Unsafe assignment of an `any` value                                     @typescript-eslint/no-unsafe-assignment
+  139:38  warning  Unsafe argument of type `any` assigned to a parameter of type `string`  @typescript-eslint/no-unsafe-argument
+  146:11  error    Unsafe assignment of an `any` value                                     @typescript-eslint/no-unsafe-assignment
+  147:11  error    Unsafe assignment of an `any` value                                     @typescript-eslint/no-unsafe-assignment
+  148:11  error    Unsafe assignment of an `any` value                                     @typescript-eslint/no-unsafe-assignment
+
+/Users/Sush/Desktop/bovogo-codex/backend/src/modules/chat/chat.controller.ts
+   10:3   error    'UseGuards' is defined but never used                                   @typescript-eslint/no-unused-vars
+   12:3   error    'Ip' is defined but never used                                          @typescript-eslint/no-unused-vars
+   28:46  warning  Unsafe argument of type `any` assigned to a parameter of type `string`  @typescript-eslint/no-unsafe-argument
+   28:50  error    Unsafe member access .user on an `any` value                            @typescript-eslint/no-unsafe-member-access
+   41:7   warning  Unsafe argument of type `any` assigned to a parameter of type `string`  @typescript-eslint/no-unsafe-argument
+   41:11  error    Unsafe member access .user on an `any` value                            @typescript-eslint/no-unsafe-member-access
+   56:41  warning  Unsafe argument of type `any` assigned to a parameter of type `string`  @typescript-eslint/no-unsafe-argument
+   56:45  error    Unsafe member access .user on an `any` value                            @typescript-eslint/no-unsafe-member-access
+   65:47  warning  Unsafe argument of type `any` assigned to a parameter of type `string`  @typescript-eslint/no-unsafe-argument
+   65:51  error    Unsafe member access .user on an `any` value                            @typescript-eslint/no-unsafe-member-access
+   73:49  warning  Unsafe argument of type `any` assigned to a parameter of type `string`  @typescript-eslint/no-unsafe-argument
+   73:53  error    Unsafe member access .user on an `any` value                            @typescript-eslint/no-unsafe-member-access
+   81:36  warning  Unsafe argument of type `any` assigned to a parameter of type `string`  @typescript-eslint/no-unsafe-argument
+   81:40  error    Unsafe member access .user on an `any` value                            @typescript-eslint/no-unsafe-member-access
+   88:5   error    Unsafe return of a value of type `Promise<any>`                         @typescript-eslint/no-unsafe-return
+   88:45  warning  Unsafe argument of type `any` assigned to a parameter of type `string`  @typescript-eslint/no-unsafe-argument
+   88:49  error    Unsafe member access .user on an `any` value                            @typescript-eslint/no-unsafe-member-access
+  101:7   warning  Unsafe argument of type `any` assigned to a parameter of type `string`  @typescript-eslint/no-unsafe-argument
+  101:11  error    Unsafe member access .user on an `any` value                            @typescript-eslint/no-unsafe-member-access
+  116:43  warning  Unsafe argument of type `any` assigned to a parameter of type `string`  @typescript-eslint/no-unsafe-argument
+  116:47  error    Unsafe member access .user on an `any` value                            @typescript-eslint/no-unsafe-member-access
+  125:64  warning  Unsafe argument of type `any` assigned to a parameter of type `string`  @typescript-eslint/no-unsafe-argument
+  125:68  error    Unsafe member access .user on an `any` value                            @typescript-eslint/no-unsafe-member-access
+  138:64  warning  Unsafe argument of type `any` assigned to a parameter of type `string`  @typescript-eslint/no-unsafe-argument
+  138:68  error    Unsafe member access .user on an `any` value                            @typescript-eslint/no-unsafe-member-access
+  142:7   warning  Unsafe argument of type `any` assigned to a parameter of type `string`  @typescript-eslint/no-unsafe-argument
+  142:11  error    Unsafe member access .user on an `any` value                            @typescript-eslint/no-unsafe-member-access
+  157:64  warning  Unsafe argument of type `any` assigned to a parameter of type `string`  @typescript-eslint/no-unsafe-argument
+  157:68  error    Unsafe member access .user on an `any` value                            @typescript-eslint/no-unsafe-member-access
+  160:41  warning  Unsafe argument of type `any` assigned to a parameter of type `string`  @typescript-eslint/no-unsafe-argument
+  160:45  error    Unsafe member access .user on an `any` value                            @typescript-eslint/no-unsafe-member-access
+  170:64  warning  Unsafe argument of type `any` assigned to a parameter of type `string`  @typescript-eslint/no-unsafe-argument
+  170:68  error    Unsafe member access .user on an `any` value                            @typescript-eslint/no-unsafe-member-access
+  173:40  warning  Unsafe argument of type `any` assigned to a parameter of type `string`  @typescript-eslint/no-unsafe-argument
+  173:44  error    Unsafe member access .user on an `any` value                            @typescript-eslint/no-unsafe-member-access
+  186:7   warning  Unsafe argument of type `any` assigned to a parameter of type `string`  @typescript-eslint/no-unsafe-argument
+  186:11  error    Unsafe member access .user on an `any` value                            @typescript-eslint/no-unsafe-member-access
+  200:48  warning  Unsafe argument of type `any` assigned to a parameter of type `string`  @typescript-eslint/no-unsafe-argument
+  200:52  error    Unsafe member access .user on an `any` value                            @typescript-eslint/no-unsafe-member-access
+  215:3   error    Async method 'getTwiml' has no 'await' expression                       @typescript-eslint/require-await
+  215:38  error    '_bookingId' is defined but never used                                  @typescript-eslint/no-unused-vars
+
+/Users/Sush/Desktop/bovogo-codex/backend/src/modules/chat/chat.dto.ts
+  4:3  error  'IsOptional' is defined but never used  @typescript-eslint/no-unused-vars
+  5:3  error  'IsEnum' is defined but never used      @typescript-eslint/no-unused-vars
+  6:3  error  'IsUrl' is defined but never used       @typescript-eslint/no-unused-vars
+
+/Users/Sush/Desktop/bovogo-codex/backend/src/modules/chat/chat.module.ts
+  1:18  error  'forwardRef' is defined but never used  @typescript-eslint/no-unused-vars
+
+/Users/Sush/Desktop/bovogo-codex/backend/src/modules/chat/chat.service.ts
+    8:32  error    'MoreThan' is defined but never used                                                                 @typescript-eslint/no-unused-vars
+  325:15  error    Unsafe member access .created_at on an `any` value                                                   @typescript-eslint/no-unsafe-member-access
+  330:7   error    Unsafe assignment of an `any` value                                                                  @typescript-eslint/no-unsafe-assignment
+  609:11  error    Unsafe assignment of an `any` value                                                                  @typescript-eslint/no-unsafe-assignment
+  622:9   error    Unsafe assignment of an `any` value                                                                  @typescript-eslint/no-unsafe-assignment
+  654:9   error    Unsafe assignment of an `any` value                                                                  @typescript-eslint/no-unsafe-assignment
+  667:11  error    Unsafe assignment of an `any` value                                                                  @typescript-eslint/no-unsafe-assignment
+  670:16  error    Unsafe assignment of an `any` value                                                                  @typescript-eslint/no-unsafe-assignment
+  674:30  error    Unsafe assignment of an `any` value                                                                  @typescript-eslint/no-unsafe-assignment
+  676:17  error    Unsafe member access .duration_seconds on an `any` value                                             @typescript-eslint/no-unsafe-member-access
+  676:45  warning  Unsafe argument of type `any` assigned to a parameter of type `string`                               @typescript-eslint/no-unsafe-argument
+  679:55  warning  Unsafe argument of type `any` assigned to a parameter of type `_QueryDeepPartialEntity<CallRecord>`  @typescript-eslint/no-unsafe-argument
+  721:15  error    Unsafe member access .created_at on an `any` value                                                   @typescript-eslint/no-unsafe-member-access
+  726:7   error    Unsafe assignment of an `any` value                                                                  @typescript-eslint/no-unsafe-assignment
+  885:15  error    Unsafe member access .created_at on an `any` value                                                   @typescript-eslint/no-unsafe-member-access
+  890:7   error    Unsafe assignment of an `any` value                                                                  @typescript-eslint/no-unsafe-assignment
+
+/Users/Sush/Desktop/bovogo-codex/backend/src/modules/compliance/compliance.controller.ts
+   6:3   error    'Param' is defined but never used                                       @typescript-eslint/no-unused-vars
+  26:7   warning  Unsafe argument of type `any` assigned to a parameter of type `string`  @typescript-eslint/no-unsafe-argument
+  26:11  error    Unsafe member access .user on an `any` value                            @typescript-eslint/no-unsafe-member-access
+  41:39  warning  Unsafe argument of type `any` assigned to a parameter of type `string`  @typescript-eslint/no-unsafe-argument
+  41:43  error    Unsafe member access .user on an `any` value                            @typescript-eslint/no-unsafe-member-access
+
+/Users/Sush/Desktop/bovogo-codex/backend/src/modules/driver-trips/driver-trips.controller.ts
+   4:3   error    'Post' is defined but never used                                        @typescript-eslint/no-unused-vars
+   5:3   error    'Param' is defined but never used                                       @typescript-eslint/no-unused-vars
+  36:7   warning  Unsafe argument of type `any` assigned to a parameter of type `string`  @typescript-eslint/no-unsafe-argument
+  36:11  error    Unsafe member access .user on an `any` value                            @typescript-eslint/no-unsafe-member-access
+  45:54  warning  Unsafe argument of type `any` assigned to a parameter of type `string`  @typescript-eslint/no-unsafe-argument
+  45:58  error    Unsafe member access .user on an `any` value                            @typescript-eslint/no-unsafe-member-access
+  58:7   warning  Unsafe argument of type `any` assigned to a parameter of type `string`  @typescript-eslint/no-unsafe-argument
+  58:11  error    Unsafe member access .user on an `any` value                            @typescript-eslint/no-unsafe-member-access
+
+/Users/Sush/Desktop/bovogo-codex/backend/src/modules/driver-trips/driver-trips.service.ts
+   90:11  error    Unsafe assignment of an `any` value                                     @typescript-eslint/no-unsafe-assignment
+   99:25  warning  Unsafe argument of type `any` assigned to a parameter of type `string`  @typescript-eslint/no-unsafe-argument
+   99:32  error    Unsafe member access .gross on an `any` value                           @typescript-eslint/no-unsafe-member-access
+  100:24  warning  Unsafe argument of type `any` assigned to a parameter of type `string`  @typescript-eslint/no-unsafe-argument
+  100:31  error    Unsafe member access .fees on an `any` value                            @typescript-eslint/no-unsafe-member-access
+  101:23  warning  Unsafe argument of type `any` assigned to a parameter of type `string`  @typescript-eslint/no-unsafe-argument
+  101:30  error    Unsafe member access .net on an `any` value                             @typescript-eslint/no-unsafe-member-access
+
+/Users/Sush/Desktop/bovogo-codex/backend/src/modules/emergency-contacts/dto/emergency-contact.dto.ts
+  1:32  error  'IsEmail' is defined but never used        @typescript-eslint/no-unused-vars
+  1:41  error  'IsPhoneNumber' is defined but never used  @typescript-eslint/no-unused-vars
+
+/Users/Sush/Desktop/bovogo-codex/backend/src/modules/emergency-contacts/emergency-contacts.controller.ts
+  26:36  warning  Unsafe argument of type `any` assigned to a parameter of type `string`  @typescript-eslint/no-unsafe-argument
+  26:40  error    Unsafe member access .user on an `any` value                            @typescript-eslint/no-unsafe-member-access
+  34:37  warning  Unsafe argument of type `any` assigned to a parameter of type `string`  @typescript-eslint/no-unsafe-argument
+  34:41  error    Unsafe member access .user on an `any` value                            @typescript-eslint/no-unsafe-member-access
+  42:38  warning  Unsafe argument of type `any` assigned to a parameter of type `string`  @typescript-eslint/no-unsafe-argument
+  42:42  error    Unsafe member access .user on an `any` value                            @typescript-eslint/no-unsafe-member-access
+  51:53  warning  Unsafe argument of type `any` assigned to a parameter of type `string`  @typescript-eslint/no-unsafe-argument
+  51:57  error    Unsafe member access .user on an `any` value                            @typescript-eslint/no-unsafe-member-access
+
+/Users/Sush/Desktop/bovogo-codex/backend/src/modules/emergency-contacts/twilio-webhook.controller.ts
+  36:3  error  Async method 'handleStatus' has no 'await' expression  @typescript-eslint/require-await
+
+/Users/Sush/Desktop/bovogo-codex/backend/src/modules/feed/feed.controller.ts
+  20:11  error  Unsafe assignment of an `any` value     @typescript-eslint/no-unsafe-assignment
+  22:5   error  Unsafe return of a value of type `any`  @typescript-eslint/no-unsafe-return
+
+/Users/Sush/Desktop/bovogo-codex/backend/src/modules/feed/feed.service.ts
+  31:30  error  Async arrow function has no 'await' expression      @typescript-eslint/require-await
+  57:44  error  'any' overrides all other types in this union type  @typescript-eslint/no-redundant-type-constituents
+  66:11  error  'bookingCount' is assigned a value but never used   @typescript-eslint/no-unused-vars
+
+/Users/Sush/Desktop/bovogo-codex/backend/src/modules/health/bullmq-health.indicator.spec.ts
+  38:7  error  Unsafe assignment of an `any` value  @typescript-eslint/no-unsafe-assignment
+
+/Users/Sush/Desktop/bovogo-codex/backend/src/modules/health/health.controller.ts
+  28:3  error  Async method 'getComplianceInfo' has no 'await' expression  @typescript-eslint/require-await
+
+/Users/Sush/Desktop/bovogo-codex/backend/src/modules/identity/adverse-action.service.ts
+   89:3   error  Async method 'scheduleFinalAdverseNotice' has no 'await' expression  @typescript-eslint/require-await
+  131:15  error  Unsafe assignment of an `any` value                                  @typescript-eslint/no-unsafe-assignment
+  133:29  error  Unsafe assignment of an `any` value                                  @typescript-eslint/no-unsafe-assignment
+
+/Users/Sush/Desktop/bovogo-codex/backend/src/modules/identity/background-check.controller.ts
+  15:3   error    'FcraConsentDto' is defined but never used                              @typescript-eslint/no-unused-vars
+  33:52  warning  Unsafe argument of type `any` assigned to a parameter of type `string`  @typescript-eslint/no-unsafe-argument
+  33:56  error    Unsafe member access .user on an `any` value                            @typescript-eslint/no-unsafe-member-access
+  44:55  warning  Unsafe argument of type `any` assigned to a parameter of type `string`  @typescript-eslint/no-unsafe-argument
+  44:59  error    Unsafe member access .user on an `any` value                            @typescript-eslint/no-unsafe-member-access
+  52:41  warning  Unsafe argument of type `any` assigned to a parameter of type `string`  @typescript-eslint/no-unsafe-argument
+  52:45  error    Unsafe member access .user on an `any` value                            @typescript-eslint/no-unsafe-member-access
+
+/Users/Sush/Desktop/bovogo-codex/backend/src/modules/identity/checkr.service.ts
+    4:3   error  'NotFoundException' is defined but never used                     @typescript-eslint/no-unused-vars
+  106:21  error  The two values in this comparison do not have a shared enum type  @typescript-eslint/no-unsafe-enum-comparison
+  112:21  error  The two values in this comparison do not have a shared enum type  @typescript-eslint/no-unsafe-enum-comparison
+  356:13  error  Unsafe assignment of an `any` value                               @typescript-eslint/no-unsafe-assignment
+  358:36  error  Unsafe assignment of an `any` value                               @typescript-eslint/no-unsafe-assignment
+  362:36  error  Unsafe member access .error on an `any` value                     @typescript-eslint/no-unsafe-member-access
+  366:5   error  Unsafe return of a value of type `Promise<any>`                   @typescript-eslint/no-unsafe-return
+  387:13  error  Unsafe assignment of an `any` value                               @typescript-eslint/no-unsafe-assignment
+  389:36  error  Unsafe assignment of an `any` value                               @typescript-eslint/no-unsafe-assignment
+  393:36  error  Unsafe member access .error on an `any` value                     @typescript-eslint/no-unsafe-member-access
+  397:5   error  Unsafe return of a value of type `Promise<any>`                   @typescript-eslint/no-unsafe-return
+
+/Users/Sush/Desktop/bovogo-codex/backend/src/modules/identity/identity-webhook.controller.ts
+  11:19  error  'ApiOperation' is defined but never used         @typescript-eslint/no-unused-vars
+  37:11  error  Unsafe assignment of an `any` value              @typescript-eslint/no-unsafe-assignment
+  37:34  error  Unsafe member access .rawBody on an `any` value  @typescript-eslint/no-unsafe-member-access
+  37:58  error  Unsafe member access .body on an `any` value     @typescript-eslint/no-unsafe-member-access
+
+/Users/Sush/Desktop/bovogo-codex/backend/src/modules/identity/identity.controller.ts
+  18:51  warning  Unsafe argument of type `any` assigned to a parameter of type `string`  @typescript-eslint/no-unsafe-argument
+  18:55  error    Unsafe member access .user on an `any` value                            @typescript-eslint/no-unsafe-member-access
+  25:43  warning  Unsafe argument of type `any` assigned to a parameter of type `string`  @typescript-eslint/no-unsafe-argument
+  25:47  error    Unsafe member access .user on an `any` value                            @typescript-eslint/no-unsafe-member-access
+  34:66  warning  Unsafe argument of type `any` assigned to a parameter of type `string`  @typescript-eslint/no-unsafe-argument
+  34:70  error    Unsafe member access .user on an `any` value                            @typescript-eslint/no-unsafe-member-access
+
+/Users/Sush/Desktop/bovogo-codex/backend/src/modules/identity/identity.service.ts
+  192:11  error  Unsafe assignment of an `any` value                 @typescript-eslint/no-unsafe-assignment
+  194:46  error  Unsafe member access .first_name on an `any` value  @typescript-eslint/no-unsafe-member-access
+  195:23  error  Unsafe member access .first_name on an `any` value  @typescript-eslint/no-unsafe-member-access
+  195:46  error  Unsafe member access .last_name on an `any` value   @typescript-eslint/no-unsafe-member-access
+  197:45  error  Unsafe member access .dob on an `any` value         @typescript-eslint/no-unsafe-member-access
+  198:23  error  Unsafe member access .dob on an `any` value         @typescript-eslint/no-unsafe-member-access
+  198:51  error  Unsafe member access .dob on an `any` value         @typescript-eslint/no-unsafe-member-access
+  198:98  error  Unsafe member access .dob on an `any` value         @typescript-eslint/no-unsafe-member-access
+  201:13  error  Unsafe assignment of an `any` value                 @typescript-eslint/no-unsafe-assignment
+  202:13  error  Unsafe assignment of an `any` value                 @typescript-eslint/no-unsafe-assignment
+  202:34  error  Unsafe member access .document on an `any` value    @typescript-eslint/no-unsafe-member-access
+  204:9   error  Unsafe assignment of an `any` value                 @typescript-eslint/no-unsafe-assignment
+
+/Users/Sush/Desktop/bovogo-codex/backend/src/modules/locations/locations.controller.ts
+  14:3  error  Async method 'getNeighborhoods' has no 'await' expression  @typescript-eslint/require-await
+  23:3  error  Async method 'getCities' has no 'await' expression         @typescript-eslint/require-await
+
+/Users/Sush/Desktop/bovogo-codex/backend/src/modules/luggage/luggage.service.ts
+  34:22  error    'vehicleCategory' is defined but never used                             @typescript-eslint/no-unused-vars
+  34:47  error    'luggageItems' is defined but never used                                @typescript-eslint/no-unused-vars
+  40:5   error    Unsafe return of a value of type `any`                                  @typescript-eslint/no-unsafe-return
+  41:13  error    Unsafe assignment of an `any` value                                     @typescript-eslint/no-unsafe-assignment
+  41:41  warning  Unsafe argument of type `any` assigned to a parameter of type `string`  @typescript-eslint/no-unsafe-argument
+  41:46  error    Unsafe member access .type on an `any` value                            @typescript-eslint/no-unsafe-member-access
+  42:7   error    Unsafe return of a value of type `any`                                  @typescript-eslint/no-unsafe-return
+  42:27  error    Unsafe member access .cost_contribution on an `any` value               @typescript-eslint/no-unsafe-member-access
+  42:58  error    Unsafe member access .qty on an `any` value                             @typescript-eslint/no-unsafe-member-access
+
+/Users/Sush/Desktop/bovogo-codex/backend/src/modules/mobile-api/controllers/mobile-auth.controller.ts
+  4:3  error  'Delete' is defined but never used  @typescript-eslint/no-unused-vars
+
+/Users/Sush/Desktop/bovogo-codex/backend/src/modules/mobile-api/mobile-auth.guard.ts
+  28:11  error  Unsafe assignment of an `any` value                  @typescript-eslint/no-unsafe-assignment
+  64:9   error  Unsafe member access .mobileUser on an `any` value   @typescript-eslint/no-unsafe-member-access
+  65:9   error  Unsafe member access .mobileToken on an `any` value  @typescript-eslint/no-unsafe-member-access
+  77:9   error  Unsafe assignment of an `any` value                  @typescript-eslint/no-unsafe-assignment
+  77:42  error  Unsafe member access .headers on an `any` value      @typescript-eslint/no-unsafe-member-access
+  85:11  error  Unsafe assignment of an `any` value                  @typescript-eslint/no-unsafe-assignment
+  86:16  error  Unsafe member access .mobileUser on an `any` value   @typescript-eslint/no-unsafe-member-access
+
+/Users/Sush/Desktop/bovogo-codex/backend/src/modules/mobile-api/mobile-http-exception.filter.ts
+  17:11  error  Unsafe assignment of an `any` value             @typescript-eslint/no-unsafe-assignment
+  36:5   error  Unsafe call of an `any` typed value             @typescript-eslint/no-unsafe-call
+  36:5   error  Unsafe call of an `any` typed value             @typescript-eslint/no-unsafe-call
+  36:9   error  Unsafe member access .status on an `any` value  @typescript-eslint/no-unsafe-member-access
+  36:24  error  Unsafe member access .json on an `any` value    @typescript-eslint/no-unsafe-member-access
+
+/Users/Sush/Desktop/bovogo-codex/backend/src/modules/mobile-api/mobile.mappers.ts
+  44:11  error    Unsafe assignment of an `any` value                                                                             @typescript-eslint/no-unsafe-assignment
+  56:11  error    Unsafe assignment of an `any` value                                                                             @typescript-eslint/no-unsafe-assignment
+  59:43  warning  Unsafe argument of type `any` assigned to a parameter of type `{ [s: string]: unknown; } | ArrayLike<unknown>`  @typescript-eslint/no-unsafe-argument
+
+/Users/Sush/Desktop/bovogo-codex/backend/src/modules/mobile-api/services/mobile-auth.service.ts
+  326:3  error  Async method 'verifyAppleToken' has no 'await' expression  @typescript-eslint/require-await
+
+/Users/Sush/Desktop/bovogo-codex/backend/src/modules/mobile-api/services/mobile-background-check.service.ts
+  118:9   error    Unsafe assignment of an `any` value                                     @typescript-eslint/no-unsafe-assignment
+  118:33  error    Unsafe member access .id on an `any` value                              @typescript-eslint/no-unsafe-member-access
+  136:9   error    Unsafe assignment of an `any` value                                     @typescript-eslint/no-unsafe-assignment
+  136:41  error    Unsafe member access .invitation_url on an `any` value                  @typescript-eslint/no-unsafe-member-access
+  141:11  error    Unsafe assignment of an `any` value                                     @typescript-eslint/no-unsafe-assignment
+  141:21  error    Unsafe member access .message on an `any` value                         @typescript-eslint/no-unsafe-member-access
+  161:13  error    Unsafe assignment of an `any` value                                     @typescript-eslint/no-unsafe-assignment
+  161:32  error    Unsafe member access .data on an `any` value                            @typescript-eslint/no-unsafe-member-access
+  162:19  error    Unsafe member access .status on an `any` value                          @typescript-eslint/no-unsafe-member-access
+  163:38  warning  Unsafe argument of type `any` assigned to a parameter of type `string`  @typescript-eslint/no-unsafe-argument
+  163:45  error    Unsafe member access .status on an `any` value                          @typescript-eslint/no-unsafe-member-access
+  176:11  error    Unsafe assignment of an `any` value                                     @typescript-eslint/no-unsafe-assignment
+  176:21  error    Unsafe member access .message on an `any` value                         @typescript-eslint/no-unsafe-member-access
+  223:11  error    Unsafe assignment of an `any` value                                     @typescript-eslint/no-unsafe-assignment
+  233:18  error    Unsafe member access .length on an `any` value                          @typescript-eslint/no-unsafe-member-access
+
+/Users/Sush/Desktop/bovogo-codex/backend/src/modules/mobile-api/services/mobile-bookings.service.ts
+   51:10  error  'round2' is defined but never used                     @typescript-eslint/no-unused-vars
+  462:13  error  'booking' is assigned a value but never used           @typescript-eslint/no-unused-vars
+  557:56  error  Invalid type "unknown" of template literal expression  @typescript-eslint/restrict-template-expressions
+  638:11  error  Unsafe assignment of an `any` value                    @typescript-eslint/no-unsafe-assignment
+  638:23  error  Unsafe call of an `any` typed value                    @typescript-eslint/no-unsafe-call
+  638:26  error  Unsafe member access .getRepository on an `any` value  @typescript-eslint/no-unsafe-member-access
+  639:11  error  Unsafe assignment of an `any` value                    @typescript-eslint/no-unsafe-assignment
+  639:24  error  Unsafe call of an `any` typed value                    @typescript-eslint/no-unsafe-call
+  639:27  error  Unsafe member access .getRepository on an `any` value  @typescript-eslint/no-unsafe-member-access
+  640:11  error  Unsafe assignment of an `any` value                    @typescript-eslint/no-unsafe-assignment
+  640:25  error  Unsafe call of an `any` typed value                    @typescript-eslint/no-unsafe-call
+  640:28  error  Unsafe member access .getRepository on an `any` value  @typescript-eslint/no-unsafe-member-access
+  641:11  error  Unsafe assignment of an `any` value                    @typescript-eslint/no-unsafe-assignment
+  641:22  error  Unsafe call of an `any` typed value                    @typescript-eslint/no-unsafe-call
+  641:25  error  Unsafe member access .getRepository on an `any` value  @typescript-eslint/no-unsafe-member-access
+  643:9   error  Unsafe assignment of an `any` value                    @typescript-eslint/no-unsafe-assignment
+  643:23  error  Unsafe call of an `any` typed value                    @typescript-eslint/no-unsafe-call
+  643:33  error  Unsafe member access .findOne on an `any` value        @typescript-eslint/no-unsafe-member-access
+  646:7   error  Unsafe assignment of an `any` value                    @typescript-eslint/no-unsafe-assignment
+  646:21  error  Unsafe call of an `any` typed value                    @typescript-eslint/no-unsafe-call
+  646:31  error  Unsafe member access .save on an `any` value           @typescript-eslint/no-unsafe-member-access
+  647:9   error  Unsafe call of an `any` typed value                    @typescript-eslint/no-unsafe-call
+  647:19  error  Unsafe member access .create on an `any` value         @typescript-eslint/no-unsafe-member-access
+  655:13  error  Unsafe assignment of an `any` value                    @typescript-eslint/no-unsafe-assignment
+  655:30  error  Unsafe call of an `any` typed value                    @typescript-eslint/no-unsafe-call
+  655:41  error  Unsafe member access .findOne on an `any` value        @typescript-eslint/no-unsafe-member-access
+  656:18  error  Unsafe assignment of an `any` value                    @typescript-eslint/no-unsafe-assignment
+  656:35  error  Unsafe member access .id on an `any` value             @typescript-eslint/no-unsafe-member-access
+  659:13  error  Unsafe call of an `any` typed value                    @typescript-eslint/no-unsafe-call
+  659:24  error  Unsafe member access .save on an `any` value           @typescript-eslint/no-unsafe-member-access
+  660:9   error  Unsafe call of an `any` typed value                    @typescript-eslint/no-unsafe-call
+  660:20  error  Unsafe member access .create on an `any` value         @typescript-eslint/no-unsafe-member-access
+  661:11  error  Unsafe assignment of an `any` value                    @typescript-eslint/no-unsafe-assignment
+  661:28  error  Unsafe member access .id on an `any` value             @typescript-eslint/no-unsafe-member-access
+  673:13  error  Unsafe call of an `any` typed value                    @typescript-eslint/no-unsafe-call
+  673:25  error  Unsafe member access .save on an `any` value           @typescript-eslint/no-unsafe-member-access
+  674:9   error  Unsafe call of an `any` typed value                    @typescript-eslint/no-unsafe-call
+  674:21  error  Unsafe member access .create on an `any` value         @typescript-eslint/no-unsafe-member-access
+  675:11  error  Unsafe assignment of an `any` value                    @typescript-eslint/no-unsafe-assignment
+  675:27  error  Unsafe member access .id on an `any` value             @typescript-eslint/no-unsafe-member-access
+  682:13  error  Unsafe assignment of an `any` value                    @typescript-eslint/no-unsafe-assignment
+  682:27  error  Unsafe call of an `any` typed value                    @typescript-eslint/no-unsafe-call
+  682:36  error  Unsafe member access .findOne on an `any` value        @typescript-eslint/no-unsafe-member-access
+  683:13  error  Unsafe assignment of an `any` value                    @typescript-eslint/no-unsafe-assignment
+  683:25  error  Unsafe call of an `any` typed value                    @typescript-eslint/no-unsafe-call
+  683:32  error  Unsafe member access .name on an `any` value           @typescript-eslint/no-unsafe-member-access
+  683:49  error  Unsafe member access [0] on an `any` value             @typescript-eslint/no-unsafe-member-access
+  684:13  error  Unsafe call of an `any` typed value                    @typescript-eslint/no-unsafe-call
+  684:25  error  Unsafe member access .save on an `any` value           @typescript-eslint/no-unsafe-member-access
+  685:9   error  Unsafe call of an `any` typed value                    @typescript-eslint/no-unsafe-call
+  685:21  error  Unsafe member access .create on an `any` value         @typescript-eslint/no-unsafe-member-access
+  686:11  error  Unsafe assignment of an `any` value                    @typescript-eslint/no-unsafe-assignment
+  686:27  error  Unsafe member access .id on an `any` value             @typescript-eslint/no-unsafe-member-access
+  694:5   error  Unsafe return of a value of type `any`                 @typescript-eslint/no-unsafe-return
+  694:18  error  Unsafe member access .id on an `any` value             @typescript-eslint/no-unsafe-member-access
+
+/Users/Sush/Desktop/bovogo-codex/backend/src/modules/mobile-api/services/mobile-email-notifications.service.ts
+  130:26  error  'context.userName ?? 'Sailor'' will use Object's default stringification format ('[object Object]') when stringified  @typescript-eslint/no-base-to-string
+
+/Users/Sush/Desktop/bovogo-codex/backend/src/modules/mobile-api/services/mobile-groups.service.ts
+  149:5  error  '_currentUserId' is defined but never used  @typescript-eslint/no-unused-vars
+
+/Users/Sush/Desktop/bovogo-codex/backend/src/modules/mobile-api/services/mobile-odometer.service.ts
+  236:11  error  Unsafe assignment of an `any` value  @typescript-eslint/no-unsafe-assignment
+
+/Users/Sush/Desktop/bovogo-codex/backend/src/modules/mobile-api/services/mobile-safety.service.ts
+  133:49  error  Invalid type "unknown" of template literal expression  @typescript-eslint/restrict-template-expressions
+
+/Users/Sush/Desktop/bovogo-codex/backend/src/modules/mobile-api/services/mobile-trips.service.ts
+  295:11  error  Unsafe assignment of an `any` value  @typescript-eslint/no-unsafe-assignment
+
+/Users/Sush/Desktop/bovogo-codex/backend/src/modules/mobile-api/services/mobile-vehicles.service.ts
+  303:11  error  Unsafe assignment of an `any` value  @typescript-eslint/no-unsafe-assignment
+
+/Users/Sush/Desktop/bovogo-codex/backend/src/modules/noonlight/noonlight.service.ts
+  104:13  error  Unsafe assignment of an `any` value               @typescript-eslint/no-unsafe-assignment
+  104:48  error  Unsafe member access .id on an `any` value        @typescript-eslint/no-unsafe-member-access
+  110:13  error  Unsafe assignment of an `any` value               @typescript-eslint/no-unsafe-assignment
+  110:33  error  Unsafe member access .response on an `any` value  @typescript-eslint/no-unsafe-member-access
+  113:11  error  Unsafe assignment of an `any` value               @typescript-eslint/no-unsafe-assignment
+  113:24  error  Unsafe member access .status on an `any` value    @typescript-eslint/no-unsafe-member-access
+  114:11  error  Unsafe assignment of an `any` value               @typescript-eslint/no-unsafe-assignment
+  114:21  error  Unsafe member access .data on an `any` value      @typescript-eslint/no-unsafe-member-access
+  115:11  error  Unsafe assignment of an `any` value               @typescript-eslint/no-unsafe-assignment
+  115:25  error  Unsafe member access .data on an `any` value      @typescript-eslint/no-unsafe-member-access
+  116:11  error  Unsafe assignment of an `any` value               @typescript-eslint/no-unsafe-assignment
+  116:34  error  Unsafe member access .data on an `any` value      @typescript-eslint/no-unsafe-member-access
+  117:11  error  Unsafe assignment of an `any` value               @typescript-eslint/no-unsafe-assignment
+  117:34  error  Unsafe member access .message on an `any` value   @typescript-eslint/no-unsafe-member-access
+
+/Users/Sush/Desktop/bovogo-codex/backend/src/modules/notifications/notifications.controller.ts
+   17:3   error    'IsBoolean' is defined but never used                                   @typescript-eslint/no-unused-vars
+   21:10  error    'Type' is defined but never used                                        @typescript-eslint/no-unused-vars
+   58:7   warning  Unsafe argument of type `any` assigned to a parameter of type `string`  @typescript-eslint/no-unsafe-argument
+   58:11  error    Unsafe member access .user on an `any` value                            @typescript-eslint/no-unsafe-member-access
+   70:53  warning  Unsafe argument of type `any` assigned to a parameter of type `string`  @typescript-eslint/no-unsafe-argument
+   70:57  error    Unsafe member access .user on an `any` value                            @typescript-eslint/no-unsafe-member-access
+   81:7   warning  Unsafe argument of type `any` assigned to a parameter of type `string`  @typescript-eslint/no-unsafe-argument
+   81:11  error    Unsafe member access .user on an `any` value                            @typescript-eslint/no-unsafe-member-access
+   95:5   error    Unsafe return of a value of type `Promise<any>`                         @typescript-eslint/no-unsafe-return
+   96:7   warning  Unsafe argument of type `any` assigned to a parameter of type `string`  @typescript-eslint/no-unsafe-argument
+   96:11  error    Unsafe member access .user on an `any` value                            @typescript-eslint/no-unsafe-member-access
+  106:66  warning  Unsafe argument of type `any` assigned to a parameter of type `string`  @typescript-eslint/no-unsafe-argument
+  106:70  error    Unsafe member access .user on an `any` value                            @typescript-eslint/no-unsafe-member-access
+  114:52  warning  Unsafe argument of type `any` assigned to a parameter of type `string`  @typescript-eslint/no-unsafe-argument
+  114:56  error    Unsafe member access .user on an `any` value                            @typescript-eslint/no-unsafe-member-access
+  122:51  warning  Unsafe argument of type `any` assigned to a parameter of type `string`  @typescript-eslint/no-unsafe-argument
+  122:55  error    Unsafe member access .user on an `any` value                            @typescript-eslint/no-unsafe-member-access
+
+/Users/Sush/Desktop/bovogo-codex/backend/src/modules/notifications/notifications.processor.ts
+  22:11  error    Unsafe assignment of an `any` value                                                                                                             @typescript-eslint/no-unsafe-assignment
+  22:29  error    Unsafe member access .channel on an `any` value                                                                                                 @typescript-eslint/no-unsafe-member-access
+  23:11  error    Unsafe assignment of an `any` value                                                                                                             @typescript-eslint/no-unsafe-assignment
+  23:30  error    Unsafe member access .category on an `any` value                                                                                                @typescript-eslint/no-unsafe-member-access
+  27:62  warning  Unsafe argument of type `Job<any, any, string>` assigned to a parameter of type `Job<NotificationPayload, any, string>`                         @typescript-eslint/no-unsafe-argument
+  30:26  error    Unsafe assignment of an `any` value                                                                                                             @typescript-eslint/no-unsafe-assignment
+  30:41  error    Unsafe member access .type on an `any` value                                                                                                    @typescript-eslint/no-unsafe-member-access
+  30:47  error    Unsafe assignment of an `any` value                                                                                                             @typescript-eslint/no-unsafe-assignment
+  30:67  error    Unsafe member access .bookingId on an `any` value                                                                                               @typescript-eslint/no-unsafe-member-access
+  33:58  warning  Unsafe argument of type `Job<any, any, string>` assigned to a parameter of type `Job<{ type: "48h" | "2h"; bookingId: string; }, any, string>`  @typescript-eslint/no-unsafe-argument
+
+/Users/Sush/Desktop/bovogo-codex/backend/src/modules/notifications/notifications.service.ts
+    5:22  error    'In' is defined but never used                                                                                    @typescript-eslint/no-unused-vars
+   20:3   error    'ExpoPushErrorReceipt' is defined but never used                                                                  @typescript-eslint/no-unused-vars
+   21:3   error    'ExpoPushSuccessReceipt' is defined but never used                                                                @typescript-eslint/no-unused-vars
+  123:3   error    Async method 'onModuleInit' has no 'await' expression                                                             @typescript-eslint/require-await
+  269:15  error    Unsafe assignment of an `any` value                                                                               @typescript-eslint/no-unsafe-assignment
+  269:63  error    Unsafe member access .deviceToken on an `any` value                                                               @typescript-eslint/no-unsafe-member-access
+  278:11  error    Unsafe assignment of an `any` value                                                                               @typescript-eslint/no-unsafe-assignment
+  285:7   error    Unsafe assignment of an `any` value                                                                               @typescript-eslint/no-unsafe-assignment
+  290:21  error    Unsafe member access .mediaUrl on an `any` value                                                                  @typescript-eslint/no-unsafe-member-access
+  293:54  warning  Unsafe argument of type `any` assigned to a parameter of type `MessageListInstanceCreateOptions`                  @typescript-eslint/no-unsafe-argument
+  311:11  error    Unsafe assignment of an `any` value                                                                               @typescript-eslint/no-unsafe-assignment
+  312:11  error    Unsafe assignment of an `any` value                                                                               @typescript-eslint/no-unsafe-assignment
+  313:22  error    Unsafe member access .default on an `any` value                                                                   @typescript-eslint/no-unsafe-member-access
+  313:48  error    Unsafe member access [Object.keys(TemplateModule)[0]] on an `any` value                                           @typescript-eslint/no-unsafe-member-access
+  313:60  warning  Unsafe argument of type `any` assigned to a parameter of type `{}`                                                @typescript-eslint/no-unsafe-argument
+  319:31  warning  Unsafe argument of type `any` assigned to a parameter of type `ReactNode`                                         @typescript-eslint/no-unsafe-argument
+  319:31  error    Unsafe call of an `any` typed value                                                                               @typescript-eslint/no-unsafe-call
+  321:11  error    Unsafe assignment of an `any` value                                                                               @typescript-eslint/no-unsafe-assignment
+  323:11  error    Unsafe assignment of an `any` value                                                                               @typescript-eslint/no-unsafe-assignment
+  328:7   error    Unsafe assignment of an `any` value                                                                               @typescript-eslint/no-unsafe-assignment
+  330:7   error    Unsafe assignment of an `any` value                                                                               @typescript-eslint/no-unsafe-assignment
+  361:31  error    Unsafe member access .device_id on an `any` value                                                                 @typescript-eslint/no-unsafe-member-access
+  362:31  error    Unsafe member access .platform on an `any` value                                                                  @typescript-eslint/no-unsafe-member-access
+  364:50  error    Unsafe assignment of an `any` value                                                                               @typescript-eslint/no-unsafe-assignment
+  456:13  error    Unsafe member access .id on an `any` value                                                                        @typescript-eslint/no-unsafe-member-access
+  460:7   error    Unsafe assignment of an `any` value                                                                               @typescript-eslint/no-unsafe-assignment
+  561:47  error    Unsafe member access .bookingId on an `any` value                                                                 @typescript-eslint/no-unsafe-member-access
+  594:59  error    'priority' is assigned a value but never used                                                                     @typescript-eslint/no-unused-vars
+  602:11  error    Unexpected lexical declaration in case block                                                                      no-case-declarations
+  608:11  error    Unexpected lexical declaration in case block                                                                      no-case-declarations
+  691:58  error    Unnecessary escape character: \'                                                                                  no-useless-escape
+  713:13  error    'title' is assigned a value but never used                                                                        @typescript-eslint/no-unused-vars
+  714:13  error    'body' is assigned a value but never used                                                                         @typescript-eslint/no-unused-vars
+  715:14  error    'this.getUserName(userId)' will use Object's default stringification format ('[object Object]') when stringified  @typescript-eslint/no-base-to-string
+  715:14  error    Invalid type "Promise<string>" of template literal expression                                                     @typescript-eslint/restrict-template-expressions
+  716:14  error    'this.getUserName(userId)' will use Object's default stringification format ('[object Object]') when stringified  @typescript-eslint/no-base-to-string
+  716:14  error    Invalid type "Promise<string>" of template literal expression                                                     @typescript-eslint/restrict-template-expressions
+  716:39  error    Unnecessary escape character: \'                                                                                  no-useless-escape
+  723:42  error    'this.getUserName(userId)' will use Object's default stringification format ('[object Object]') when stringified  @typescript-eslint/no-base-to-string
+  723:42  error    Invalid type "Promise<string>" of template literal expression                                                     @typescript-eslint/restrict-template-expressions
+  724:24  error    'this.getUserName(userId)' will use Object's default stringification format ('[object Object]') when stringified  @typescript-eslint/no-base-to-string
+  724:24  error    Invalid type "Promise<string>" of template literal expression                                                     @typescript-eslint/restrict-template-expressions
+  724:49  error    Unnecessary escape character: \'                                                                                  no-useless-escape
+  747:5   error    'isCritical' is defined but never used                                                                            @typescript-eslint/no-unused-vars
+
+/Users/Sush/Desktop/bovogo-codex/backend/src/modules/payments/payments.controller.ts
+   62:57  error    Unsafe assignment of an `any` value                                                                                                                                                                @typescript-eslint/no-unsafe-assignment
+   62:65  error    Unsafe member access .user on an `any` value                                                                                                                                                       @typescript-eslint/no-unsafe-member-access
+   63:9   error    The two values in this comparison do not have a shared enum type                                                                                                                                   @typescript-eslint/no-unsafe-enum-comparison
+   71:49  error    Unsafe assignment of an `any` value                                                                                                                                                                @typescript-eslint/no-unsafe-assignment
+   71:62  error    Unsafe member access .user on an `any` value                                                                                                                                                       @typescript-eslint/no-unsafe-member-access
+   90:57  error    Unsafe assignment of an `any` value                                                                                                                                                                @typescript-eslint/no-unsafe-assignment
+   90:65  error    Unsafe member access .user on an `any` value                                                                                                                                                       @typescript-eslint/no-unsafe-member-access
+   91:9   error    The two values in this comparison do not have a shared enum type                                                                                                                                   @typescript-eslint/no-unsafe-enum-comparison
+  100:34  warning  Unsafe argument of type `any` assigned to a parameter of type `string | number | string[] | Date | number[] | ObjectId | Date[] | ObjectId[] | FindOptionsWhere<User> | FindOptionsWhere<User>[]`  @typescript-eslint/no-unsafe-argument
+  100:38  error    Unsafe member access .user on an `any` value                                                                                                                                                       @typescript-eslint/no-unsafe-member-access
+  101:9   error    Unsafe assignment of an `any` value                                                                                                                                                                @typescript-eslint/no-unsafe-assignment
+  120:32  warning  Unsafe argument of type `any` assigned to a parameter of type `string | number | string[] | Date | number[] | ObjectId | Date[] | ObjectId[] | FindOptionsWhere<User> | FindOptionsWhere<User>[]`  @typescript-eslint/no-unsafe-argument
+  120:36  error    Unsafe member access .user on an `any` value                                                                                                                                                       @typescript-eslint/no-unsafe-member-access
+  121:7   error    Unsafe assignment of an `any` value                                                                                                                                                                @typescript-eslint/no-unsafe-assignment
+  135:32  warning  Unsafe argument of type `any` assigned to a parameter of type `string | number | string[] | Date | number[] | ObjectId | Date[] | ObjectId[] | FindOptionsWhere<User> | FindOptionsWhere<User>[]`  @typescript-eslint/no-unsafe-argument
+  135:36  error    Unsafe member access .user on an `any` value                                                                                                                                                       @typescript-eslint/no-unsafe-member-access
+  136:7   error    Unsafe assignment of an `any` value                                                                                                                                                                @typescript-eslint/no-unsafe-assignment
+  146:47  warning  Unsafe argument of type `any` assigned to a parameter of type `string`                                                                                                                             @typescript-eslint/no-unsafe-argument
+  146:51  error    Unsafe member access .user on an `any` value                                                                                                                                                       @typescript-eslint/no-unsafe-member-access
+  153:57  error    Unsafe assignment of an `any` value                                                                                                                                                                @typescript-eslint/no-unsafe-assignment
+  153:65  error    Unsafe member access .user on an `any` value                                                                                                                                                       @typescript-eslint/no-unsafe-member-access
+  158:7   warning  Unsafe argument of type `any` assigned to a parameter of type `string`                                                                                                                             @typescript-eslint/no-unsafe-argument
+  158:11  error    Unsafe member access .user on an `any` value                                                                                                                                                       @typescript-eslint/no-unsafe-member-access
+  167:57  error    Unsafe assignment of an `any` value                                                                                                                                                                @typescript-eslint/no-unsafe-assignment
+  167:65  error    Unsafe member access .user on an `any` value                                                                                                                                                       @typescript-eslint/no-unsafe-member-access
+  172:7   warning  Unsafe argument of type `any` assigned to a parameter of type `string`                                                                                                                             @typescript-eslint/no-unsafe-argument
+  172:11  error    Unsafe member access .user on an `any` value                                                                                                                                                       @typescript-eslint/no-unsafe-member-access
+  181:57  error    Unsafe assignment of an `any` value                                                                                                                                                                @typescript-eslint/no-unsafe-assignment
+  181:65  error    Unsafe member access .user on an `any` value                                                                                                                                                       @typescript-eslint/no-unsafe-member-access
+  198:13  error    Unsafe assignment of an `any` value                                                                                                                                                                @typescript-eslint/no-unsafe-assignment
+  198:27  error    Unsafe member access .rawBody on an `any` value                                                                                                                                                    @typescript-eslint/no-unsafe-member-access
+  206:11  warning  Unsafe argument of type `any` assigned to a parameter of type `string | Buffer<ArrayBufferLike>`                                                                                                   @typescript-eslint/no-unsafe-argument
+  214:7   error    Unsafe assignment of an `any` value                                                                                                                                                                @typescript-eslint/no-unsafe-assignment
+  214:19  error    Unsafe member access .body on an `any` value                                                                                                                                                       @typescript-eslint/no-unsafe-member-access
+  232:46  warning  Unsafe argument of type `any` assigned to a parameter of type `string`                                                                                                                             @typescript-eslint/no-unsafe-argument
+  232:50  error    Unsafe member access .user on an `any` value                                                                                                                                                       @typescript-eslint/no-unsafe-member-access
+  239:5   error    Unsafe return of a value of type `Promise<any>`                                                                                                                                                    @typescript-eslint/no-unsafe-return
+  239:47  warning  Unsafe argument of type `any` assigned to a parameter of type `string`                                                                                                                             @typescript-eslint/no-unsafe-argument
+  239:51  error    Unsafe member access .user on an `any` value                                                                                                                                                       @typescript-eslint/no-unsafe-member-access
+  248:57  error    Unsafe assignment of an `any` value                                                                                                                                                                @typescript-eslint/no-unsafe-assignment
+  248:65  error    Unsafe member access .user on an `any` value                                                                                                                                                       @typescript-eslint/no-unsafe-member-access
+  267:57  error    Unsafe assignment of an `any` value                                                                                                                                                                @typescript-eslint/no-unsafe-assignment
+  267:65  error    Unsafe member access .user on an `any` value                                                                                                                                                       @typescript-eslint/no-unsafe-member-access
+
+/Users/Sush/Desktop/bovogo-codex/backend/src/modules/payments/payments.service.ts
+  338:3   error  Async method 'handleWebhookPaymentIntentSucceeded' has no 'await' expression  @typescript-eslint/require-await
+  339:11  error  Unsafe assignment of an `any` value                                           @typescript-eslint/no-unsafe-assignment
+  339:33  error  Unsafe member access .data on an `any` value                                  @typescript-eslint/no-unsafe-member-access
+  341:9   error  Unsafe assignment of an `any` value                                           @typescript-eslint/no-unsafe-assignment
+  341:40  error  Unsafe member access .id on an `any` value                                    @typescript-eslint/no-unsafe-member-access
+  346:3   error  Async method 'handleWebhookTransferCreated' has no 'await' expression         @typescript-eslint/require-await
+  347:11  error  Unsafe assignment of an `any` value                                           @typescript-eslint/no-unsafe-assignment
+  347:28  error  Unsafe member access .data on an `any` value                                  @typescript-eslint/no-unsafe-member-access
+  348:24  error  Unsafe assignment of an `any` value                                           @typescript-eslint/no-unsafe-assignment
+  348:45  error  Unsafe member access .id on an `any` value                                    @typescript-eslint/no-unsafe-member-access
+  352:24  error  Unsafe assignment of an `any` value                                           @typescript-eslint/no-unsafe-assignment
+  352:37  error  Unsafe member access .type on an `any` value                                  @typescript-eslint/no-unsafe-member-access
+  354:19  error  Unsafe member access .type on an `any` value                                  @typescript-eslint/no-unsafe-member-access
+  363:29  error  Unsafe member access .data on an `any` value                                  @typescript-eslint/no-unsafe-member-access
+  367:42  error  Unsafe member access .data on an `any` value                                  @typescript-eslint/no-unsafe-member-access
+  371:27  error  Unsafe member access .data on an `any` value                                  @typescript-eslint/no-unsafe-member-access
+  375:66  error  Unsafe member access .type on an `any` value                                  @typescript-eslint/no-unsafe-member-access
+
+/Users/Sush/Desktop/bovogo-codex/backend/src/modules/payments/stripe-connect-webhook.controller.ts
+  10:3   error    'RawBodyRequest' is defined but never used                                           @typescript-eslint/no-unused-vars
+  50:11  error    Unsafe assignment of an `any` value                                                  @typescript-eslint/no-unsafe-assignment
+  50:26  error    Unsafe member access .object on an `any` value                                       @typescript-eslint/no-unsafe-member-access
+  53:61  error    Unsafe member access .id on an `any` value                                           @typescript-eslint/no-unsafe-member-access
+  59:11  warning  Unsafe argument of type `any` assigned to a parameter of type `string`               @typescript-eslint/no-unsafe-argument
+  59:19  error    Unsafe member access .id on an `any` value                                           @typescript-eslint/no-unsafe-member-access
+  60:11  warning  Unsafe argument of type `any` assigned to a parameter of type `Record<string, any>`  @typescript-eslint/no-unsafe-argument
+  66:30  error    Unsafe member access .id on an `any` value                                           @typescript-eslint/no-unsafe-member-access
+  72:30  error    Unsafe member access .id on an `any` value                                           @typescript-eslint/no-unsafe-member-access
+  78:11  warning  Unsafe argument of type `any` assigned to a parameter of type `Record<string, any>`  @typescript-eslint/no-unsafe-argument
+  83:70  warning  Unsafe argument of type `any` assigned to a parameter of type `Record<string, any>`  @typescript-eslint/no-unsafe-argument
+  87:45  error    Unsafe member access .id on an `any` value                                           @typescript-eslint/no-unsafe-member-access
+  91:43  error    Unsafe member access .id on an `any` value                                           @typescript-eslint/no-unsafe-member-access
+  95:43  error    Unsafe member access .id on an `any` value                                           @typescript-eslint/no-unsafe-member-access
+
+/Users/Sush/Desktop/bovogo-codex/backend/src/modules/payments/stripe-connect.controller.ts
+   34:52  warning  Unsafe argument of type `any` assigned to a parameter of type `string`  @typescript-eslint/no-unsafe-argument
+   34:56  error    Unsafe member access .user on an `any` value                            @typescript-eslint/no-unsafe-member-access
+   42:55  warning  Unsafe argument of type `any` assigned to a parameter of type `string`  @typescript-eslint/no-unsafe-argument
+   42:59  error    Unsafe member access .user on an `any` value                            @typescript-eslint/no-unsafe-member-access
+   54:7   warning  Unsafe argument of type `any` assigned to a parameter of type `string`  @typescript-eslint/no-unsafe-argument
+   54:11  error    Unsafe member access .user on an `any` value                            @typescript-eslint/no-unsafe-member-access
+   65:55  warning  Unsafe argument of type `any` assigned to a parameter of type `string`  @typescript-eslint/no-unsafe-argument
+   65:59  error    Unsafe member access .user on an `any` value                            @typescript-eslint/no-unsafe-member-access
+   80:7   warning  Unsafe argument of type `any` assigned to a parameter of type `string`  @typescript-eslint/no-unsafe-argument
+   80:11  error    Unsafe member access .user on an `any` value                            @typescript-eslint/no-unsafe-member-access
+   93:52  warning  Unsafe argument of type `any` assigned to a parameter of type `string`  @typescript-eslint/no-unsafe-argument
+   93:56  error    Unsafe member access .user on an `any` value                            @typescript-eslint/no-unsafe-member-access
+  103:60  warning  Unsafe argument of type `any` assigned to a parameter of type `string`  @typescript-eslint/no-unsafe-argument
+  103:64  error    Unsafe member access .user on an `any` value                            @typescript-eslint/no-unsafe-member-access
+  113:67  warning  Unsafe argument of type `any` assigned to a parameter of type `string`  @typescript-eslint/no-unsafe-argument
+  113:71  error    Unsafe member access .user on an `any` value                            @typescript-eslint/no-unsafe-member-access
+
+/Users/Sush/Desktop/bovogo-codex/backend/src/modules/payments/stripe-connect.service.ts
+   82:11  error    Unsafe assignment of an `any` value                                           @typescript-eslint/no-unsafe-assignment
+   84:5   error    Unsafe assignment of an `any` value                                           @typescript-eslint/no-unsafe-assignment
+   84:38  error    Unsafe member access .id on an `any` value                                    @typescript-eslint/no-unsafe-member-access
+   90:11  error    Unsafe assignment of an `any` value                                           @typescript-eslint/no-unsafe-assignment
+   91:7   warning  Unsafe argument of type `any` assigned to a parameter of type `string`        @typescript-eslint/no-unsafe-argument
+   91:15  error    Unsafe member access .id on an `any` value                                    @typescript-eslint/no-unsafe-member-access
+   97:17  error    Unsafe assignment of an `any` value                                           @typescript-eslint/no-unsafe-assignment
+   97:42  error    Unsafe member access .id on an `any` value                                    @typescript-eslint/no-unsafe-member-access
+  102:7   error    Unsafe assignment of an `any` value                                           @typescript-eslint/no-unsafe-assignment
+  102:27  error    Unsafe member access .id on an `any` value                                    @typescript-eslint/no-unsafe-member-access
+  103:7   error    Unsafe assignment of an `any` value                                           @typescript-eslint/no-unsafe-assignment
+  103:37  error    Unsafe member access .url on an `any` value                                   @typescript-eslint/no-unsafe-member-access
+  127:13  error    Unsafe assignment of an `any` value                                           @typescript-eslint/no-unsafe-assignment
+  129:7   error    Unsafe assignment of an `any` value                                           @typescript-eslint/no-unsafe-assignment
+  129:45  error    Unsafe member access .charges_enabled on an `any` value                       @typescript-eslint/no-unsafe-member-access
+  130:7   error    Unsafe assignment of an `any` value                                           @typescript-eslint/no-unsafe-assignment
+  130:45  error    Unsafe member access .payouts_enabled on an `any` value                       @typescript-eslint/no-unsafe-member-access
+  131:7   error    Unsafe assignment of an `any` value                                           @typescript-eslint/no-unsafe-assignment
+  131:47  error    Unsafe member access .details_submitted on an `any` value                     @typescript-eslint/no-unsafe-member-access
+  134:20  error    Unsafe member access .details_submitted on an `any` value                     @typescript-eslint/no-unsafe-member-access
+  135:20  error    Unsafe member access .external_accounts on an `any` value                     @typescript-eslint/no-unsafe-member-access
+  137:20  error    Unsafe member access .tos_acceptance on an `any` value                        @typescript-eslint/no-unsafe-member-access
+  142:17  error    Unsafe assignment of an `any` value                                           @typescript-eslint/no-unsafe-assignment
+  147:11  error    Unsafe assignment of an `any` value                                           @typescript-eslint/no-unsafe-assignment
+  147:33  error    Unsafe member access .url on an `any` value                                   @typescript-eslint/no-unsafe-member-access
+  148:17  error    Empty block statement                                                         no-empty
+  151:13  error    Unsafe assignment of an `any` value                                           @typescript-eslint/no-unsafe-assignment
+  152:17  error    Unsafe member access .details_submitted on an `any` value                     @typescript-eslint/no-unsafe-member-access
+  153:17  error    Unsafe member access .charges_enabled on an `any` value                       @typescript-eslint/no-unsafe-member-access
+  154:17  error    Unsafe member access .payouts_enabled on an `any` value                       @typescript-eslint/no-unsafe-member-access
+  158:9   error    Unsafe assignment of an `any` value                                           @typescript-eslint/no-unsafe-assignment
+  158:36  error    Unsafe member access .details_submitted on an `any` value                     @typescript-eslint/no-unsafe-member-access
+  159:9   error    Unsafe assignment of an `any` value                                           @typescript-eslint/no-unsafe-assignment
+  159:34  error    Unsafe member access .charges_enabled on an `any` value                       @typescript-eslint/no-unsafe-member-access
+  160:9   error    Unsafe assignment of an `any` value                                           @typescript-eslint/no-unsafe-assignment
+  160:34  error    Unsafe member access .payouts_enabled on an `any` value                       @typescript-eslint/no-unsafe-member-access
+  161:9   error    Unsafe assignment of an `any` value                                           @typescript-eslint/no-unsafe-assignment
+  189:11  error    Unsafe assignment of an `any` value                                           @typescript-eslint/no-unsafe-assignment
+  195:14  error    Unsafe assignment of an `any` value                                           @typescript-eslint/no-unsafe-assignment
+  195:44  error    Unsafe member access .url on an `any` value                                   @typescript-eslint/no-unsafe-member-access
+  204:11  error    Unsafe assignment of an `any` value                                           @typescript-eslint/no-unsafe-assignment
+  211:14  error    Unsafe assignment of an `any` value                                           @typescript-eslint/no-unsafe-assignment
+  211:29  error    Unsafe member access .url on an `any` value                                   @typescript-eslint/no-unsafe-member-access
+  230:5   error    Unsafe assignment of an `any` value                                           @typescript-eslint/no-unsafe-assignment
+  231:5   error    Unsafe assignment of an `any` value                                           @typescript-eslint/no-unsafe-assignment
+  232:5   error    Unsafe assignment of an `any` value                                           @typescript-eslint/no-unsafe-assignment
+  238:9   error    Unsafe assignment of an `any` value                                           @typescript-eslint/no-unsafe-assignment
+  239:9   error    Unsafe assignment of an `any` value                                           @typescript-eslint/no-unsafe-assignment
+  249:3   error    Async method 'handleWebhookPaymentIntentSucceeded' has no 'await' expression  @typescript-eslint/require-await
+  252:11  error    Unsafe assignment of an `any` value                                           @typescript-eslint/no-unsafe-assignment
+  253:11  error    Unsafe assignment of an `any` value                                           @typescript-eslint/no-unsafe-assignment
+  253:32  error    Unsafe member access .booking_id on an `any` value                            @typescript-eslint/no-unsafe-member-access
+  254:11  error    Unsafe assignment of an `any` value                                           @typescript-eslint/no-unsafe-assignment
+  254:31  error    Unsafe member access .driver_id on an `any` value                             @typescript-eslint/no-unsafe-member-access
+  258:11  error    Unsafe assignment of an `any` value                                           @typescript-eslint/no-unsafe-assignment
+  265:9   error    Unsafe assignment of an `any` value                                           @typescript-eslint/no-unsafe-assignment
+  265:20  error    Unsafe assignment of an `any` value                                           @typescript-eslint/no-unsafe-assignment
+  265:30  error    Unsafe assignment of an `any` value                                           @typescript-eslint/no-unsafe-assignment
+  273:11  error    Unsafe assignment of an `any` value                                           @typescript-eslint/no-unsafe-assignment
+  274:11  error    Unsafe assignment of an `any` value                                           @typescript-eslint/no-unsafe-assignment
+  274:31  error    Unsafe member access .driver_id on an `any` value                             @typescript-eslint/no-unsafe-member-access
+  279:16  error    Unsafe assignment of an `any` value                                           @typescript-eslint/no-unsafe-assignment
+  285:7   error    Unsafe assignment of an `any` value                                           @typescript-eslint/no-unsafe-assignment
+  286:7   error    Unsafe assignment of an `any` value                                           @typescript-eslint/no-unsafe-assignment
+  288:7   error    Unsafe assignment of an `any` value                                           @typescript-eslint/no-unsafe-assignment
+  289:7   error    Unsafe assignment of an `any` value                                           @typescript-eslint/no-unsafe-assignment
+  297:57  error    Unsafe assignment of an `any` value                                           @typescript-eslint/no-unsafe-assignment
+  309:13  error    Unsafe assignment of an `any` value                                           @typescript-eslint/no-unsafe-assignment
+  318:9   error    Unsafe assignment of an `any` value                                           @typescript-eslint/no-unsafe-assignment
+  318:19  error    Unsafe assignment of an `any` value                                           @typescript-eslint/no-unsafe-assignment
+  369:11  error    'startOfYear' is assigned a value but never used                              @typescript-eslint/no-unused-vars
+  371:12  error    Unsafe array destructuring of a tuple element with an `any` value             @typescript-eslint/no-unsafe-assignment
+  371:26  error    Unsafe array destructuring of a tuple element with an `any` value             @typescript-eslint/no-unsafe-assignment
+  371:41  error    Unsafe array destructuring of a tuple element with an `any` value             @typescript-eslint/no-unsafe-assignment
+  397:29  warning  Unsafe argument of type `any` assigned to a parameter of type `string`        @typescript-eslint/no-unsafe-argument
+  397:43  error    Unsafe member access .total on an `any` value                                 @typescript-eslint/no-unsafe-member-access
+  398:30  warning  Unsafe argument of type `any` assigned to a parameter of type `string`        @typescript-eslint/no-unsafe-argument
+  398:45  error    Unsafe member access .total on an `any` value                                 @typescript-eslint/no-unsafe-member-access
+  400:27  warning  Unsafe argument of type `any` assigned to a parameter of type `string`        @typescript-eslint/no-unsafe-argument
+  400:42  error    Unsafe member access .total on an `any` value                                 @typescript-eslint/no-unsafe-member-access
+  525:13  error    Unsafe assignment of an `any` value                                           @typescript-eslint/no-unsafe-assignment
+  527:36  error    Unsafe assignment of an `any` value                                           @typescript-eslint/no-unsafe-assignment
+  531:36  error    Unsafe member access .error on an `any` value                                 @typescript-eslint/no-unsafe-member-access
+  561:13  error    Unsafe assignment of an `any` value                                           @typescript-eslint/no-unsafe-assignment
+  563:45  error    Unsafe member access .error on an `any` value                                 @typescript-eslint/no-unsafe-member-access
+  583:13  error    Unsafe assignment of an `any` value                                           @typescript-eslint/no-unsafe-assignment
+  585:43  error    Unsafe member access .error on an `any` value                                 @typescript-eslint/no-unsafe-member-access
+
+/Users/Sush/Desktop/bovogo-codex/backend/src/modules/preferences/preferences.service.ts
+  16:42  error  Unsafe assignment of an `any` value                   @typescript-eslint/no-unsafe-assignment
+  31:20  error  Unsafe member access .conversation on an `any` value  @typescript-eslint/no-unsafe-member-access
+  31:49  error  Unsafe member access .conversation on an `any` value  @typescript-eslint/no-unsafe-member-access
+  32:20  error  Unsafe member access .music on an `any` value         @typescript-eslint/no-unsafe-member-access
+  32:42  error  Unsafe member access .music on an `any` value         @typescript-eslint/no-unsafe-member-access
+  33:20  error  Unsafe member access .volume on an `any` value        @typescript-eslint/no-unsafe-member-access
+  33:43  error  Unsafe member access .volume on an `any` value        @typescript-eslint/no-unsafe-member-access
+  34:20  error  Unsafe member access .pets on an `any` value          @typescript-eslint/no-unsafe-member-access
+  34:41  error  Unsafe member access .pets on an `any` value          @typescript-eslint/no-unsafe-member-access
+
+/Users/Sush/Desktop/bovogo-codex/backend/src/modules/pricing/pricing.config.ts
+  141:35  error  '_miles' is defined but never used  @typescript-eslint/no-unused-vars
+
+/Users/Sush/Desktop/bovogo-codex/backend/src/modules/privacy/privacy.service.ts
+    4:3   error  'BadRequestException' is defined but never used                @typescript-eslint/no-unused-vars
+  198:13  error  'password_hash' is assigned a value but never used             @typescript-eslint/no-unused-vars
+  341:19  error  Unsafe member access .deletion_scheduled_at on an `any` value  @typescript-eslint/no-unsafe-member-access
+  342:19  error  Unsafe member access .deletion_reason on an `any` value        @typescript-eslint/no-unsafe-member-access
+  374:24  error  Unsafe member access .deletion_scheduled_at on an `any` value  @typescript-eslint/no-unsafe-member-access
+  381:19  error  Unsafe member access .deletion_scheduled_at on an `any` value  @typescript-eslint/no-unsafe-member-access
+  382:19  error  Unsafe member access .deletion_reason on an `any` value        @typescript-eslint/no-unsafe-member-access
+
+/Users/Sush/Desktop/bovogo-codex/backend/src/modules/profiles/dto/profile.dto.ts
+   9:3  error  'IsObject' is defined but never used    @typescript-eslint/no-unused-vars
+  10:3  error  'ValidateIf' is defined but never used  @typescript-eslint/no-unused-vars
+
+/Users/Sush/Desktop/bovogo-codex/backend/src/modules/profiles/profiles.controller.ts
+    7:3   error    'Delete' is defined but never used                                      @typescript-eslint/no-unused-vars
+   37:59  warning  Unsafe argument of type `any` assigned to a parameter of type `string`  @typescript-eslint/no-unsafe-argument
+   37:63  error    Unsafe member access .user on an `any` value                            @typescript-eslint/no-unsafe-member-access
+   38:61  warning  Unsafe argument of type `any` assigned to a parameter of type `string`  @typescript-eslint/no-unsafe-argument
+   38:65  error    Unsafe member access .user on an `any` value                            @typescript-eslint/no-unsafe-member-access
+   47:47  warning  Unsafe argument of type `any` assigned to a parameter of type `string`  @typescript-eslint/no-unsafe-argument
+   47:51  error    Unsafe member access .user on an `any` value                            @typescript-eslint/no-unsafe-member-access
+   55:52  warning  Unsafe argument of type `any` assigned to a parameter of type `string`  @typescript-eslint/no-unsafe-argument
+   55:56  error    Unsafe member access .user on an `any` value                            @typescript-eslint/no-unsafe-member-access
+   67:7   warning  Unsafe argument of type `any` assigned to a parameter of type `string`  @typescript-eslint/no-unsafe-argument
+   67:11  error    Unsafe member access .user on an `any` value                            @typescript-eslint/no-unsafe-member-access
+   78:61  warning  Unsafe argument of type `any` assigned to a parameter of type `string`  @typescript-eslint/no-unsafe-argument
+   78:65  error    Unsafe member access .user on an `any` value                            @typescript-eslint/no-unsafe-member-access
+   95:49  warning  Unsafe argument of type `any` assigned to a parameter of type `string`  @typescript-eslint/no-unsafe-argument
+   95:53  error    Unsafe member access .user on an `any` value                            @typescript-eslint/no-unsafe-member-access
+  103:45  warning  Unsafe argument of type `any` assigned to a parameter of type `string`  @typescript-eslint/no-unsafe-argument
+  103:49  error    Unsafe member access .user on an `any` value                            @typescript-eslint/no-unsafe-member-access
+  111:44  warning  Unsafe argument of type `any` assigned to a parameter of type `string`  @typescript-eslint/no-unsafe-argument
+  111:48  error    Unsafe member access .user on an `any` value                            @typescript-eslint/no-unsafe-member-access
+  125:47  warning  Unsafe argument of type `any` assigned to a parameter of type `string`  @typescript-eslint/no-unsafe-argument
+  125:51  error    Unsafe member access .user on an `any` value                            @typescript-eslint/no-unsafe-member-access
+  138:7   warning  Unsafe argument of type `any` assigned to a parameter of type `string`  @typescript-eslint/no-unsafe-argument
+  138:11  error    Unsafe member access .user on an `any` value                            @typescript-eslint/no-unsafe-member-access
+  156:7   warning  Unsafe argument of type `any` assigned to a parameter of type `string`  @typescript-eslint/no-unsafe-argument
+  156:11  error    Unsafe member access .user on an `any` value                            @typescript-eslint/no-unsafe-member-access
+  171:50  warning  Unsafe argument of type `any` assigned to a parameter of type `string`  @typescript-eslint/no-unsafe-argument
+  171:54  error    Unsafe member access .user on an `any` value                            @typescript-eslint/no-unsafe-member-access
+
+/Users/Sush/Desktop/bovogo-codex/backend/src/modules/profiles/profiles.service.ts
+  197:11  error  Unsafe assignment of an `any` value                                      @typescript-eslint/no-unsafe-assignment
+  197:21  error  Unsafe call of an `any` typed value                                      @typescript-eslint/no-unsafe-call
+  197:39  error  Unsafe member access .ModerationLabels on an `any` value                 @typescript-eslint/no-unsafe-member-access
+  197:63  error  Unsafe member access .some on an `any` value                             @typescript-eslint/no-unsafe-member-access
+  201:11  error  'hasFace' is assigned a value but never used                             @typescript-eslint/no-unused-vars
+  201:33  error  Unsafe member access .FaceDetails on an `any` value                      @typescript-eslint/no-unsafe-member-access
+  201:52  error  Unsafe member access .length on an `any` value                           @typescript-eslint/no-unsafe-member-access
+  205:29  error  Unsafe assignment of an `any` value                                      @typescript-eslint/no-unsafe-assignment
+  205:54  error  Unsafe member access .ModerationLabels on an `any` value                 @typescript-eslint/no-unsafe-member-access
+  235:11  error  Unsafe assignment of an `any` value                                      @typescript-eslint/no-unsafe-assignment
+  314:17  error  Unsafe assignment of an `any` value                                      @typescript-eslint/no-unsafe-assignment
+  314:48  error  Unsafe member access .make on an `any` value                             @typescript-eslint/no-unsafe-member-access
+  315:55  error  Unsafe call of an `any` typed value                                      @typescript-eslint/no-unsafe-call
+  315:65  error  Unsafe member access .toLowerCase on an `any` value                      @typescript-eslint/no-unsafe-member-access
+  320:17  error  Unsafe assignment of an `any` value                                      @typescript-eslint/no-unsafe-assignment
+  445:11  error  'uploadResult' is assigned a value but never used                        @typescript-eslint/no-unused-vars
+  452:11  error  Unsafe assignment of an `any` value                                      @typescript-eslint/no-unsafe-assignment
+  474:11  error  'saved' is assigned a value but never used                               @typescript-eslint/no-unused-vars
+  569:9   error  The two values in this comparison do not have a shared enum type         @typescript-eslint/no-unsafe-enum-comparison
+  583:9   error  The two values in this comparison do not have a shared enum type         @typescript-eslint/no-unsafe-enum-comparison
+  612:5   error  'mimeType' is defined but never used                                     @typescript-eslint/no-unused-vars
+  642:11  error  Unsafe assignment of an `any` value                                      @typescript-eslint/no-unsafe-assignment
+  643:11  error  Unsafe assignment of an `any` value                                      @typescript-eslint/no-unsafe-assignment
+  666:3   error  Async method 'checkVehicleVerificationStatus' has no 'await' expression  @typescript-eslint/require-await
+
+/Users/Sush/Desktop/bovogo-codex/backend/src/modules/profiles/user.controller.ts
+    9:3   error    'NotFoundException' is defined but never used                                                                                                                                                      @typescript-eslint/no-unused-vars
+   77:48  warning  Unsafe argument of type `any` assigned to a parameter of type `string`                                                                                                                             @typescript-eslint/no-unsafe-argument
+   77:52  error    Unsafe member access .user on an `any` value                                                                                                                                                       @typescript-eslint/no-unsafe-member-access
+   91:48  warning  Unsafe argument of type `any` assigned to a parameter of type `string`                                                                                                                             @typescript-eslint/no-unsafe-argument
+   91:52  error    Unsafe member access .user on an `any` value                                                                                                                                                       @typescript-eslint/no-unsafe-member-access
+  104:16  error    Unsafe assignment of an `any` value                                                                                                                                                                @typescript-eslint/no-unsafe-assignment
+  104:24  error    Unsafe member access .user on an `any` value                                                                                                                                                       @typescript-eslint/no-unsafe-member-access
+  130:14  error    Unsafe member access .rider_conversation_style on an `any` value                                                                                                                                   @typescript-eslint/no-unsafe-member-access
+  132:14  error    Unsafe member access .rider_music_preference on an `any` value                                                                                                                                     @typescript-eslint/no-unsafe-member-access
+  134:14  error    Unsafe member access .rider_smoking_preference on an `any` value                                                                                                                                   @typescript-eslint/no-unsafe-member-access
+  136:14  error    Unsafe member access .rider_pet_preference on an `any` value                                                                                                                                       @typescript-eslint/no-unsafe-member-access
+  137:21  warning  Unsafe argument of type `any` assigned to a parameter of type `{}`                                                                                                                                 @typescript-eslint/no-unsafe-argument
+  138:34  warning  Unsafe argument of type `any` assigned to a parameter of type `string | number | string[] | Date | number[] | ObjectId | Date[] | ObjectId[] | FindOptionsWhere<User> | FindOptionsWhere<User>[]`  @typescript-eslint/no-unsafe-argument
+  138:38  error    Unsafe member access .user on an `any` value                                                                                                                                                       @typescript-eslint/no-unsafe-member-access
+  138:47  warning  Unsafe argument of type `any` assigned to a parameter of type `_QueryDeepPartialEntity<User>`                                                                                                      @typescript-eslint/no-unsafe-argument
+  148:32  warning  Unsafe argument of type `any` assigned to a parameter of type `string | number | string[] | Date | number[] | ObjectId | Date[] | ObjectId[] | FindOptionsWhere<User> | FindOptionsWhere<User>[]`  @typescript-eslint/no-unsafe-argument
+  148:36  error    Unsafe member access .user on an `any` value                                                                                                                                                       @typescript-eslint/no-unsafe-member-access
+  157:59  warning  Unsafe argument of type `any` assigned to a parameter of type `string`                                                                                                                             @typescript-eslint/no-unsafe-argument
+  157:63  error    Unsafe member access .user on an `any` value                                                                                                                                                       @typescript-eslint/no-unsafe-member-access
+  158:11  error    Unsafe assignment of an `any` value                                                                                                                                                                @typescript-eslint/no-unsafe-assignment
+  158:24  error    Unsafe member access .user on an `any` value                                                                                                                                                       @typescript-eslint/no-unsafe-member-access
+  161:16  error    Unsafe assignment of an `any` value                                                                                                                                                                @typescript-eslint/no-unsafe-assignment
+  165:16  error    Unsafe assignment of an `any` value                                                                                                                                                                @typescript-eslint/no-unsafe-assignment
+  184:11  error    Unsafe assignment of an `any` value                                                                                                                                                                @typescript-eslint/no-unsafe-assignment
+  187:41  error    Unsafe assignment of an `any` value                                                                                                                                                                @typescript-eslint/no-unsafe-assignment
+  191:39  warning  Unsafe argument of type `any` assigned to a parameter of type `string`                                                                                                                             @typescript-eslint/no-unsafe-argument
+  191:54  error    Unsafe member access .total on an `any` value                                                                                                                                                      @typescript-eslint/no-unsafe-member-access
+  213:3   error    Async method 'getCurrentIrsRate' has no 'await' expression                                                                                                                                         @typescript-eslint/require-await
+  223:16  error    Unsafe assignment of an `any` value                                                                                                                                                                @typescript-eslint/no-unsafe-assignment
+  223:24  error    Unsafe member access .user on an `any` value                                                                                                                                                       @typescript-eslint/no-unsafe-member-access
+  268:11  error    Unsafe assignment of an `any` value                                                                                                                                                                @typescript-eslint/no-unsafe-assignment
+  270:16  error    Unsafe member access .status on an `any` value                                                                                                                                                     @typescript-eslint/no-unsafe-member-access
+  270:39  error    Unsafe member access .status on an `any` value                                                                                                                                                     @typescript-eslint/no-unsafe-member-access
+  274:11  error    Unsafe assignment of an `any` value                                                                                                                                                                @typescript-eslint/no-unsafe-assignment
+  274:28  error    Unsafe member access .receipt on an `any` value                                                                                                                                                    @typescript-eslint/no-unsafe-member-access
+  275:11  error    Unsafe assignment of an `any` value                                                                                                                                                                @typescript-eslint/no-unsafe-assignment
+  275:31  error    Unsafe member access .in_app on an `any` value                                                                                                                                                     @typescript-eslint/no-unsafe-member-access
+  275:48  error    Unsafe member access .in_app on an `any` value                                                                                                                                                     @typescript-eslint/no-unsafe-member-access
+  276:11  error    Unsafe assignment of an `any` value                                                                                                                                                                @typescript-eslint/no-unsafe-assignment
+  277:18  error    Unsafe member access .original_transaction_id on an `any` value                                                                                                                                    @typescript-eslint/no-unsafe-member-access
+  277:53  error    Unsafe member access .receipt_creation_date on an `any` value                                                                                                                                      @typescript-eslint/no-unsafe-member-access
+  279:34  error    Unsafe member access .expires_date on an `any` value                                                                                                                                               @typescript-eslint/no-unsafe-member-access
+  280:18  warning  Unsafe argument of type `any` assigned to a parameter of type `string | number | Date`                                                                                                             @typescript-eslint/no-unsafe-argument
+  280:28  error    Unsafe member access .expires_date on an `any` value                                                                                                                                               @typescript-eslint/no-unsafe-member-access
+  283:32  warning  Unsafe argument of type `any` assigned to a parameter of type `string | number | string[] | Date | number[] | ObjectId | Date[] | ObjectId[] | FindOptionsWhere<User> | FindOptionsWhere<User>[]`  @typescript-eslint/no-unsafe-argument
+  283:36  error    Unsafe member access .user on an `any` value                                                                                                                                                       @typescript-eslint/no-unsafe-member-access
+  284:7   error    Unsafe assignment of an `any` value                                                                                                                                                                @typescript-eslint/no-unsafe-assignment
+  286:7   error    Unsafe assignment of an `any` value                                                                                                                                                                @typescript-eslint/no-unsafe-assignment
+  299:11  error    Unsafe assignment of an `any` value                                                                                                                                                                @typescript-eslint/no-unsafe-assignment
+  299:32  error    Unsafe member access .signedPayload on an `any` value                                                                                                                                              @typescript-eslint/no-unsafe-member-access
+  306:13  error    Unsafe assignment of an `any` value                                                                                                                                                                @typescript-eslint/no-unsafe-assignment
+  306:21  error    Unsafe call of an `any` typed value                                                                                                                                                                @typescript-eslint/no-unsafe-call
+  306:35  error    Unsafe member access .split on an `any` value                                                                                                                                                      @typescript-eslint/no-unsafe-member-access
+  307:35  warning  Unsafe argument of type `any` assigned to a parameter of type `WithImplicitCoercion<string>`                                                                                                       @typescript-eslint/no-unsafe-argument
+  307:41  error    Unsafe member access [1] on an `any` value                                                                                                                                                         @typescript-eslint/no-unsafe-member-access
+  308:7   error    Unsafe assignment of an `any` value                                                                                                                                                                @typescript-eslint/no-unsafe-assignment
+  313:11  error    Unsafe assignment of an `any` value                                                                                                                                                                @typescript-eslint/no-unsafe-assignment
+  313:38  error    Unsafe member access .notificationType on an `any` value                                                                                                                                           @typescript-eslint/no-unsafe-member-access
+  314:11  error    Unsafe assignment of an `any` value                                                                                                                                                                @typescript-eslint/no-unsafe-assignment
+  315:15  error    Unsafe member access .data on an `any` value                                                                                                                                                       @typescript-eslint/no-unsafe-member-access
+  316:15  error    Unsafe member access .signedTransactionInfo on an `any` value                                                                                                                                      @typescript-eslint/no-unsafe-member-access
+  321:16  error    Unsafe assignment of an `any` value                                                                                                                                                                @typescript-eslint/no-unsafe-assignment
+  331:15  error    Unsafe assignment of an `any` value                                                                                                                                                                @typescript-eslint/no-unsafe-assignment
+  332:19  error    Unsafe member access .data on an `any` value                                                                                                                                                       @typescript-eslint/no-unsafe-member-access
+  333:19  error    Unsafe member access .renewalInfo on an `any` value                                                                                                                                                @typescript-eslint/no-unsafe-member-access
+  335:11  error    Unsafe assignment of an `any` value                                                                                                                                                                @typescript-eslint/no-unsafe-assignment
+  337:33  warning  Unsafe argument of type `any` assigned to a parameter of type `string`                                                                                                                             @typescript-eslint/no-unsafe-argument
+  347:11  error    Unsafe assignment of an `any` value                                                                                                                                                                @typescript-eslint/no-unsafe-assignment
+
+/Users/Sush/Desktop/bovogo-codex/backend/src/modules/routing/routing.service.ts
+  68:15  error  Unsafe object destructuring of a property with an `any` value  @typescript-eslint/no-unsafe-assignment
+  70:13  error  Unsafe assignment of an `any` value                            @typescript-eslint/no-unsafe-assignment
+  70:50  error  Unsafe member access .routes on an `any` value                 @typescript-eslint/no-unsafe-member-access
+  73:31  error  Unsafe assignment of an `any` value                            @typescript-eslint/no-unsafe-assignment
+  73:43  error  Unsafe member access .code on an `any` value                   @typescript-eslint/no-unsafe-member-access
+  82:13  error  Unsafe assignment of an `any` value                            @typescript-eslint/no-unsafe-assignment
+  82:33  error  Unsafe member access .response on an `any` value               @typescript-eslint/no-unsafe-member-access
+  85:11  error  Unsafe assignment of an `any` value                            @typescript-eslint/no-unsafe-assignment
+  85:24  error  Unsafe member access .status on an `any` value                 @typescript-eslint/no-unsafe-member-access
+  86:11  error  Unsafe assignment of an `any` value                            @typescript-eslint/no-unsafe-assignment
+  86:22  error  Unsafe member access .data on an `any` value                   @typescript-eslint/no-unsafe-member-access
+
+/Users/Sush/Desktop/bovogo-codex/backend/src/modules/safety/dto/safety.dto.ts
+  7:3  error  'Min' is defined but never used  @typescript-eslint/no-unused-vars
+
+/Users/Sush/Desktop/bovogo-codex/backend/src/modules/safety/noonlight-webhook.controller.spec.ts
+  16:5   warning  Unsafe argument of type `any` assigned to a parameter of type `SafetyService`                                           @typescript-eslint/no-unsafe-argument
+  17:5   warning  Unsafe argument of type `any` assigned to a parameter of type `ConfigService<Record<string | symbol, unknown>, false>`  @typescript-eslint/no-unsafe-argument
+  18:5   warning  Unsafe argument of type `any` assigned to a parameter of type `PinoLogger`                                              @typescript-eslint/no-unsafe-argument
+  25:26  error    Unsafe assignment of an `any` value                                                                                     @typescript-eslint/no-unsafe-assignment
+
+/Users/Sush/Desktop/bovogo-codex/backend/src/modules/safety/noonlight-webhook.controller.ts
+  59:11  error    Unsafe assignment of an `any` value                                                                                                                          @typescript-eslint/no-unsafe-assignment
+  59:41  error    Unsafe member access .rawBody on an `any` value                                                                                                              @typescript-eslint/no-unsafe-member-access
+  75:11  error    Unsafe assignment of an `any` value                                                                                                                          @typescript-eslint/no-unsafe-assignment
+  75:25  error    Unsafe member access .body on an `any` value                                                                                                                 @typescript-eslint/no-unsafe-member-access
+  76:24  error    Unsafe assignment of an `any` value                                                                                                                          @typescript-eslint/no-unsafe-assignment
+  93:68  warning  Unsafe argument of type `any` assigned to a parameter of type `{ event_type?: string | undefined; meta?: { alarm_id?: string | undefined; } | undefined; }`  @typescript-eslint/no-unsafe-argument
+
+/Users/Sush/Desktop/bovogo-codex/backend/src/modules/safety/safety.controller.ts
+    9:3   error    'HttpCode' is defined but never used                                    @typescript-eslint/no-unused-vars
+   10:3   error    'HttpStatus' is defined but never used                                  @typescript-eslint/no-unused-vars
+  258:7   warning  Unsafe argument of type `any` assigned to a parameter of type `string`  @typescript-eslint/no-unsafe-argument
+  258:11  error    Unsafe member access .user on an `any` value                            @typescript-eslint/no-unsafe-member-access
+  286:7   warning  Unsafe argument of type `any` assigned to a parameter of type `string`  @typescript-eslint/no-unsafe-argument
+  286:11  error    Unsafe member access .user on an `any` value                            @typescript-eslint/no-unsafe-member-access
+  304:7   warning  Unsafe argument of type `any` assigned to a parameter of type `string`  @typescript-eslint/no-unsafe-argument
+  304:11  error    Unsafe member access .user on an `any` value                            @typescript-eslint/no-unsafe-member-access
+  325:7   warning  Unsafe argument of type `any` assigned to a parameter of type `string`  @typescript-eslint/no-unsafe-argument
+  325:11  error    Unsafe member access .user on an `any` value                            @typescript-eslint/no-unsafe-member-access
+  354:5   error    Unsafe return of a value of type `Promise<any>`                         @typescript-eslint/no-unsafe-return
+  359:3   error    Async method 'getTrackingPage' has no 'await' expression                @typescript-eslint/require-await
+  390:47  warning  Unsafe argument of type `any` assigned to a parameter of type `string`  @typescript-eslint/no-unsafe-argument
+  390:51  error    Unsafe member access .user on an `any` value                            @typescript-eslint/no-unsafe-member-access
+
+/Users/Sush/Desktop/bovogo-codex/backend/src/modules/safety/safety.scheduler.ts
+  2:16  error  'CronExpression' is defined but never used  @typescript-eslint/no-unused-vars
+
+/Users/Sush/Desktop/bovogo-codex/backend/src/modules/safety/safety.service.spec.ts
+   61:7   error    'mobileSosRepo' is assigned a value but never used                                                                                                                                                                                                                                                                                          @typescript-eslint/no-unused-vars
+   64:7   error    'logger' is assigned a value but never used                                                                                                                                                                                                                                                                                                 @typescript-eslint/no-unused-vars
+  137:38  error    Unsafe return of a value of type `any`                                                                                                                                                                                                                                                                                                      @typescript-eslint/no-unsafe-return
+  138:39  error    Async arrow function has no 'await' expression                                                                                                                                                                                                                                                                                              @typescript-eslint/require-await
+  138:43  error    Unsafe return of a value of type `any`                                                                                                                                                                                                                                                                                                      @typescript-eslint/no-unsafe-return
+  262:44  warning  Unsafe argument of type `any` assigned to a parameter of type `UpdateResult | Promise<UpdateResult>`                                                                                                                                                                                                                                        @typescript-eslint/no-unsafe-argument
+  279:14  error    A method that is not declared with `this: void` may cause unintentional scoping of `this` when separated from its object.
+Consider using an arrow function or explicitly `.bind()`ing the method to avoid calling the method with an unintended `this` value. 
+If a function does not access `this`, it can be annotated with `this: void`  @typescript-eslint/unbound-method
+  288:14  error    A method that is not declared with `this: void` may cause unintentional scoping of `this` when separated from its object.
+Consider using an arrow function or explicitly `.bind()`ing the method to avoid calling the method with an unintended `this` value. 
+If a function does not access `this`, it can be annotated with `this: void`  @typescript-eslint/unbound-method
+  289:14  error    A method that is not declared with `this: void` may cause unintentional scoping of `this` when separated from its object.
+Consider using an arrow function or explicitly `.bind()`ing the method to avoid calling the method with an unintended `this` value. 
+If a function does not access `this`, it can be annotated with `this: void`  @typescript-eslint/unbound-method
+  326:44  warning  Unsafe argument of type `any` assigned to a parameter of type `UpdateResult | Promise<UpdateResult>`                                                                                                                                                                                                                                        @typescript-eslint/no-unsafe-argument
+  342:14  error    A method that is not declared with `this: void` may cause unintentional scoping of `this` when separated from its object.
+Consider using an arrow function or explicitly `.bind()`ing the method to avoid calling the method with an unintended `this` value. 
+If a function does not access `this`, it can be annotated with `this: void`  @typescript-eslint/unbound-method
+  343:14  error    A method that is not declared with `this: void` may cause unintentional scoping of `this` when separated from its object.
+Consider using an arrow function or explicitly `.bind()`ing the method to avoid calling the method with an unintended `this` value. 
+If a function does not access `this`, it can be annotated with `this: void`  @typescript-eslint/unbound-method
+  374:14  error    A method that is not declared with `this: void` may cause unintentional scoping of `this` when separated from its object.
+Consider using an arrow function or explicitly `.bind()`ing the method to avoid calling the method with an unintended `this` value. 
+If a function does not access `this`, it can be annotated with `this: void`  @typescript-eslint/unbound-method
+  375:14  error    A method that is not declared with `this: void` may cause unintentional scoping of `this` when separated from its object.
+Consider using an arrow function or explicitly `.bind()`ing the method to avoid calling the method with an unintended `this` value. 
+If a function does not access `this`, it can be annotated with `this: void`  @typescript-eslint/unbound-method
+  451:14  error    A method that is not declared with `this: void` may cause unintentional scoping of `this` when separated from its object.
+Consider using an arrow function or explicitly `.bind()`ing the method to avoid calling the method with an unintended `this` value. 
+If a function does not access `this`, it can be annotated with `this: void`  @typescript-eslint/unbound-method
+  454:14  error    A method that is not declared with `this: void` may cause unintentional scoping of `this` when separated from its object.
+Consider using an arrow function or explicitly `.bind()`ing the method to avoid calling the method with an unintended `this` value. 
+If a function does not access `this`, it can be annotated with `this: void`  @typescript-eslint/unbound-method
+  471:14  error    A method that is not declared with `this: void` may cause unintentional scoping of `this` when separated from its object.
+Consider using an arrow function or explicitly `.bind()`ing the method to avoid calling the method with an unintended `this` value. 
+If a function does not access `this`, it can be annotated with `this: void`  @typescript-eslint/unbound-method
+  535:14  error    A method that is not declared with `this: void` may cause unintentional scoping of `this` when separated from its object.
+Consider using an arrow function or explicitly `.bind()`ing the method to avoid calling the method with an unintended `this` value. 
+If a function does not access `this`, it can be annotated with `this: void`  @typescript-eslint/unbound-method
+  542:14  error    A method that is not declared with `this: void` may cause unintentional scoping of `this` when separated from its object.
+Consider using an arrow function or explicitly `.bind()`ing the method to avoid calling the method with an unintended `this` value. 
+If a function does not access `this`, it can be annotated with `this: void`  @typescript-eslint/unbound-method
+  589:14  error    A method that is not declared with `this: void` may cause unintentional scoping of `this` when separated from its object.
+Consider using an arrow function or explicitly `.bind()`ing the method to avoid calling the method with an unintended `this` value. 
+If a function does not access `this`, it can be annotated with `this: void`  @typescript-eslint/unbound-method
+  604:14  error    A method that is not declared with `this: void` may cause unintentional scoping of `this` when separated from its object.
+Consider using an arrow function or explicitly `.bind()`ing the method to avoid calling the method with an unintended `this` value. 
+If a function does not access `this`, it can be annotated with `this: void`  @typescript-eslint/unbound-method
+  619:14  error    A method that is not declared with `this: void` may cause unintentional scoping of `this` when separated from its object.
+Consider using an arrow function or explicitly `.bind()`ing the method to avoid calling the method with an unintended `this` value. 
+If a function does not access `this`, it can be annotated with `this: void`  @typescript-eslint/unbound-method
+  635:14  error    A method that is not declared with `this: void` may cause unintentional scoping of `this` when separated from its object.
+Consider using an arrow function or explicitly `.bind()`ing the method to avoid calling the method with an unintended `this` value. 
+If a function does not access `this`, it can be annotated with `this: void`  @typescript-eslint/unbound-method
+  647:14  error    A method that is not declared with `this: void` may cause unintentional scoping of `this` when separated from its object.
+Consider using an arrow function or explicitly `.bind()`ing the method to avoid calling the method with an unintended `this` value. 
+If a function does not access `this`, it can be annotated with `this: void`  @typescript-eslint/unbound-method
+  660:14  error    A method that is not declared with `this: void` may cause unintentional scoping of `this` when separated from its object.
+Consider using an arrow function or explicitly `.bind()`ing the method to avoid calling the method with an unintended `this` value. 
+If a function does not access `this`, it can be annotated with `this: void`  @typescript-eslint/unbound-method
+  673:14  error    A method that is not declared with `this: void` may cause unintentional scoping of `this` when separated from its object.
+Consider using an arrow function or explicitly `.bind()`ing the method to avoid calling the method with an unintended `this` value. 
+If a function does not access `this`, it can be annotated with `this: void`  @typescript-eslint/unbound-method
+  687:14  error    A method that is not declared with `this: void` may cause unintentional scoping of `this` when separated from its object.
+Consider using an arrow function or explicitly `.bind()`ing the method to avoid calling the method with an unintended `this` value. 
+If a function does not access `this`, it can be annotated with `this: void`  @typescript-eslint/unbound-method
+  696:14  error    A method that is not declared with `this: void` may cause unintentional scoping of `this` when separated from its object.
+Consider using an arrow function or explicitly `.bind()`ing the method to avoid calling the method with an unintended `this` value. 
+If a function does not access `this`, it can be annotated with `this: void`  @typescript-eslint/unbound-method
+  708:14  error    A method that is not declared with `this: void` may cause unintentional scoping of `this` when separated from its object.
+Consider using an arrow function or explicitly `.bind()`ing the method to avoid calling the method with an unintended `this` value. 
+If a function does not access `this`, it can be annotated with `this: void`  @typescript-eslint/unbound-method
+  720:14  error    A method that is not declared with `this: void` may cause unintentional scoping of `this` when separated from its object.
+Consider using an arrow function or explicitly `.bind()`ing the method to avoid calling the method with an unintended `this` value. 
+If a function does not access `this`, it can be annotated with `this: void`  @typescript-eslint/unbound-method
+  734:14  error    A method that is not declared with `this: void` may cause unintentional scoping of `this` when separated from its object.
+Consider using an arrow function or explicitly `.bind()`ing the method to avoid calling the method with an unintended `this` value. 
+If a function does not access `this`, it can be annotated with `this: void`  @typescript-eslint/unbound-method
+  749:14  error    A method that is not declared with `this: void` may cause unintentional scoping of `this` when separated from its object.
+Consider using an arrow function or explicitly `.bind()`ing the method to avoid calling the method with an unintended `this` value. 
+If a function does not access `this`, it can be annotated with `this: void`  @typescript-eslint/unbound-method
+  776:13  error    Unsafe assignment of an `any` value                                                                                                                                                                                                                                                                                                         @typescript-eslint/no-unsafe-assignment
+  778:21  error    Unsafe member access .current_lat on an `any` value                                                                                                                                                                                                                                                                                         @typescript-eslint/no-unsafe-member-access
+  779:21  error    Unsafe member access .current_lng on an `any` value                                                                                                                                                                                                                                                                                         @typescript-eslint/no-unsafe-member-access
+  780:21  error    Unsafe member access .accuracy on an `any` value                                                                                                                                                                                                                                                                                            @typescript-eslint/no-unsafe-member-access
+  781:21  error    Unsafe member access .driver_name on an `any` value                                                                                                                                                                                                                                                                                         @typescript-eslint/no-unsafe-member-access
+  782:21  error    Unsafe member access .vehicle_make on an `any` value                                                                                                                                                                                                                                                                                        @typescript-eslint/no-unsafe-member-access
+  783:21  error    Unsafe member access .route_polyline on an `any` value                                                                                                                                                                                                                                                                                      @typescript-eslint/no-unsafe-member-access
+  784:21  error    Unsafe member access .status on an `any` value                                                                                                                                                                                                                                                                                              @typescript-eslint/no-unsafe-member-access
+  817:13  error    Unsafe assignment of an `any` value                                                                                                                                                                                                                                                                                                         @typescript-eslint/no-unsafe-assignment
+  819:21  error    Unsafe member access .status on an `any` value                                                                                                                                                                                                                                                                                              @typescript-eslint/no-unsafe-member-access
+  838:14  error    A method that is not declared with `this: void` may cause unintentional scoping of `this` when separated from its object.
+Consider using an arrow function or explicitly `.bind()`ing the method to avoid calling the method with an unintended `this` value. 
+If a function does not access `this`, it can be annotated with `this: void`  @typescript-eslint/unbound-method
+  862:14  error    A method that is not declared with `this: void` may cause unintentional scoping of `this` when separated from its object.
+Consider using an arrow function or explicitly `.bind()`ing the method to avoid calling the method with an unintended `this` value. 
+If a function does not access `this`, it can be annotated with `this: void`  @typescript-eslint/unbound-method
+  882:14  error    A method that is not declared with `this: void` may cause unintentional scoping of `this` when separated from its object.
+Consider using an arrow function or explicitly `.bind()`ing the method to avoid calling the method with an unintended `this` value. 
+If a function does not access `this`, it can be annotated with `this: void`  @typescript-eslint/unbound-method
+  902:14  error    A method that is not declared with `this: void` may cause unintentional scoping of `this` when separated from its object.
+Consider using an arrow function or explicitly `.bind()`ing the method to avoid calling the method with an unintended `this` value. 
+If a function does not access `this`, it can be annotated with `this: void`  @typescript-eslint/unbound-method
+  937:14  error    A method that is not declared with `this: void` may cause unintentional scoping of `this` when separated from its object.
+Consider using an arrow function or explicitly `.bind()`ing the method to avoid calling the method with an unintended `this` value. 
+If a function does not access `this`, it can be annotated with `this: void`  @typescript-eslint/unbound-method
+  943:14  error    A method that is not declared with `this: void` may cause unintentional scoping of `this` when separated from its object.
+Consider using an arrow function or explicitly `.bind()`ing the method to avoid calling the method with an unintended `this` value. 
+If a function does not access `this`, it can be annotated with `this: void`  @typescript-eslint/unbound-method
+  960:14  error    A method that is not declared with `this: void` may cause unintentional scoping of `this` when separated from its object.
+Consider using an arrow function or explicitly `.bind()`ing the method to avoid calling the method with an unintended `this` value. 
+If a function does not access `this`, it can be annotated with `this: void`  @typescript-eslint/unbound-method
+  974:14  error    A method that is not declared with `this: void` may cause unintentional scoping of `this` when separated from its object.
+Consider using an arrow function or explicitly `.bind()`ing the method to avoid calling the method with an unintended `this` value. 
+If a function does not access `this`, it can be annotated with `this: void`  @typescript-eslint/unbound-method
+  992:14  error    A method that is not declared with `this: void` may cause unintentional scoping of `this` when separated from its object.
+Consider using an arrow function or explicitly `.bind()`ing the method to avoid calling the method with an unintended `this` value. 
+If a function does not access `this`, it can be annotated with `this: void`  @typescript-eslint/unbound-method
+
+/Users/Sush/Desktop/bovogo-codex/backend/src/modules/safety/safety.service.ts
+    3:22  error  'In' is defined but never used                                          @typescript-eslint/no-unused-vars
+   23:8   error  'axios' is defined but never used                                       @typescript-eslint/no-unused-vars
+  285:7   error  Promise returned in function argument where a void return was expected  @typescript-eslint/no-misused-promises
+  289:22  error  The two values in this comparison do not have a shared enum type        @typescript-eslint/no-unsafe-enum-comparison
+  304:23  error  The two values in this comparison do not have a shared enum type        @typescript-eslint/no-unsafe-enum-comparison
+  556:12  error  The two values in this comparison do not have a shared enum type        @typescript-eslint/no-unsafe-enum-comparison
+  556:45  error  The two values in this comparison do not have a shared enum type        @typescript-eslint/no-unsafe-enum-comparison
+  575:9   error  The two values in this comparison do not have a shared enum type        @typescript-eslint/no-unsafe-enum-comparison
+  768:9   error  The two values in this comparison do not have a shared enum type        @typescript-eslint/no-unsafe-enum-comparison
+  895:13  error  Promise returned in function argument where a void return was expected  @typescript-eslint/no-misused-promises
+  899:28  error  The two values in this comparison do not have a shared enum type        @typescript-eslint/no-unsafe-enum-comparison
+
+/Users/Sush/Desktop/bovogo-codex/backend/src/modules/supabase/supabase.service.ts
+  25:5  error  Unsafe assignment of type `SupabaseClient<any, any, "public", any, any>` to a variable of type `SupabaseClient<any, "public", "public", any, any>`  @typescript-eslint/no-unsafe-assignment
+
+/Users/Sush/Desktop/bovogo-codex/backend/src/modules/support/support-auth.guard.ts
+  22:11  error  Unsafe assignment of an `any` value              @typescript-eslint/no-unsafe-assignment
+  23:11  error  Unsafe assignment of an `any` value              @typescript-eslint/no-unsafe-assignment
+  23:32  error  Unsafe member access .headers on an `any` value  @typescript-eslint/no-unsafe-member-access
+  29:11  error  Unsafe assignment of an `any` value              @typescript-eslint/no-unsafe-assignment
+  29:19  error  Unsafe call of an `any` typed value              @typescript-eslint/no-unsafe-call
+  29:30  error  Unsafe member access .split on an `any` value    @typescript-eslint/no-unsafe-member-access
+  30:15  error  Unsafe member access .length on an `any` value   @typescript-eslint/no-unsafe-member-access
+  30:37  error  Unsafe member access [0] on an `any` value       @typescript-eslint/no-unsafe-member-access
+  36:11  error  Unsafe assignment of an `any` value              @typescript-eslint/no-unsafe-assignment
+  36:25  error  Unsafe member access [1] on an `any` value       @typescript-eslint/no-unsafe-member-access
+  41:63  error  Unsafe assignment of an `any` value              @typescript-eslint/no-unsafe-assignment
+  57:13  error  Unsafe member access .agent on an `any` value    @typescript-eslint/no-unsafe-member-access
+  58:13  error  Unsafe member access .session on an `any` value  @typescript-eslint/no-unsafe-member-access
+
+/Users/Sush/Desktop/bovogo-codex/backend/src/modules/support/support.controller.ts
+   58:5   error    Unsafe return of a value of type `Promise<any>`                         @typescript-eslint/no-unsafe-return
+  120:63  warning  Unsafe argument of type `any` assigned to a parameter of type `string`  @typescript-eslint/no-unsafe-argument
+  120:67  error    Unsafe member access .agent on an `any` value                           @typescript-eslint/no-unsafe-member-access
+  152:13  error    Unsafe member access .agent on an `any` value                           @typescript-eslint/no-unsafe-member-access
+  162:5   error    Unsafe return of a value of type `Promise<any>`                         @typescript-eslint/no-unsafe-return
+
+/Users/Sush/Desktop/bovogo-codex/backend/src/modules/support/support.service.ts
+    8:22  error    'MoreThan' is defined but never used                                    @typescript-eslint/no-unused-vars
+   73:29  error    Unsafe member access .status on an `any` value                          @typescript-eslint/no-unsafe-member-access
+   74:31  error    Unsafe member access .priority on an `any` value                        @typescript-eslint/no-unsafe-member-access
+   75:34  error    Unsafe member access .assignee_id on an `any` value                     @typescript-eslint/no-unsafe-member-access
+   78:7   error    Unsafe assignment of an `any` value                                     @typescript-eslint/no-unsafe-assignment
+   95:20  warning  Unsafe argument of type `any` assigned to a parameter of type `string`  @typescript-eslint/no-unsafe-argument
+   95:24  error    Unsafe member access .ticket_id on an `any` value                       @typescript-eslint/no-unsafe-member-access
+   95:44  warning  Unsafe argument of type `any` assigned to a parameter of type `string`  @typescript-eslint/no-unsafe-argument
+   95:48  error    Unsafe member access .count on an `any` value                           @typescript-eslint/no-unsafe-member-access
+  301:18  error    Computed name [row.priority] resolves to an `any` value                 @typescript-eslint/no-unsafe-member-access
+  301:22  error    Unsafe member access .priority on an `any` value                        @typescript-eslint/no-unsafe-member-access
+  301:43  warning  Unsafe argument of type `any` assigned to a parameter of type `string`  @typescript-eslint/no-unsafe-argument
+  301:47  error    Unsafe member access .count on an `any` value                           @typescript-eslint/no-unsafe-member-access
+
+/Users/Sush/Desktop/bovogo-codex/backend/src/modules/trip-groups/trip-groups.controller.ts
+  63:58  warning  Unsafe argument of type `any` assigned to a parameter of type `string`  @typescript-eslint/no-unsafe-argument
+  63:62  error    Unsafe member access .user on an `any` value                            @typescript-eslint/no-unsafe-member-access
+
+/Users/Sush/Desktop/bovogo-codex/backend/src/modules/trip-replies/trip-replies.controller.ts
+  28:56  warning  Unsafe argument of type `any` assigned to a parameter of type `string`  @typescript-eslint/no-unsafe-argument
+  28:60  error    Unsafe member access .user on an `any` value                            @typescript-eslint/no-unsafe-member-access
+  44:53  warning  Unsafe argument of type `any` assigned to a parameter of type `string`  @typescript-eslint/no-unsafe-argument
+  44:57  error    Unsafe member access .user on an `any` value                            @typescript-eslint/no-unsafe-member-access
+
+/Users/Sush/Desktop/bovogo-codex/backend/src/modules/trips/dto/trip.dto.ts
+  13:3  error  'IsEmail' is defined but never used     @typescript-eslint/no-unused-vars
+  23:3  error  'TripStatus' is defined but never used  @typescript-eslint/no-unused-vars
+
+/Users/Sush/Desktop/bovogo-codex/backend/src/modules/trips/trips.controller.ts
+   39:41  warning  Unsafe argument of type `any` assigned to a parameter of type `string`              @typescript-eslint/no-unsafe-argument
+   39:45  error    Unsafe member access .user on an `any` value                                        @typescript-eslint/no-unsafe-member-access
+   48:11  error    Unsafe assignment of an `any` value                                                 @typescript-eslint/no-unsafe-assignment
+   48:25  error    Unsafe member access .user on an `any` value                                        @typescript-eslint/no-unsafe-member-access
+   49:50  warning  Unsafe argument of type `any` assigned to a parameter of type `string | undefined`  @typescript-eslint/no-unsafe-argument
+   57:41  warning  Unsafe argument of type `any` assigned to a parameter of type `string`              @typescript-eslint/no-unsafe-argument
+   57:45  error    Unsafe member access .user on an `any` value                                        @typescript-eslint/no-unsafe-member-access
+   65:47  warning  Unsafe argument of type `any` assigned to a parameter of type `string`              @typescript-eslint/no-unsafe-argument
+   65:51  error    Unsafe member access .user on an `any` value                                        @typescript-eslint/no-unsafe-member-access
+   73:47  warning  Unsafe argument of type `any` assigned to a parameter of type `string`              @typescript-eslint/no-unsafe-argument
+   73:51  error    Unsafe member access .user on an `any` value                                        @typescript-eslint/no-unsafe-member-access
+   82:41  warning  Unsafe argument of type `any` assigned to a parameter of type `string`              @typescript-eslint/no-unsafe-argument
+   82:45  error    Unsafe member access .user on an `any` value                                        @typescript-eslint/no-unsafe-member-access
+  100:41  warning  Unsafe argument of type `any` assigned to a parameter of type `string`              @typescript-eslint/no-unsafe-argument
+  100:45  error    Unsafe member access .user on an `any` value                                        @typescript-eslint/no-unsafe-member-access
+  108:40  warning  Unsafe argument of type `any` assigned to a parameter of type `string`              @typescript-eslint/no-unsafe-argument
+  108:44  error    Unsafe member access .user on an `any` value                                        @typescript-eslint/no-unsafe-member-access
+  127:42  warning  Unsafe argument of type `any` assigned to a parameter of type `string`              @typescript-eslint/no-unsafe-argument
+  127:46  error    Unsafe member access .user on an `any` value                                        @typescript-eslint/no-unsafe-member-access
+  135:40  warning  Unsafe argument of type `any` assigned to a parameter of type `string`              @typescript-eslint/no-unsafe-argument
+  135:44  error    Unsafe member access .user on an `any` value                                        @typescript-eslint/no-unsafe-member-access
+  143:43  warning  Unsafe argument of type `any` assigned to a parameter of type `string`              @typescript-eslint/no-unsafe-argument
+  143:47  error    Unsafe member access .user on an `any` value                                        @typescript-eslint/no-unsafe-member-access
+  152:43  warning  Unsafe argument of type `any` assigned to a parameter of type `string`              @typescript-eslint/no-unsafe-argument
+  152:47  error    Unsafe member access .user on an `any` value                                        @typescript-eslint/no-unsafe-member-access
+
+/Users/Sush/Desktop/bovogo-codex/backend/src/modules/trips/trips.service.ts
+   45:7   error  'ZONE_POLYGONS' is assigned a value but never used             @typescript-eslint/no-unused-vars
+  233:5   error  Unsafe return of a value of type `Promise<any>`                @typescript-eslint/no-unsafe-return
+  262:3   error  Async method 'saveTripZones' has no 'await' expression         @typescript-eslint/require-await
+  481:5   error  Unsafe return of a value of type `Promise<any>`                @typescript-eslint/no-unsafe-return
+  575:11  error  'saved' is assigned a value but never used                     @typescript-eslint/no-unused-vars
+  587:5   error  Unsafe return of a value of type `Promise<any>`                @typescript-eslint/no-unsafe-return
+  627:17  error  Unsafe assignment of an `any` value                            @typescript-eslint/no-unsafe-assignment
+  628:17  error  Unsafe call of an `any` typed value                            @typescript-eslint/no-unsafe-call
+  628:24  error  Unsafe member access .paymentIntents on an `any` value         @typescript-eslint/no-unsafe-member-access
+  688:11  error  Unsafe assignment of an `any` value                            @typescript-eslint/no-unsafe-assignment
+  721:15  error  Unsafe object destructuring of a property with an `any` value  @typescript-eslint/no-unsafe-assignment
+  723:16  error  Unsafe member access .routes on an `any` value                 @typescript-eslint/no-unsafe-member-access
+  723:31  error  Unsafe member access .routes on an `any` value                 @typescript-eslint/no-unsafe-member-access
+  724:15  error  Unsafe assignment of an `any` value                            @typescript-eslint/no-unsafe-assignment
+  724:29  error  Unsafe member access .routes on an `any` value                 @typescript-eslint/no-unsafe-member-access
+  779:13  error  Unsafe assignment of an `any` value                            @typescript-eslint/no-unsafe-assignment
+  779:22  error  A `require()` style import is forbidden                        @typescript-eslint/no-require-imports
+  780:13  error  Unsafe assignment of an `any` value                            @typescript-eslint/no-unsafe-assignment
+  780:22  error  Unsafe construction of an `any` typed value                    @typescript-eslint/no-unsafe-call
+  781:7   error  Unsafe assignment of an `any` value                            @typescript-eslint/no-unsafe-assignment
+  781:29  error  Unsafe call of an `any` typed value                            @typescript-eslint/no-unsafe-call
+  781:36  error  Unsafe member access .paymentIntents on an `any` value         @typescript-eslint/no-unsafe-member-access
+  821:11  error  Unsafe assignment of an `any` value                            @typescript-eslint/no-unsafe-assignment
+  821:20  error  A `require()` style import is forbidden                        @typescript-eslint/no-require-imports
+  822:5   error  Unsafe return of a value of type `any`                         @typescript-eslint/no-unsafe-return
+  822:12  error  Unsafe construction of an `any` typed value                    @typescript-eslint/no-unsafe-call
+
+/Users/Sush/Desktop/bovogo-codex/backend/src/modules/trust_safety/trust_safety.controller.ts
+   37:40  warning  Unsafe argument of type `any` assigned to a parameter of type `string`  @typescript-eslint/no-unsafe-argument
+   37:44  error    Unsafe member access .user on an `any` value                            @typescript-eslint/no-unsafe-member-access
+   44:40  warning  Unsafe argument of type `any` assigned to a parameter of type `string`  @typescript-eslint/no-unsafe-argument
+   44:44  error    Unsafe member access .user on an `any` value                            @typescript-eslint/no-unsafe-member-access
+   63:5   error    Unsafe return of a value of type `Promise<any>`                         @typescript-eslint/no-unsafe-return
+   76:48  warning  Unsafe argument of type `any` assigned to a parameter of type `string`  @typescript-eslint/no-unsafe-argument
+   76:52  error    Unsafe member access .user on an `any` value                            @typescript-eslint/no-unsafe-member-access
+   83:40  warning  Unsafe argument of type `any` assigned to a parameter of type `string`  @typescript-eslint/no-unsafe-argument
+   83:44  error    Unsafe member access .user on an `any` value                            @typescript-eslint/no-unsafe-member-access
+   98:7   warning  Unsafe argument of type `any` assigned to a parameter of type `string`  @typescript-eslint/no-unsafe-argument
+   98:11  error    Unsafe member access .user on an `any` value                            @typescript-eslint/no-unsafe-member-access
+  109:42  warning  Unsafe argument of type `any` assigned to a parameter of type `string`  @typescript-eslint/no-unsafe-argument
+  109:46  error    Unsafe member access .user on an `any` value                            @typescript-eslint/no-unsafe-member-access
+  116:43  warning  Unsafe argument of type `any` assigned to a parameter of type `string`  @typescript-eslint/no-unsafe-argument
+  116:47  error    Unsafe member access .user on an `any` value                            @typescript-eslint/no-unsafe-member-access
+
+/Users/Sush/Desktop/bovogo-codex/backend/src/modules/trust_safety/trust_safety.service.ts
+  8:26  error  'LessThan' is defined but never used  @typescript-eslint/no-unused-vars
+  8:36  error  'MoreThan' is defined but never used  @typescript-eslint/no-unused-vars
+
+/Users/Sush/Desktop/bovogo-codex/backend/src/modules/weather/weather.service.ts
+  36:7   error    Unsafe return of a value of type `any`                                                  @typescript-eslint/no-unsafe-return
+  50:13  error    Unsafe assignment of an `any` value                                                     @typescript-eslint/no-unsafe-assignment
+  50:27  error    Unsafe member access .current_weather on an `any` value                                 @typescript-eslint/no-unsafe-member-access
+  51:39  error    Computed name [cw.weathercode] resolves to an `any` value                               @typescript-eslint/no-unsafe-member-access
+  51:42  error    Unsafe member access .weathercode on an `any` value                                     @typescript-eslint/no-unsafe-member-access
+  52:29  warning  Unsafe argument of type `any` assigned to a parameter of type `string | number | Date`  @typescript-eslint/no-unsafe-argument
+  52:32  error    Unsafe member access .time on an `any` value                                            @typescript-eslint/no-unsafe-member-access
+  57:37  error    Unsafe member access .temperature on an `any` value                                     @typescript-eslint/no-unsafe-member-access
+  59:9   error    Unsafe assignment of an `any` value                                                     @typescript-eslint/no-unsafe-assignment
+  59:26  error    Unsafe member access .weathercode on an `any` value                                     @typescript-eslint/no-unsafe-member-access
+  72:23  error    Unsafe return of a value of type `any`                                                  @typescript-eslint/no-unsafe-return
+
+✖ 1001 problems (822 errors, 179 warnings)
+

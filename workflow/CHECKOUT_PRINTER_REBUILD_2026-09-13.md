@@ -60,3 +60,11 @@ The review results are saved alongside the build evidence. Claude did not author
 ## Reference
 
 Reviewed the supplied Google document “Transitions” and extracted frames from all four supplied recordings. Implemented the React Native/Reanimated equivalents of the reference’s printer, ticket, hold/Undo, and card-fan interactions without adding its web-only motion/tilt dependencies.
+
+## Printer depth refinement after visual review
+
+Compared the supplied printer recording at preparation, partial feed and completion. Corrected the paper mask to start at the aperture centre, 16 px above the case bottom, and placed the paper in front of the lower case lip. Previously the complete case covered the paper, making it appear behind the machine. Paper now occupies 80% of the machine width (up to 272 px), matching the reference proportions more closely.
+
+Added a recessed slot, a tight contact shadow fading down the paper, a subtle case-edge highlight, and separate soft machine/paper shadows with sufficient mask space to avoid clipping the paper shadow. The ticket stays flat while held by the printer; tilt remains available in the standalone ticket view. The stepped feed timing and actual checkout integration are unchanged.
+
+Verified the mid-feed frame visually; updated the recorded animation and completion screenshot. Typecheck and production web export passed. This visual-only refinement does not change payment or booking behavior.

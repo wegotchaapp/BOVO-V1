@@ -25,7 +25,7 @@ import { useReducedMotion } from "./useReducedMotion";
 export function ReceiptPrinter({ booking }: { booking: Booking }) {
   const { width: screenWidth } = useWindowDimensions();
   const width = Math.min(360, screenWidth - 48);
-  const paperWidth = Math.min(224, width * 0.73);
+  const paperWidth = Math.min(272, width * 0.8);
   const paperHeight = paperWidth * 2.4;
   const reduced = useReducedMotion();
   const progress = useSharedValue(0);
@@ -80,7 +80,7 @@ export function ReceiptPrinter({ booking }: { booking: Booking }) {
   return (
     <View style={{ width, alignItems: "center", paddingBottom: 22 }}>
       <LinearGradient
-        colors={["#303332", "#181B19", "#101311"]}
+        colors={["#363835", "#2D302C", "#292C28"]}
         style={[styles.machine, { width }]}
       >
         <View style={styles.header}>
@@ -125,11 +125,13 @@ export function ReceiptPrinter({ booking }: { booking: Booking }) {
       </LinearGradient>
       <View
         style={{
-          width: paperWidth + 22,
-          height: paperHeight,
+          width: paperWidth + 48,
+          height: paperHeight + 32,
           overflow: "hidden",
-          marginTop: -12,
-          zIndex: 1,
+          // The aperture is 16 px above the case bottom. Paper clips at
+          // its centre and passes IN FRONT of the lower case, not behind it.
+          marginTop: -16,
+          zIndex: 3,
           alignItems: "center",
         }}
       >
@@ -142,25 +144,24 @@ export function ReceiptPrinter({ booking }: { booking: Booking }) {
           style={[
             {
               opacity: stage === "processing" ? 0 : 1,
-              boxShadow: "0 12px 14px rgba(17, 31, 23, 0.13)",
+              boxShadow:
+                "0 3px 6px rgba(12,20,14,0.10), 0 14px 24px rgba(12,20,14,0.12)",
             },
             paperStyle,
           ]}
         >
-          <TravelTicket
-            booking={booking}
-            width={paperWidth}
-            tilt={stage === "complete"}
-          />
+          <TravelTicket booking={booking} width={paperWidth} tilt={false} />
         </Animated.View>
         <LinearGradient
           pointerEvents="none"
-          colors={["rgba(0,0,0,.5)", "transparent"]}
+          colors={["rgba(0,0,0,.72)", "rgba(0,0,0,.25)", "rgba(0,0,0,0)"]}
+          locations={[0, 0.23, 1]}
           style={{
             position: "absolute",
             top: 0,
             width: paperWidth,
-            height: 15,
+            height: 22,
+            opacity: stage === "processing" ? 0 : 1,
           }}
         />
       </View>
@@ -169,18 +170,20 @@ export function ReceiptPrinter({ booking }: { booking: Booking }) {
 }
 const styles = StyleSheet.create({
   machine: {
-    padding: 16,
-    paddingBottom: 14,
+    height: 184,
+    padding: 12,
+    paddingBottom: 28,
     borderRadius: 24,
     borderWidth: 1,
-    borderColor: "#424740",
+    borderColor: "#393D37",
     zIndex: 2,
-    boxShadow: "0 10px 24px rgba(20,30,23,.16)",
+    boxShadow:
+      "0 2px 3px rgba(10,18,12,.16), 0 12px 20px rgba(10,18,12,.16), inset 0 1px 0 rgba(255,255,255,.07)",
   },
   header: {
     flexDirection: "row",
     alignItems: "center",
-    marginBottom: 14,
+    marginBottom: 10,
     gap: 8,
   },
   logo: {
@@ -199,11 +202,13 @@ const styles = StyleSheet.create({
     letterSpacing: 1.3,
   },
   screen: {
-    backgroundColor: "#090D0A",
+    height: 100,
+    backgroundColor: "#1C1F1B",
     borderRadius: 12,
     padding: 15,
     borderWidth: 1,
-    borderColor: "#363D36",
+    borderColor: "#242822",
+    boxShadow: "inset 0 2px 8px rgba(0,0,0,.22)",
   },
   screenRow: { flexDirection: "row", gap: 12, justifyContent: "space-between" },
   route: {
@@ -216,11 +221,15 @@ const styles = StyleSheet.create({
   status: { flexDirection: "row", alignItems: "center", gap: 8, marginTop: 17 },
   statusText: { color: "#9EA8A0", fontSize: 11 },
   slot: {
+    position: "absolute",
+    left: 22,
+    right: 22,
+    bottom: 12,
     height: 8,
-    marginTop: 15,
     borderRadius: 5,
-    backgroundColor: "#030503",
+    backgroundColor: "#111410",
     borderBottomWidth: 1,
-    borderColor: "#535A52",
+    borderColor: "rgba(255,255,255,.10)",
+    boxShadow: "inset 0 2px 3px rgba(0,0,0,.8)",
   },
 });

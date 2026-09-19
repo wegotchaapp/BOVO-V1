@@ -22,11 +22,24 @@ import { TravelTicket } from "./TravelTicket";
 import { FEED_DURATION, FEED_POSITIONS, FEED_TIMES } from "./motion";
 import { useReducedMotion } from "./useReducedMotion";
 
-export function ReceiptPrinter({ booking }: { booking: Booking }) {
+export function ReceiptPrinter({
+  booking,
+  maxHeight,
+  qrPayload,
+}: {
+  booking: Booking;
+  maxHeight?: number;
+  qrPayload?: string | null;
+}) {
   const { width: screenWidth } = useWindowDimensions();
   const width = Math.min(360, screenWidth - 48);
   const paperWidth = Math.min(272, width * 0.8);
   const paperHeight = paperWidth * 2.4;
+  const naturalHeight = 184 + paperHeight - 16 + 32 + 22;
+  const scale = Math.min(
+    1,
+    Math.max(0, (maxHeight ?? naturalHeight) / naturalHeight),
+  );
   const reduced = useReducedMotion();
   const progress = useSharedValue(0);
   const [stage, setStage] = useState<"processing" | "printing" | "complete">(
@@ -78,92 +91,112 @@ export function ReceiptPrinter({ booking }: { booking: Booking }) {
     ],
   }));
   return (
-    <View style={{ width, alignItems: "center", paddingBottom: 22 }}>
-      <LinearGradient
-        colors={["#363835", "#2D302C", "#292C28"]}
-        style={[styles.machine, { width }]}
-      >
-        <View style={styles.header}>
-          <View style={styles.logo}>
-            <Feather name="navigation" size={17} color="#D9AF6A" />
-          </View>
-          <Text style={styles.brand}>bovogo</Text>
-          <Text style={styles.small}>ADVENTURE CLUB</Text>
-        </View>
-        <View style={styles.screen}>
-          <View style={styles.screenRow}>
-            <Text style={styles.route} numberOfLines={1}>
-              {booking.trip.fromCity.split(",")[0]} →{" "}
-              {booking.trip.toCity.split(",")[0]}
-            </Text>
-            <Text style={styles.amount}>${booking.totalAmount.toFixed(2)}</Text>
-          </View>
-          <Animated.View
-            style={[styles.status, statusStyle]}
-            accessibilityLiveRegion="polite"
-          >
-            {stage === "complete" ? (
-              <Feather name="check-circle" color="#A8DCB0" size={15} />
-            ) : (
-              <ActivityIndicator size="small" color="#9EA8A0" />
-            )}
-            <Text
-              style={[
-                styles.statusText,
-                stage === "complete" && { color: "#A8DCB0" },
-              ]}
-            >
-              {stage === "complete"
-                ? "Your ticket is ready"
-                : stage === "printing"
-                  ? "Printing your adventure…"
-                  : "Preparing your ticket…"}
-            </Text>
-          </Animated.View>
-        </View>
-        <View style={styles.slot} />
-      </LinearGradient>
+    <View style={{ width: width * scale, height: naturalHeight * scale }}>
       <View
         style={{
-          width: paperWidth + 48,
-          height: paperHeight + 32,
-          overflow: "hidden",
-          // The aperture is 16 px above the case bottom. Paper clips at
-          // its centre and passes IN FRONT of the lower case, not behind it.
-          marginTop: -16,
-          zIndex: 3,
+          position: "absolute",
+          left: (width * scale - width) / 2,
+          top: (naturalHeight * scale - naturalHeight) / 2,
+          width,
+          height: naturalHeight,
           alignItems: "center",
+          paddingBottom: 22,
+          transform: [{ scale }],
         }}
       >
-        <Animated.View
-          aria-hidden={stage !== "complete"}
-          accessibilityElementsHidden={stage !== "complete"}
-          importantForAccessibility={
-            stage !== "complete" ? "no-hide-descendants" : "auto"
-          }
-          style={[
-            {
-              opacity: stage === "processing" ? 0 : 1,
-              boxShadow:
-                "0 3px 6px rgba(12,20,14,0.10), 0 14px 24px rgba(12,20,14,0.12)",
-            },
-            paperStyle,
-          ]}
-        >
-          <TravelTicket booking={booking} width={paperWidth} tilt={false} />
-        </Animated.View>
         <LinearGradient
-          pointerEvents="none"
-          colors={["rgba(0,0,0,.72)", "rgba(0,0,0,.25)", "rgba(0,0,0,0)"]}
-          locations={[0, 0.23, 1]}
+          colors={["#363835", "#2D302C", "#292C28"]}
+          style={[styles.machine, { width }]}
+        >
+          <View style={styles.header}>
+            <View style={styles.logo}>
+              <Feather name="navigation" size={17} color="#D9AF6A" />
+            </View>
+            <Text style={styles.brand}>bovogo</Text>
+            <Text style={styles.small}>ADVENTURE CLUB</Text>
+          </View>
+          <View style={styles.screen}>
+            <View style={styles.screenRow}>
+              <Text style={styles.route} numberOfLines={1}>
+                {booking.trip.fromCity.split(",")[0]} →{" "}
+                {booking.trip.toCity.split(",")[0]}
+              </Text>
+              <Text style={styles.amount}>
+                ${booking.totalAmount.toFixed(2)}
+              </Text>
+            </View>
+            <Animated.View
+              style={[styles.status, statusStyle]}
+              accessibilityLiveRegion="polite"
+            >
+              {stage === "complete" ? (
+                <Feather name="check-circle" color="#A8DCB0" size={15} />
+              ) : (
+                <ActivityIndicator size="small" color="#9EA8A0" />
+              )}
+              <Text
+                style={[
+                  styles.statusText,
+                  stage === "complete" && { color: "#A8DCB0" },
+                ]}
+              >
+                {stage === "complete"
+                  ? "Your ticket is ready"
+                  : stage === "printing"
+                    ? "Printing your adventure…"
+                    : "Preparing your ticket…"}
+              </Text>
+            </Animated.View>
+          </View>
+          <View style={styles.slot} />
+        </LinearGradient>
+        <View
           style={{
-            position: "absolute",
-            top: 0,
-            width: paperWidth,
-            height: 22,
-            opacity: stage === "processing" ? 0 : 1,
+            width: paperWidth + 48,
+            height: paperHeight + 32,
+            overflow: "hidden",
+            // The aperture is 16 px above the case bottom. Paper clips at
+            // its centre and passes IN FRONT of the lower case, not behind it.
+            marginTop: -16,
+            zIndex: 3,
+            alignItems: "center",
           }}
-        />
+        >
+          <Animated.View
+            aria-hidden={stage !== "complete"}
+            accessibilityElementsHidden={stage !== "complete"}
+            importantForAccessibility={
+              stage !== "complete" ? "no-hide-descendants" : "auto"
+            }
+            style={[
+              {
+                opacity: stage === "processing" ? 0 : 1,
+                boxShadow:
+                  "0 3px 6px rgba(12,20,14,0.10), 0 14px 24px rgba(12,20,14,0.12)",
+              },
+              paperStyle,
+            ]}
+          >
+            <TravelTicket
+              booking={booking}
+              width={paperWidth}
+              tilt={false}
+              qrPayload={qrPayload}
+            />
+          </Animated.View>
+          <LinearGradient
+            pointerEvents="none"
+            colors={["rgba(0,0,0,.72)", "rgba(0,0,0,.25)", "rgba(0,0,0,0)"]}
+            locations={[0, 0.23, 1]}
+            style={{
+              position: "absolute",
+              top: 0,
+              width: paperWidth,
+              height: 22,
+              opacity: stage === "processing" ? 0 : 1,
+            }}
+          />
+        </View>
       </View>
     </View>
   );

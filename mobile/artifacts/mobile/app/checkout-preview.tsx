@@ -70,7 +70,7 @@ const previewTrip: Trip = {
 };
 const previewCheckout = { trip: previewTrip, booking: tickets[0] };
 export default function CheckoutPreview() {
-  const [tab, setTab] = useState("Full flow"),
+  const [tab, setTab] = useState("Checkout"),
     [replay, setReplay] = useState(0),
     [removed, setRemoved] = useState(false),
     [undo, setUndo] = useState(false);
@@ -94,7 +94,7 @@ export default function CheckoutPreview() {
             </Pressable>
             <Pressable
               accessibilityRole="button"
-              onPress={() => setTab("Printer")}
+              onPress={() => setTab("Collection")}
             >
               <Text>Review interactions →</Text>
             </Pressable>
@@ -105,7 +105,7 @@ export default function CheckoutPreview() {
         </StripeProvider>
       </View>
     );
-  if (tab === "Checkout")
+  if (tab === "Checkout" || tab === "Printer")
     return (
       <View style={{ flex: 1 }}>
         <Stack.Screen options={{ title: "Checkout", headerShown: false }} />
@@ -125,7 +125,7 @@ export default function CheckoutPreview() {
           </Pressable>
           <Pressable
             accessibilityRole="button"
-            onPress={() => setTab("Printer")}
+            onPress={() => setTab("Collection")}
           >
             <Text>Review interactions →</Text>
           </Pressable>

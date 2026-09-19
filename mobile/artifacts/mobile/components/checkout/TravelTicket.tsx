@@ -1,3 +1,4 @@
+import { BoardingQrSvg } from "./BoardingQrSvg";
 import React, { useId } from "react";
 import Animated, {
   useAnimatedStyle,
@@ -12,6 +13,7 @@ import Svg, {
   Circle,
   Text as SvgText,
   Line,
+  G,
   Defs,
   LinearGradient,
   Stop,
@@ -22,10 +24,12 @@ export function TravelTicket({
   booking,
   width = 220,
   tilt = false,
+  qrPayload,
 }: {
   booking: Booking;
   width?: number;
   tilt?: boolean;
+  qrPayload?: string | null;
 }) {
   const gradientId = `ticket${useId().replace(/[^a-zA-Z0-9]/g, "")}`;
   const reduced = useReducedMotion();
@@ -42,10 +46,6 @@ export function TravelTicket({
   const from = city(booking.trip.fromCity),
     to = city(booking.trip.toCity);
   const reference = booking.id.slice(-10).toUpperCase();
-  const seed = Array.from(booking.id).reduce(
-    (sum, char) => sum + char.charCodeAt(0),
-    0,
-  );
   const description = `${from} to ${to}. ${date.toLocaleString()}. ${booking.seats} seats. ${booking.status}. Booking total $${booking.totalAmount.toFixed(2)}. Reference ${reference}.`;
   return (
     <Animated.View style={tiltStyle}>
@@ -91,10 +91,11 @@ export function TravelTicket({
             >
               BOVOGO / ADVENTURE
             </SvgText>
+            <G transform="translate(0 8)">
             {Array.from({ length: 15 }, (_, row) =>
-              Array.from({ length: 19 }, (_, column) => {
+              Array.from({ length: 7 }, (_, column) => {
                 const route =
-                  Math.abs(column - (9 + Math.sin(row * 0.48) * 5)) < 1.5;
+                  Math.abs(column - (3 + Math.sin(row * 0.48) * 2)) < 1.5;
                 const horizon =
                   row > 9 &&
                   column > 2 &&
@@ -103,7 +104,7 @@ export function TravelTicket({
                 return (
                   <Circle
                     key={`${row}-${column}`}
-                    cx={26 + column * 11}
+                    cx={15 + column * 10}
                     cy={65 + row * 10}
                     r={route ? 2.9 : 1.5}
                     fill={route ? "#D9AF6A" : "#EBF2ED"}
@@ -112,6 +113,17 @@ export function TravelTicket({
                 );
               }),
             )}
+            </G>
+            {qrPayload ? (
+              <BoardingQrSvg payload={qrPayload} x={94} y={60} size={136} />
+            ) : (
+              <SvgText x="162" y="120" fill="#B2C5B7" fontSize="9" textAnchor="middle">
+                {booking.status === "completed" ? "ADVENTURE COMPLETE" : "BOARDING PASS"}
+              </SvgText>
+            )}
+            <SvgText x="162" y="216" fill="#D9AF6A" fontSize="8" letterSpacing="1" textAnchor="middle">
+              {qrPayload ? "SCAN TO BOARD" : "YOUR NEXT ADVENTURE"}
+            </SvgText>
             <SvgText
               fontFamily="Inter_500Medium"
               x="22"
@@ -217,17 +229,9 @@ export function TravelTicket({
             >
               {booking.trip.driverName.slice(0, 29)}
             </SvgText>
-            {/* Decorative reference pattern, not a boarding credential or scanner code. */}
-            {Array.from({ length: 64 }, (_, index) => (
-              <Rect
-                key={index}
-                x={22 + index * 3.2}
-                y="527"
-                width={(seed + index * 13) % 4 === 0 ? 2.3 : 1.1}
-                height="32"
-                fill="#E5ECDD"
-              />
-            ))}
+            <SvgText x="22" y="540" fill="#D9AF6A" fontSize="10" fontFamily="Inter_500Medium">
+              BOOKING TOTAL  ${booking.totalAmount.toFixed(2)}
+            </SvgText>
             <SvgText
               fontFamily="Inter_500Medium"
               x="125"

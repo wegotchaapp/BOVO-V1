@@ -9,6 +9,7 @@ import Animated, {
   withTiming,
 } from "react-native-reanimated";
 import type { Booking } from "@/lib/bookings";
+import { useTicketBoardingPass } from "./useTicketBoardingPass";
 import { TravelTicket } from "./TravelTicket";
 import { fanPosition } from "./motion";
 import { useReducedMotion } from "./useReducedMotion";
@@ -35,6 +36,7 @@ function FanCard({
   onHover: (index: number | null) => void;
 }) {
   const reduced = useReducedMotion();
+  const pass = useTicketBoardingPass(booking);
   const cardWidth = Math.min(122, width * 0.34);
   const inPile = pileIndex >= 0;
   const pileRotation =
@@ -66,7 +68,7 @@ function FanCard({
         : 0;
     x.value = animate(inPile ? pileRotation * 1.3 : position.x + neighbor);
     y.value = animate(
-      inPile ? -218 - pileIndex * 2 : position.y - (hover ? 54 : 0),
+      inPile ? -180 - Math.min(pileIndex, 4) * 2 : position.y - (hover ? 54 : 0),
     );
     rotation.value = animate(
       inPile ? pileRotation : position.rotation * (hover ? 0.3 : 1),
@@ -123,7 +125,7 @@ function FanCard({
             accessibilityElementsHidden
             importantForAccessibility="no-hide-descendants"
           >
-            <TravelTicket booking={booking} width={cardWidth} />
+            <TravelTicket booking={booking} width={cardWidth} qrPayload={pass.payload} />
           </View>
         </Pressable>
       </Animated.View>

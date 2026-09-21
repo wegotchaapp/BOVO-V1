@@ -20,6 +20,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { ConfigService } from '@nestjs/config';
 import Stripe from 'stripe';
+import { AdminGuard } from '../admin/admin.guard';
 
 @ApiTags('payments')
 @Controller('payments')
@@ -140,6 +141,7 @@ export class PaymentsController {
   }
 
   @Post('connect/onboard')
+  @UseGuards(AuthGuard('jwt'))
   @ApiBearerAuth('JWT')
   @ApiOperation({ summary: 'Start Stripe Connect Express onboarding' })
   async onboard(@Request() req: any) {
@@ -147,6 +149,7 @@ export class PaymentsController {
   }
 
   @Get('connect/status')
+  @UseGuards(AuthGuard('jwt'))
   @ApiBearerAuth('JWT')
   @ApiOperation({ summary: 'Check Connect account status' })
   async status(@Request() req: any) {
@@ -161,6 +164,7 @@ export class PaymentsController {
   }
 
   @Post('connect/refresh')
+  @UseGuards(AuthGuard('jwt'))
   @ApiBearerAuth('JWT')
   @ApiOperation({ summary: 'Refresh expired account link' })
   async refresh(@Request() req: any) {
@@ -175,6 +179,7 @@ export class PaymentsController {
   }
 
   @Get('connect/dashboard-link')
+  @UseGuards(AuthGuard('jwt'))
   @ApiBearerAuth('JWT')
   @ApiOperation({ summary: 'Get Stripe Express Dashboard link' })
   async dashboard(@Request() req: any) {
@@ -219,6 +224,7 @@ export class PaymentsController {
   }
 
   @Post('payouts/:id/execute')
+  @UseGuards(AuthGuard('jwt'), AdminGuard)
   @ApiBearerAuth('JWT')
   @ApiOperation({ summary: 'Execute a scheduled payout (admin/scheduled job)' })
   async executePayout(@Param('id') id: string) {
@@ -226,6 +232,7 @@ export class PaymentsController {
   }
 
   @Get('my-payouts')
+  @UseGuards(AuthGuard('jwt'))
   @ApiBearerAuth('JWT')
   @ApiOperation({ summary: 'List my payouts' })
   async myPayouts(@Request() req: any) {
@@ -233,6 +240,7 @@ export class PaymentsController {
   }
 
   @Get('my-earnings')
+  @UseGuards(AuthGuard('jwt'))
   @ApiBearerAuth('JWT')
   @ApiOperation({ summary: 'Get earnings summary' })
   async myEarnings(@Request() req: any) {
@@ -240,6 +248,7 @@ export class PaymentsController {
   }
 
   @Post('tax/w9-submit')
+  @UseGuards(AuthGuard('jwt'))
   @ApiBearerAuth('JWT')
   @ApiOperation({
     summary: 'Submit W-9 tax form (unblocks payouts above $600 threshold)',
@@ -261,6 +270,7 @@ export class PaymentsController {
   }
 
   @Get('tax/1099k-status')
+  @UseGuards(AuthGuard('jwt'))
   @ApiBearerAuth('JWT')
   @ApiOperation({ summary: 'Check 1099-K threshold status' })
   async get1099kStatus(@Request() req: any) {

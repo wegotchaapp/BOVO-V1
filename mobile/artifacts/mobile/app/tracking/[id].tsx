@@ -118,16 +118,16 @@ export default function TripTracking() {
     .toUpperCase();
 
   // Prefer live driver GPS; fall back to route start until Voyager shares GPS.
-  const driverCoord = live.driverCoord ?? {
+  const driverCoord = live.driverCoord ?? (fromCoord ? {
     latitude: fromCoord.latitude,
     longitude: fromCoord.longitude,
     heading: 0,
-  };
+  } : null);
   const riderCoord = live.riderCoord;
   const progress = live.progress;
   const etaMinutes = live.etaMinutes;
   const etaSource = live.etaSource;
-  const region = midpoint(fromCoord, toCoord);
+  const region = fromCoord && toCoord ? midpoint(fromCoord, toCoord) : null;
 
   useEffect(() => {
     const pulse = Animated.loop(
@@ -324,6 +324,7 @@ export default function TripTracking() {
         </View>
 
         <View style={styles.mapContainer}>
+          {fromCoord && toCoord && driverCoord && region ? <>
           <TrackingMap
             region={region}
             fromCoord={fromCoord}
@@ -390,6 +391,9 @@ export default function TripTracking() {
             </View>
             <Text style={styles.progressText}>{Math.round(progress * 100)}%</Text>
           </View>
+          </> : <Text accessibilityRole="text" style={{ padding: 24, color: colors.foreground }}>
+            Route map and arrival estimate unavailable. Your trip details and safety actions remain available below.
+          </Text>}
         </View>
 
         <View style={[styles.driverCard, CARD_SHADOW]}>

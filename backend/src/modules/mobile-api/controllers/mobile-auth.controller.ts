@@ -13,6 +13,7 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
+import { Throttle } from '@nestjs/throttler';
 import { MobileHttpExceptionFilter } from '../mobile-http-exception.filter';
 import { MobileAuthService } from '../services/mobile-auth.service';
 import {
@@ -35,18 +36,24 @@ import { MobileUser } from '../entities/mobile.entities';
 export class MobileAuthController {
   constructor(private readonly auth: MobileAuthService) {}
 
+  // `/api/auth/*` is a second, independent front door onto the same accounts.
+  // Throttling only the legacy `/auth/*` controller would leave the password
+  // guessing route wide open here.
   @Post('register')
+  @Throttle({ default: { limit: 5, ttl: 3600000 } })
   register(@Body() dto: RegisterBody) {
     return this.auth.register(dto);
   }
 
   @Post('login')
+  @Throttle({ default: { limit: 10, ttl: 300000 } })
   @HttpCode(HttpStatus.OK)
   login(@Body() dto: LoginBody) {
     return this.auth.login(dto);
   }
 
   @Post('oauth')
+  @Throttle({ default: { limit: 30, ttl: 300000 } })
   @HttpCode(HttpStatus.OK)
   oauth(@Body() dto: OAuthLoginBody) {
     return this.auth.oauthLogin(dto);

@@ -1,4 +1,7 @@
-import { UnauthorizedException } from '@nestjs/common';
+import {
+  ServiceUnavailableException,
+  UnauthorizedException,
+} from '@nestjs/common';
 import * as crypto from 'crypto';
 
 import { NoonlightWebhookController } from './noonlight-webhook.controller';
@@ -98,26 +101,110 @@ describe('NoonlightWebhookController', () => {
     ).rejects.toBeInstanceOf(UnauthorizedException);
   });
 
-  it('fails closed in production when no secret is configured', async () => {
-    const { controller, handleNoonlightEvent } = build({
-      NOONLIGHT_WEBHOOK_SECRET: undefined,
-      NODE_ENV: 'production',
-    });
-    await expect(controller.handle(req(payload), {})).rejects.toBeInstanceOf(
-      UnauthorizedException,
-    );
-    expect(handleNoonlightEvent).not.toHaveBeenCalled();
-  });
+  // An unverified emergency update must never be processed, and the endpoint
+  // must not depend on the runtime supplying any particular environment
+  // variable to reach that conclusion. The deploy writes APP_ENV and never
+  // writes NODE_ENV, so both spellings of "production" — and the absence of
+  // either — are asserted to behave identically.
+  describe('fails closed in every environment', () => {
+    const environments: Array<[string, Record<string, string | undefined>]> = [
+      ['no environment marker at all', { NODE_ENV: undefined }],
+      ['NODE_ENV=development', { NODE_ENV: 'development' }],
+      ['NODE_ENV=test', { NODE_ENV: 'test' }],
+      ['APP_ENV=production', { NODE_ENV: undefined, APP_ENV: 'production' }],
+      ['NODE_ENV=production', { NODE_ENV: 'production' }],
+    ];
 
-  it('allows unsigned traffic outside production so sandbox bring-up can start', async () => {
-    const { controller, handleNoonlightEvent, logger } = build({
-      NOONLIGHT_WEBHOOK_SECRET: undefined,
+    describe.each(environments)('%s', (_label, env) => {
+      it('refuses an unsigned request when no secret is configured, and asks to be retried', async () => {
+        const { controller, handleNoonlightEvent } = build({
+          ...env,
+          NOONLIGHT_WEBHOOK_SECRET: undefined,
+        });
+        // 503, not 401: the misconfiguration is ours and the alarm update is
+        // real, so the provider should retry rather than treat it as handled.
+        await expect(
+          controller.handle(req(payload), {}),
+        ).rejects.toBeInstanceOf(ServiceUnavailableException);
+        expect(handleNoonlightEvent).not.toHaveBeenCalled();
+      });
+
+      it('refuses even a correctly-shaped signature when no secret is configured', async () => {
+        const { controller, handleNoonlightEvent } = build({
+          ...env,
+          NOONLIGHT_WEBHOOK_SECRET: undefined,
+        });
+        const r = req(payload);
+        await expect(
+          controller.handle(r, { 'x-noonlight-signature': sign(r, 'hex') }),
+        ).rejects.toBeInstanceOf(ServiceUnavailableException);
+        expect(handleNoonlightEvent).not.toHaveBeenCalled();
+      });
+
+      it('treats a blank secret as no secret', async () => {
+        const { controller, handleNoonlightEvent } = build({
+          ...env,
+          NOONLIGHT_WEBHOOK_SECRET: '',
+        });
+        await expect(
+          controller.handle(req(payload), {}),
+        ).rejects.toBeInstanceOf(ServiceUnavailableException);
+        expect(handleNoonlightEvent).not.toHaveBeenCalled();
+      });
+
+      it('rejects a missing signature with a secret configured', async () => {
+        const { controller, handleNoonlightEvent } = build(env);
+        await expect(
+          controller.handle(req(payload), {}),
+        ).rejects.toBeInstanceOf(UnauthorizedException);
+        expect(handleNoonlightEvent).not.toHaveBeenCalled();
+      });
+
+      it('rejects an invalid signature with a secret configured', async () => {
+        const { controller, handleNoonlightEvent } = build(env);
+        const r = req(payload);
+        const wrong = crypto
+          .createHmac('sha256', 'not-the-secret')
+          .update(r.rawBody)
+          .digest('hex');
+        await expect(
+          controller.handle(r, { 'x-noonlight-signature': wrong }),
+        ).rejects.toBeInstanceOf(UnauthorizedException);
+        expect(handleNoonlightEvent).not.toHaveBeenCalled();
+      });
+
+      it('accepts a signature over the exact bytes received', async () => {
+        const { controller, handleNoonlightEvent } = build(env);
+        const r = req(payload);
+        await expect(
+          controller.handle(r, { 'x-noonlight-signature': sign(r, 'hex') }),
+        ).resolves.toEqual({ received: true, events: 1, applied: 1 });
+        expect(handleNoonlightEvent).toHaveBeenCalledTimes(1);
+      });
     });
-    await expect(controller.handle(req(payload), {})).resolves.toMatchObject({
-      received: true,
+
+    it('signs the bytes as received, not a re-serialisation of them', async () => {
+      // Whitespace a provider chose is part of what they signed. Verifying
+      // against `JSON.stringify(req.body)` instead of `req.rawBody` would pass
+      // the equivalent-but-different rendering below; this asserts it does not.
+      const { controller, handleNoonlightEvent } = build();
+      const rawBody = Buffer.from(
+        '[ {"event_type" : "alarm.closed" , "meta":{"alarm_id":"alarm-1"}} ]',
+      );
+      const r = { rawBody, body: JSON.parse(rawBody.toString()) };
+      await expect(
+        controller.handle(r, { 'x-noonlight-signature': sign(r, 'hex') }),
+      ).resolves.toMatchObject({ received: true, applied: 1 });
+      expect(handleNoonlightEvent).toHaveBeenCalledTimes(1);
+
+      const reserialised = crypto
+        .createHmac('sha256', SECRET)
+        .update(JSON.stringify(r.body))
+        .digest('hex');
+      await expect(
+        controller.handle(r, { 'x-noonlight-signature': reserialised }),
+      ).rejects.toBeInstanceOf(UnauthorizedException);
     });
-    expect(handleNoonlightEvent).toHaveBeenCalled();
-    expect(logger.warn).toHaveBeenCalled();
   });
 
   it('applies every event in the array', async () => {

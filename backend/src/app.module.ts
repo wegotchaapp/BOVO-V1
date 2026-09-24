@@ -1,8 +1,10 @@
 import { PrivateQueryLogger } from './database/private-query.logger';
 import { Module } from '@nestjs/common';
+import { APP_GUARD } from '@nestjs/core';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ThrottlerModule } from '@nestjs/throttler';
+import { AppThrottlerGuard } from './common/guards/app-throttler.guard';
 import { BullModule } from '@nestjs/bullmq';
 import { ScheduleModule } from '@nestjs/schedule';
 import { SupabaseModule } from './modules/supabase/supabase.module';
@@ -98,10 +100,22 @@ import { MobileApiModule } from './modules/mobile-api/mobile-api.module';
         },
       }),
     }),
+    /**
+     * Blunt per-IP ceiling for everything that has no explicit `@Throttle`.
+     * Deliberately generous: mobile carriers put thousands of subscribers
+     * behind one CGNAT address, so a tight global bucket would read as an
+     * outage. Endpoints worth brute-forcing (sign-in, OTP, password reset)
+     * carry their own far stricter limits at the route.
+     *
+     * Storage is the in-memory default, so the ceiling is per instance —
+     * see workflow/SECURITY_WAVE1_2026-09-23.md for the shared-store
+     * follow-up, which needs a dependency this lane may not add.
+     */
     ThrottlerModule.forRoot([
       {
-        ttl: 60000,
-        limit: 100,
+        name: 'default',
+        ttl: 60_000,
+        limit: 600,
       },
     ]),
     BullModule.forRootAsync({
@@ -146,6 +160,12 @@ import { MobileApiModule } from './modules/mobile-api/mobile-api.module';
     DriverTripsModule,
     ComplianceModule,
     MobileApiModule,
+  ],
+  providers: [
+    // Without this binding `ThrottlerModule.forRoot` registers storage and
+    // nothing else: every `@Throttle` in the codebase is unread metadata and
+    // sign-in accepts unlimited attempts.
+    { provide: APP_GUARD, useClass: AppThrottlerGuard },
   ],
 })
 export class AppModule {}

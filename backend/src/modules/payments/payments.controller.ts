@@ -10,6 +10,7 @@ import {
   HttpCode,
   HttpStatus,
   BadRequestException,
+  ForbiddenException,
   Req,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
@@ -21,6 +22,22 @@ import { Repository } from 'typeorm';
 import { ConfigService } from '@nestjs/config';
 import Stripe from 'stripe';
 import { AdminGuard } from '../admin/admin.guard';
+import {
+  STRIPE_WEBHOOK_API_VERSION,
+  verifyStripeWebhook,
+} from '../../common/http/stripe-webhook.verifier';
+
+/**
+ * The Travel+ charge the client is asked to complete. `confirmSubscription`
+ * re-checks every one of these against the PaymentIntent it is handed, because
+ * the client chooses which intent id to send.
+ */
+const GUILD_SUBSCRIPTION_AMOUNT_CENTS = 1500;
+const GUILD_SUBSCRIPTION_CURRENCY = 'usd';
+const GUILD_SUBSCRIPTION_TYPE = 'guild_subscription';
+const GUILD_SUBSCRIPTION_DAYS = 30;
+/** A PaymentIntent older than this is not evidence of a purchase made now. */
+const PAYMENT_INTENT_MAX_AGE_SECONDS = 3600;
 
 @ApiTags('payments')
 @Controller('payments')
@@ -35,11 +52,10 @@ export class PaymentsController {
     private readonly config: ConfigService,
   ) {
     this.stripe = new Stripe(this.config.get<string>('STRIPE_SECRET_KEY')!, {
-      apiVersion: '2025-02-24.acacia',
+      apiVersion: STRIPE_WEBHOOK_API_VERSION,
     });
     this.webhookSecret =
       this.config.get<string>('STRIPE_WEBHOOK_SECRET') ||
-      this.config.get<string>('STRIPE_CONNECT_WEBHOOK_SECRET') ||
       '';
   }
 
@@ -65,19 +81,19 @@ export class PaymentsController {
       return { client_secret: null, subscribed: true };
     }
 
-    try {
-      const paymentIntent = await this.stripe.paymentIntents.create({
-        amount: 1500,
-        currency: 'usd',
-        metadata: { type: 'guild_subscription', user_id: req.user.id },
-      });
-      return {
-        client_secret: paymentIntent.client_secret!,
-        payment_intent_id: paymentIntent.id,
-      };
-    } catch {
-      return { mock: true };
-    }
+    // A failure here used to be swallowed into `{ mock: true }`, which the
+    // client read as "subscription flow unavailable, proceed" — the same
+    // pretend-payment path that `confirmSubscription` then honoured. Let the
+    // Stripe error surface instead.
+    const paymentIntent = await this.stripe.paymentIntents.create({
+      amount: GUILD_SUBSCRIPTION_AMOUNT_CENTS,
+      currency: GUILD_SUBSCRIPTION_CURRENCY,
+      metadata: { type: GUILD_SUBSCRIPTION_TYPE, user_id: req.user.id },
+    });
+    return {
+      client_secret: paymentIntent.client_secret!,
+      payment_intent_id: paymentIntent.id,
+    };
   }
 
   @Post('subscription/confirm')
@@ -93,20 +109,10 @@ export class PaymentsController {
       return { activated: true };
     }
 
-    const secretKey = this.config.get<string>('STRIPE_SECRET_KEY') || '';
-    const isMock =
-      secretKey.includes('mock') || secretKey.includes('test_local');
-
-    if (isMock) {
-      await this.userRepo.update(req.user.id, {
-        subscription_tier: 'premium' as any,
-        subscription_expires_at: new Date(
-          Date.now() + 30 * 86400000,
-        ).toISOString(),
-      });
-      return { activated: true };
-    }
-
+    // No mock-key shortcut. A key merely *named* `..._test_local` or `..._mock`
+    // used to grant 30 days of premium to any authenticated caller with an
+    // empty body, and the key name is an operational detail, not an
+    // authorization decision.
     if (!body.payment_intent_id) {
       throw new BadRequestException('payment_intent_id is required');
     }
@@ -114,14 +120,40 @@ export class PaymentsController {
     const paymentIntent = await this.stripe.paymentIntents.retrieve(
       body.payment_intent_id,
     );
+
+    // The caller supplies the intent id, so every property that makes it
+    // evidence of *this user's* Travel+ purchase is re-checked here.
+    if (paymentIntent.metadata?.type !== GUILD_SUBSCRIPTION_TYPE) {
+      throw new BadRequestException(
+        'Payment intent is not a Travel+ subscription charge',
+      );
+    }
+    if (paymentIntent.metadata?.user_id !== req.user.id) {
+      throw new ForbiddenException(
+        'Payment intent belongs to a different account',
+      );
+    }
     if (paymentIntent.status !== 'succeeded') {
       throw new BadRequestException('Payment has not succeeded yet');
+    }
+    if (paymentIntent.currency !== GUILD_SUBSCRIPTION_CURRENCY) {
+      throw new BadRequestException('Payment currency does not match Travel+');
+    }
+    const paid = paymentIntent.amount_received ?? paymentIntent.amount;
+    if (paid !== GUILD_SUBSCRIPTION_AMOUNT_CENTS) {
+      throw new BadRequestException('Payment amount does not match Travel+');
+    }
+    const age = Math.floor(Date.now() / 1000) - (paymentIntent.created ?? 0);
+    if (age > PAYMENT_INTENT_MAX_AGE_SECONDS) {
+      throw new BadRequestException(
+        'Payment intent is too old to activate a subscription',
+      );
     }
 
     await this.userRepo.update(req.user.id, {
       subscription_tier: 'premium' as any,
       subscription_expires_at: new Date(
-        Date.now() + 30 * 86400000,
+        Date.now() + GUILD_SUBSCRIPTION_DAYS * 86400000,
       ).toISOString(),
     });
 
@@ -194,30 +226,14 @@ export class PaymentsController {
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Stripe webhook endpoint' })
   async webhook(@Req() req: any, @Headers('stripe-signature') sig: string) {
-    if (!sig) {
-      throw new BadRequestException('Missing stripe-signature header');
-    }
-
-    let event: any;
-    if (this.webhookSecret) {
-      const rawBody = req.rawBody;
-      if (!rawBody) {
-        throw new BadRequestException(
-          'Raw body not available for signature verification',
-        );
-      }
-      try {
-        event = this.stripe.webhooks.constructEvent(
-          rawBody,
-          sig,
-          this.webhookSecret,
-        );
-      } catch {
-        throw new BadRequestException('Invalid Stripe webhook signature');
-      }
-    } else {
-      event = req.body;
-    }
+    const event = verifyStripeWebhook({
+      stripe: this.stripe,
+      rawBody: req.rawBody,
+      signature: sig,
+      secret: this.webhookSecret,
+      source: 'Stripe',
+      secretVar: 'STRIPE_WEBHOOK_SECRET',
+    });
 
     await this.paymentsService.handleWebhook(event);
     return { received: true };

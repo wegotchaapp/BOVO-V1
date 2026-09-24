@@ -35,11 +35,16 @@ describe('PrivateMediaService', () => {
       body,
       contentType: 'image/jpeg',
     });
-    expect(
-      (await stat(join(dir, 'private-media/identity/user/front.json'))).mode &
-        0o777,
-    ).toBe(0o600);
-    expect((await stat(join(dir, 'private-media'))).mode & 0o777).toBe(0o700);
+    // stat also proves the envelope and its directory exist; Windows has no
+    // POSIX mode bits, so only the permissions themselves are platform-gated.
+    const fileMode = (
+      await stat(join(dir, 'private-media/identity/user/front.json'))
+    ).mode;
+    const dirMode = (await stat(join(dir, 'private-media'))).mode;
+    if (process.platform !== 'win32') {
+      expect(fileMode & 0o777).toBe(0o600);
+      expect(dirMode & 0o777).toBe(0o700);
+    }
     await service.remove('identity/user/front');
     await service.remove('identity/user/front');
     await expect(service.read('identity/user/front')).rejects.toBeInstanceOf(

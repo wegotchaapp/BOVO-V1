@@ -98,7 +98,26 @@ describe('SafetyService', () => {
     rider: mockRider,
   } as Booking;
 
+  // Deviation and overrun handling schedule a real 5-minute escalation timer.
+  // Fake setTimeout so those timers can be driven (and never leak past a test);
+  // everything else, including Date and promise scheduling, stays real.
+  const ESCALATION_DELAY_MS = 5 * 60 * 1000;
+
   beforeEach(async () => {
+    jest.useFakeTimers({
+      doNotFake: [
+        'Date',
+        'hrtime',
+        'nextTick',
+        'performance',
+        'queueMicrotask',
+        'setImmediate',
+        'clearImmediate',
+        'setInterval',
+        'clearInterval',
+      ],
+    });
+
     const mockRepo = () => ({
       findOne: jest.fn(),
       find: jest.fn(),
@@ -200,6 +219,11 @@ describe('SafetyService', () => {
     mockedAxios.post.mockReset();
   });
 
+  afterEach(() => {
+    jest.clearAllTimers();
+    jest.useRealTimers();
+  });
+
   describe('receivePing', () => {
     it('should store location ping and return deviation_triggered false when within route', async () => {
       bookingRepo.findOne.mockResolvedValue(mockActiveBookingWithRelations);
@@ -281,6 +305,63 @@ describe('SafetyService', () => {
       expect(deviationRepo.create).toHaveBeenCalled();
       expect(deviationRepo.save).toHaveBeenCalled();
       expect(result.deviation_triggered).toBe(true);
+    });
+
+    it('should escalate a deviation to T&S agents if still pending after 5 minutes', async () => {
+      bookingRepo.findOne.mockResolvedValue(mockActiveBookingWithRelations);
+      mockedAxios.get.mockResolvedValue({
+        data: {
+          features: [{ geometry: { coordinates: [[-118.2437, 34.0522]] } }],
+        },
+      });
+      deviationRepo.create.mockReturnValue({ id: 'dev-1' } as DeviationEvent);
+      deviationRepo.findOne.mockResolvedValue({
+        id: 'dev-1',
+        status: DeviationStatus.PENDING,
+      } as DeviationEvent);
+      userRepo.find.mockResolvedValue([{ id: 'ts-agent-1' } as User]);
+
+      await service.receivePing('driver-1', 'booking-1', 34.15, -118.35);
+
+      expect(notificationsService.sendPush).not.toHaveBeenCalled();
+
+      await jest.advanceTimersByTimeAsync(ESCALATION_DELAY_MS);
+
+      expect(deviationRepo.save).toHaveBeenCalledWith(
+        expect.objectContaining({
+          id: 'dev-1',
+          status: DeviationStatus.ESCALATED,
+        }),
+      );
+      expect(notificationsService.sendPush).toHaveBeenCalledWith(
+        'ts-agent-1',
+        'URGENT: Safety Alert',
+        expect.any(String),
+        expect.objectContaining({ booking_id: 'booking-1' }),
+      );
+    });
+
+    it('should not escalate a deviation the rider has already responded to', async () => {
+      bookingRepo.findOne.mockResolvedValue(mockActiveBookingWithRelations);
+      mockedAxios.get.mockResolvedValue({
+        data: {
+          features: [{ geometry: { coordinates: [[-118.2437, 34.0522]] } }],
+        },
+      });
+      deviationRepo.create.mockReturnValue({ id: 'dev-1' } as DeviationEvent);
+      deviationRepo.findOne.mockResolvedValue({
+        id: 'dev-1',
+        status: DeviationStatus.RESPONDED_OK,
+      } as DeviationEvent);
+      userRepo.find.mockResolvedValue([{ id: 'ts-agent-1' } as User]);
+
+      await service.receivePing('driver-1', 'booking-1', 34.15, -118.35);
+      await jest.advanceTimersByTimeAsync(ESCALATION_DELAY_MS);
+
+      expect(deviationRepo.save).not.toHaveBeenCalledWith(
+        expect.objectContaining({ status: DeviationStatus.ESCALATED }),
+      );
+      expect(notificationsService.sendPush).not.toHaveBeenCalled();
     });
   });
 
@@ -715,6 +796,48 @@ describe('SafetyService', () => {
         }),
       );
       expect(notificationsService.send).toHaveBeenCalled();
+    });
+
+    it('should escalate an overrun to T&S agents if still pending after 5 minutes', async () => {
+      const overrunBooking = {
+        ...mockActiveBookingWithRelations,
+        id: 'booking-overrun',
+        status: BookingStatus.EN_ROUTE,
+        trip: {
+          ...mockTrip,
+          expected_arrival_time: new Date(Date.now() - 7200000).toISOString(),
+        },
+      };
+
+      bookingRepo.find.mockResolvedValue([overrunBooking]);
+      // First lookup is the duplicate check; later lookups are the escalation re-check.
+      deviationRepo.findOne.mockResolvedValueOnce(null).mockResolvedValue({
+        id: 'dev-overrun',
+        status: DeviationStatus.PENDING,
+      } as DeviationEvent);
+      deviationRepo.create.mockReturnValue({
+        id: 'dev-overrun',
+      } as DeviationEvent);
+      userRepo.find.mockResolvedValue([{ id: 'ts-agent-1' } as User]);
+
+      await service.checkTripOverruns();
+
+      expect(notificationsService.sendPush).not.toHaveBeenCalled();
+
+      await jest.advanceTimersByTimeAsync(ESCALATION_DELAY_MS);
+
+      expect(deviationRepo.save).toHaveBeenCalledWith(
+        expect.objectContaining({
+          id: 'dev-overrun',
+          status: DeviationStatus.ESCALATED,
+        }),
+      );
+      expect(notificationsService.sendPush).toHaveBeenCalledWith(
+        'ts-agent-1',
+        'URGENT: Safety Alert',
+        expect.any(String),
+        expect.objectContaining({ booking_id: 'booking-overrun' }),
+      );
     });
 
     it('should not create duplicate deviation events for same booking', async () => {

@@ -28,7 +28,8 @@ export function confirm(
       buttons: [
         { text: options.cancelText ?? "Cancel", style: "cancel" },
         {
-          text: options.confirmText ?? "OK",
+          text: options.confirmText ?? "confirm",
+          hold: true,
           style: options.destructive ? "destructive" : "default",
         },
       ],

@@ -53,7 +53,8 @@ export class AuthController {
   }
 
   @Post('otp/verify')
-  @Throttle({ default: { limit: 10, ttl: 60000 } })
+  // A 6-digit code is only as strong as the number of guesses allowed.
+  @Throttle({ default: { limit: 10, ttl: 300000 } })
   @ApiOperation({ summary: 'Verify phone OTP and complete registration' })
   @ApiResponse({ status: 200, description: 'Phone verified, user activated' })
   @ApiResponse({ status: 401, description: 'Invalid or expired OTP' })
@@ -81,7 +82,9 @@ export class AuthController {
   }
 
   @Post('signin')
-  @Throttle({ default: { limit: 5, ttl: 300000 } })
+  // 10 attempts per 5 minutes per caller: a brute force dies at 2/min, while a
+  // household or office sharing one NAT address can still fumble a password.
+  @Throttle({ default: { limit: 10, ttl: 300000 } })
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Sign in with email/phone and password' })
   @ApiResponse({ status: 200, description: 'Authentication successful' })
@@ -91,7 +94,7 @@ export class AuthController {
   }
 
   @Post('login')
-  @Throttle({ default: { limit: 5, ttl: 300000 } })
+  @Throttle({ default: { limit: 10, ttl: 300000 } })
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Authenticate with email/phone and password' })
   @ApiResponse({ status: 200, description: 'Authentication successful' })
@@ -121,7 +124,7 @@ export class AuthController {
   }
 
   @Post('verify-phone')
-  @Throttle({ default: { limit: 10, ttl: 60000 } })
+  @Throttle({ default: { limit: 10, ttl: 300000 } })
   @ApiOperation({ summary: 'Verify phone number with OTP' })
   @ApiResponse({ status: 200, description: 'Phone verified' })
   @ApiResponse({ status: 401, description: 'Invalid or expired OTP' })
@@ -171,6 +174,9 @@ export class AuthController {
   }
 
   @Post('supabase')
+  // Unthrottled until now. Each call verifies a token against Supabase, so an
+  // open loop here is both a credential oracle and an egress bill.
+  @Throttle({ default: { limit: 30, ttl: 300000 } })
   @ApiOperation({
     summary: 'Authenticate or sync user via Supabase Auth token',
   })
@@ -181,6 +187,7 @@ export class AuthController {
   }
 
   @Post('social')
+  @Throttle({ default: { limit: 30, ttl: 300000 } })
   @ApiOperation({ summary: 'Authenticate with Apple or Google' })
   @ApiResponse({ status: 200, description: 'Social auth successful' })
   @ApiResponse({ status: 401, description: 'Invalid social token' })
@@ -189,7 +196,8 @@ export class AuthController {
   }
 
   @Post('forgot-password')
-  @Throttle({ default: { limit: 3, ttl: 3600000 } })
+  // Reset mail is sent on the platform's dime to an address the caller picks.
+  @Throttle({ default: { limit: 5, ttl: 3600000 } })
   @ApiOperation({ summary: 'Request password reset email' })
   @ApiResponse({
     status: 200,

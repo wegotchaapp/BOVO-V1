@@ -1,29 +1,38 @@
 import {
   Controller,
   Post,
-  Body,
   Headers,
   HttpCode,
   HttpStatus,
-  BadRequestException,
   Logger,
-  RawBodyRequest,
+  Req,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiHeader } from '@nestjs/swagger';
+import { ConfigService } from '@nestjs/config';
+import Stripe from 'stripe';
 import { StripeConnectService } from './stripe-connect.service';
-import { createHmac, timingSafeEqual } from 'crypto';
+import {
+  createStripeWebhookClient,
+  verifyStripeWebhook,
+} from '../../common/http/stripe-webhook.verifier';
 
 @ApiTags('webhooks')
 @Controller('webhooks')
 export class StripeConnectWebhookController {
   private readonly logger = new Logger(StripeConnectWebhookController.name);
   private readonly webhookSecret: string;
+  private readonly stripe: Stripe;
 
-  constructor(private readonly stripeConnectService: StripeConnectService) {
+  constructor(
+    private readonly stripeConnectService: StripeConnectService,
+    private readonly config: ConfigService,
+  ) {
     this.webhookSecret =
-      process.env.STRIPE_CONNECT_WEBHOOK_SECRET ||
-      process.env.STRIPE_WEBHOOK_SECRET ||
+      this.config.get<string>('STRIPE_CONNECT_WEBHOOK_SECRET') ||
       '';
+    this.stripe = createStripeWebhookClient(
+      this.config.get<string>('STRIPE_SECRET_KEY'),
+    );
   }
 
   @Post('stripe-connect')
@@ -35,19 +44,26 @@ export class StripeConnectWebhookController {
     required: true,
   })
   async handleWebhook(
-    @Body() body: Record<string, any>,
+    @Req() req: { rawBody?: Buffer },
     @Headers('stripe-signature') signature: string,
   ) {
-    if (!signature) {
-      throw new BadRequestException('Missing stripe-signature header');
-    }
+    // Was a hand-rolled HMAC over `JSON.stringify(req.body)`, which verifies a
+    // re-serialisation rather than what Stripe signed, and was skipped
+    // entirely when no secret was set. Both are gone: the SDK checks the raw
+    // bytes, and an unconfigured secret rejects.
+    const event = verifyStripeWebhook({
+      stripe: this.stripe,
+      rawBody: req.rawBody,
+      signature,
+      secret: this.webhookSecret,
+      source: 'Stripe Connect',
+      secretVar: 'STRIPE_CONNECT_WEBHOOK_SECRET',
+    });
 
-    if (this.webhookSecret) {
-      this.verifySignature(JSON.stringify(body), signature);
-    }
-
-    const { type, data } = body;
-    const account = data.object;
+    // Widened to `string`: the switch below still handles `transfer.paid`,
+    // which Stripe has since dropped from its typed event union.
+    const type: string = event.type;
+    const account = event.data.object as any;
 
     this.logger.log(
       `Received Stripe webhook: ${type} (account: ${account.id || 'N/A'})`,
@@ -100,44 +116,5 @@ export class StripeConnectWebhookController {
     }
 
     return { received: true };
-  }
-
-  private verifySignature(rawBody: string, signature: string): void {
-    if (!this.webhookSecret) return;
-
-    const parts = signature.split(',');
-    let timestamp = '';
-    let signatureValue = '';
-
-    for (const part of parts) {
-      const [key, value] = part.split('=');
-      if (key === 't') timestamp = value;
-      if (key === 'v1') signatureValue = value;
-    }
-
-    if (!timestamp || !signatureValue) {
-      throw new BadRequestException('Invalid Stripe signature format');
-    }
-
-    const fiveMinutesAgo = Math.floor(Date.now() / 1000) - 300;
-    if (parseInt(timestamp, 10) < fiveMinutesAgo) {
-      throw new BadRequestException('Stripe webhook timestamp too old');
-    }
-
-    const signedPayload = `${timestamp}.${rawBody}`;
-    const expectedSig = createHmac('sha256', this.webhookSecret)
-      .update(signedPayload)
-      .digest('hex');
-
-    const signatureBuffer = Buffer.from(signatureValue);
-    const expectedBuffer = Buffer.from(expectedSig);
-
-    if (
-      signatureBuffer.length !== expectedBuffer.length ||
-      !timingSafeEqual(signatureBuffer, expectedBuffer)
-    ) {
-      this.logger.error('Stripe webhook signature verification failed');
-      throw new BadRequestException('Invalid webhook signature');
-    }
   }
 }

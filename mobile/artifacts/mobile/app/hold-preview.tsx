@@ -1,3 +1,4 @@
+import { Redirect } from "expo-router";
 import React, { useState } from "react";
 import { Platform, SafeAreaView, StyleSheet, Text, View } from "react-native";
 
@@ -13,6 +14,7 @@ export default function HoldPreview() {
 
   const note = (s: string) => setLog((l) => [s, ...l].slice(0, 5));
 
+  if (!__DEV__) return <Redirect href="/" />;
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: colors.background }]}>
       <View style={styles.content}>

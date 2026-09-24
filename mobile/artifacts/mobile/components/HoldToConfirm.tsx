@@ -2,7 +2,7 @@ import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
-  AccessibilityInfo,
+  AppState,
   LayoutChangeEvent,
   Platform,
   Pressable,
@@ -14,7 +14,6 @@ import {
 import Animated, {
   cancelAnimation,
   Easing,
-  runOnJS,
   useAnimatedStyle,
   useSharedValue,
   withTiming,
@@ -57,7 +56,7 @@ export function HoldToConfirm({
   label,
   confirmedLabel,
   onConfirm,
-  duration = 1400,
+  duration = 1600,
   disabled = false,
   busy = false,
   busyLabel,
@@ -77,53 +76,78 @@ export function HoldToConfirm({
   const [holding, setHolding] = useState(false);
   const [confirmed, setConfirmed] = useState(false);
   const resetTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const reduceMotion = useRef(false);
+  const active = useRef(false);
+  const mounted = useRef(true);
+  const holdTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const latest = useRef({ onConfirm, disabled, busy });
+  latest.current = { onConfirm, disabled, busy };
+
+  const abort = useCallback(() => {
+    active.current = false;
+    if (holdTimer.current) clearTimeout(holdTimer.current);
+    cancelAnimation(progress);
+    if (mounted.current) setHolding(false);
+    progress.value = withTiming(0, { duration: 180 });
+  }, [progress]);
 
   useEffect(() => {
-    AccessibilityInfo.isReduceMotionEnabled().then((v) => {
-      reduceMotion.current = v;
+    mounted.current = true;
+    if (Platform.OS === "web") window.addEventListener("blur", abort);
+    const subscription = AppState.addEventListener("change", (state) => {
+      if (state !== "active") abort();
     });
     return () => {
+      mounted.current = false;
+      active.current = false;
+      if (holdTimer.current) clearTimeout(holdTimer.current);
       if (resetTimer.current) clearTimeout(resetTimer.current);
+      cancelAnimation(progress);
+      subscription.remove();
+      if (Platform.OS === "web") window.removeEventListener("blur", abort);
     };
-  }, []);
+  }, [abort, progress]);
+  useEffect(() => {
+    if (disabled || busy) abort();
+  }, [disabled, busy, abort]);
 
   const finish = useCallback(() => {
+    if (
+      !mounted.current ||
+      !active.current ||
+      latest.current.disabled ||
+      latest.current.busy
+    )
+      return;
+    active.current = false;
     setHolding(false);
     setConfirmed(true);
-    if (Platform.OS !== "web") {
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(
-        () => {},
-      );
-    }
-    onConfirm();
+    if (Platform.OS !== "web")
+      void Haptics.notificationAsync(
+        Haptics.NotificationFeedbackType.Success,
+      ).catch(() => {});
+    // Register cleanup before invoking a callback that may synchronously navigate.
     resetTimer.current = setTimeout(() => {
-      setConfirmed(false);
+      if (mounted.current) setConfirmed(false);
       progress.value = 0;
-    }, 1200);
-  }, [onConfirm, progress]);
+    }, 700);
+    latest.current.onConfirm();
+  }, [progress]);
 
   function start() {
-    if (disabled || busy || confirmed) return;
+    if (
+      latest.current.disabled ||
+      latest.current.busy ||
+      confirmed ||
+      active.current
+    )
+      return;
+    active.current = true;
     setHolding(true);
-    if (Platform.OS !== "web") {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
-    }
-    progress.value = withTiming(
-      1,
-      { duration, easing: Easing.linear },
-      (done) => {
-        if (done) runOnJS(finish)();
-      },
-    );
-  }
-
-  function abort() {
-    if (confirmed) return;
-    cancelAnimation(progress);
-    setHolding(false);
-    // Springing back rather than snapping makes a slip feel recoverable.
-    progress.value = withTiming(0, { duration: 180 });
+    progress.value = 0;
+    // A JS timer owns consent. Reduce Motion can shorten visual animations,
+    // but must never shorten the time required to authorize the action.
+    progress.value = withTiming(1, { duration, easing: Easing.linear });
+    holdTimer.current = setTimeout(finish, duration);
   }
 
   const fillStyle = useAnimatedStyle(() => ({
@@ -145,7 +169,11 @@ export function HoldToConfirm({
     <View style={styles.row}>
       {icon ? <Feather name={icon} size={16} color={ink} /> : null}
       <Text style={[styles.label, { color: ink }]} numberOfLines={1}>
-        {busy ? (busyLabel ?? label) : confirmed ? (confirmedLabel ?? label) : label}
+        {busy
+          ? (busyLabel ?? label)
+          : confirmed
+            ? (confirmedLabel ?? label)
+            : label}
       </Text>
     </View>
   );
@@ -155,11 +183,26 @@ export function HoldToConfirm({
       onLayout={onLayout}
       onPressIn={start}
       onPressOut={abort}
+      onBlur={abort}
+      onHoverOut={abort}
+      pressRetentionOffset={8}
       disabled={disabled || busy}
       accessibilityRole="button"
       accessibilityLabel={label}
-      accessibilityHint="Press and hold to confirm"
-      accessibilityState={{ disabled: disabled || busy, busy: holding }}
+      accessibilityHint={`Press and hold for ${duration / 1000} seconds to confirm. Screen reader users can use the Confirm action.`}
+      accessibilityActions={[{ name: "confirm", label: "Confirm" }]}
+      onAccessibilityAction={(event) => {
+        if (
+          event.nativeEvent.actionName === "confirm" &&
+          !disabled &&
+          !busy &&
+          !confirmed
+        ) {
+          active.current = true;
+          finish();
+        }
+      }}
+      accessibilityState={{ disabled: disabled || busy, busy: busy || holding }}
       style={[
         styles.btn,
         {

@@ -76,6 +76,8 @@ function RootLayoutNav() {
         <Stack.Screen name="chat/[id]" options={{ headerShown: false }} />
         <Stack.Screen name="tracking/[id]" options={{ headerShown: false }} />
         <Stack.Screen name="payment" options={{ headerShown: false }} />
+        <Stack.Screen name="ticket-history" options={{ headerShown: false }} />
+        <Stack.Screen name="checkout-preview" options={{ headerShown: false }} />
         <Stack.Screen name="post/[id]" options={{ headerShown: false }} />
         <Stack.Screen name="post-trip" options={{ headerShown: false }} />
         <Stack.Screen name="pre-trip-video" options={{ headerShown: false }} />

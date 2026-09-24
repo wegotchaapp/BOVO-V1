@@ -1,129 +1,122 @@
 import { Feather } from "@expo/vector-icons";
-import React, { useEffect, useRef, useState } from "react";
-import { Platform, Pressable, StyleSheet, Text, View } from "react-native";
+import React, { useEffect, useRef } from "react";
+import { Platform, Pressable, Text, View } from "react-native";
 import Animated, {
+  cancelAnimation,
   Easing,
   useAnimatedStyle,
   useSharedValue,
   withTiming,
 } from "react-native-reanimated";
-
-const FOREST = "#1B3D2F";
-const INK = "#F8F7F3";
-/** Cream stepped down for the countdown track. 6.55:1 on forest. */
-const MUTED = "#B9C2BB";
-
 export type UndoBarProps = {
   visible: boolean;
   message: string;
-  /** Called when the window closes without the user undoing. */
   onExpire: () => void;
   onUndo: () => void;
-  /** How long the offer stands. */
   duration?: number;
 };
-
-/**
- * A short window in which the last action can be taken back.
- *
- * Pairs with HoldToConfirm: the hold stops an action happening by accident, and
- * this catches the case where it was deliberate but wrong. The bar shows the time
- * remaining rather than vanishing without warning, so the choice is visible.
- */
 export function UndoBar({
   visible,
   message,
   onExpire,
   onUndo,
-  duration = 6000,
+  duration = 5000,
 }: UndoBarProps) {
   const remaining = useSharedValue(1);
-  const [mounted, setMounted] = useState(visible);
+  const callbacks = useRef({ onExpire, onUndo });
+  callbacks.current = { onExpire, onUndo };
+  const active = useRef(false);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
-
   useEffect(() => {
+    active.current = visible;
     if (visible) {
-      setMounted(true);
       remaining.value = 1;
-      remaining.value = withTiming(0, {
-        duration,
-        easing: Easing.linear,
-      });
-      timer.current = setTimeout(onExpire, duration);
-    } else {
-      setMounted(false);
+      remaining.value = withTiming(0, { duration, easing: Easing.linear });
+      timer.current = setTimeout(() => {
+        if (active.current) {
+          active.current = false;
+          callbacks.current.onExpire();
+        }
+      }, duration);
     }
     return () => {
+      active.current = false;
       if (timer.current) clearTimeout(timer.current);
+      cancelAnimation(remaining);
     };
-    // onExpire is intentionally not a dependency: re-running this on every parent
-    // render would restart the countdown and the window would never close.
   }, [visible, duration, remaining]);
-
-  const trackStyle = useAnimatedStyle(() => ({
-    flex: Math.max(remaining.value, 0.0001),
-  }));
-
-  if (!mounted) return null;
-
+  const fill = useAnimatedStyle(() => ({ width: remaining.value * 76 }));
+  if (!visible) return null;
   return (
-    <View style={styles.wrap} pointerEvents="box-none">
-      <View style={styles.bar}>
-        <View style={styles.row}>
-          <Feather name="check-circle" size={16} color="#7FC79B" />
-          <Text style={styles.message} numberOfLines={1}>
-            {message}
-          </Text>
-          <Pressable
-            onPress={() => {
-              if (timer.current) clearTimeout(timer.current);
-              onUndo();
+    <View
+      style={{
+        position: "absolute",
+        bottom: Platform.OS === "web" ? 24 : 34,
+        left: 16,
+        right: 16,
+        backgroundColor: "#FFF",
+        borderRadius: 16,
+        padding: 16,
+        flexDirection: "row",
+        alignItems: "center",
+        gap: 10,
+        boxShadow: "0 8px 30px rgba(0,0,0,.15)",
+        zIndex: 50,
+      }}
+    >
+      <Feather name="check-circle" size={18} color="#1B3D2F" />
+      <Text
+        accessibilityLiveRegion="polite"
+        style={{ flex: 1, color: "#1B3D2F" }}
+      >
+        {message}
+      </Text>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel="Undo"
+        onPress={() => {
+          if (!active.current) return;
+          active.current = false;
+          if (timer.current) clearTimeout(timer.current);
+          callbacks.current.onUndo();
+        }}
+        style={{
+          width: 76,
+          height: 40,
+          borderRadius: 10,
+          overflow: "hidden",
+          justifyContent: "center",
+          alignItems: "center",
+          backgroundColor: "#E8EBE6",
+        }}
+      >
+        <Text style={{ color: "#1B3D2F", fontWeight: "600" }}>Undo</Text>
+        <Animated.View
+          pointerEvents="none"
+          style={[
+            {
+              position: "absolute",
+              left: 0,
+              top: 0,
+              bottom: 0,
+              backgroundColor: "#1A1D19",
+              overflow: "hidden",
+            },
+            fill,
+          ]}
+        >
+          <View
+            style={{
+              width: 76,
+              height: 40,
+              alignItems: "center",
+              justifyContent: "center",
             }}
-            hitSlop={10}
-            accessibilityRole="button"
-            accessibilityLabel="Undo"
-            style={styles.undoBtn}
           >
-            <Text style={styles.undoText}>Undo</Text>
-          </Pressable>
-        </View>
-
-        {/* The time left, shown rather than implied. */}
-        <View style={styles.track}>
-          <Animated.View style={[styles.trackFill, trackStyle]} />
-          <View style={styles.trackRest} />
-        </View>
-      </View>
+            <Text style={{ color: "#FFF", fontWeight: "600" }}>Undo</Text>
+          </View>
+        </Animated.View>
+      </Pressable>
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  wrap: {
-    position: "absolute",
-    left: 16,
-    right: 16,
-    bottom: Platform.OS === "web" ? 24 : 34,
-    zIndex: 50,
-  },
-  bar: {
-    backgroundColor: FOREST,
-    borderRadius: 16,
-    paddingHorizontal: 14,
-    paddingTop: 12,
-    paddingBottom: 10,
-    gap: 10,
-    shadowColor: FOREST,
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.24,
-    shadowRadius: 16,
-    elevation: 8,
-  },
-  row: { flexDirection: "row", alignItems: "center", gap: 10 },
-  message: { flex: 1, color: INK, fontSize: 14, fontFamily: "Inter_500Medium" },
-  undoBtn: { paddingHorizontal: 10, paddingVertical: 4 },
-  undoText: { color: "#D9AF6A", fontSize: 14, fontFamily: "Inter_700Bold" },
-  track: { flexDirection: "row", height: 3, borderRadius: 2, overflow: "hidden" },
-  trackFill: { backgroundColor: MUTED },
-  trackRest: { flex: 0.0001 },
-});

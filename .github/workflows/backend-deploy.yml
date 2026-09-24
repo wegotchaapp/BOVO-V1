@@ -46,20 +46,77 @@ jobs:
           fi
           echo "Allowlisting $(echo "$ALLOWED_ORIGINS" | tr ',' '\n' | grep -c .) origin(s)."
 
+      - name: Require a counted reverse-proxy depth
+        # TRUST_PROXY_HOPS decides which X-Forwarded-For entry is trusted for
+        # rate-limit bucketing, so it cannot be defaulted here: any guess is
+        # either "trust a caller-supplied address" (too high) or "bucket every
+        # client behind the edge together", which locks the platform out of
+        # /auth/login as soon as one caller is noisy (too low). It is a fact
+        # about the deployment topology — count the proxies in front of this
+        # service and set the repository variable. trustedProxyHops() throws on
+        # an unset value in production, so the alternative to failing here is a
+        # container that crash-loops after Railway has already cut traffic over.
+        env:
+          TRUST_PROXY_HOPS: ${{ vars.TRUST_PROXY_HOPS }}
+        run: |
+          if [ -z "$TRUST_PROXY_HOPS" ]; then
+            echo "::error::TRUST_PROXY_HOPS is not set. Set the repository variable to the number of reverse proxies in front of this API - 1 for a single Railway or Cloudflare edge, 2 when both are in the path. Do not guess it."
+            exit 1
+          fi
+          case "$TRUST_PROXY_HOPS" in
+            ''|*[!0-9]*)
+              echo "::error::TRUST_PROXY_HOPS must be a non-negative integer, got '$TRUST_PROXY_HOPS'."
+              exit 1
+              ;;
+          esac
+          echo "Trusting the right-most $TRUST_PROXY_HOPS X-Forwarded-For entry/entries."
+
+      - name: Require a Twilio callback origin
+        # TwilioSignatureGuard rebuilds the URL Twilio signed from this value
+        # instead of from Host/X-Forwarded-Host, which a caller controls. Unset
+        # means every Twilio callback (STOP opt-outs included) answers 500.
+        #
+        # Presence only. The shape of the value is checked by
+        # scripts/write-deploy-env.cjs, which has `new URL` and so can reject a
+        # path, query or userinfo that a `https://*` glob would wave through.
+        env:
+          TWILIO_WEBHOOK_BASE_URL: ${{ secrets.TWILIO_WEBHOOK_BASE_URL }}
+        run: |
+          if [ -z "$TWILIO_WEBHOOK_BASE_URL" ]; then
+            echo "::error::TWILIO_WEBHOOK_BASE_URL is not set. It is the public https origin Twilio posts to (scheme + host, no trailing path) and must match the webhook URLs configured in the Twilio console exactly."
+            exit 1
+          fi
+
       - name: Load production .env
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
           REDIS_URL: ${{ secrets.REDIS_URL }}
           JWT_SECRET: ${{ secrets.JWT_SECRET }}
-          STRIPE_SECRET_KEY: ${{ secrets.STRIPE_SECRET_KEY }}
           APP_ENV: production
           APP_URL: ${{ secrets.APP_URL }}
           ALLOWED_ORIGINS: ${{ secrets.ALLOWED_ORIGINS }}
           LOG_LEVEL: warn
+          TRUST_PROXY_HOPS: ${{ vars.TRUST_PROXY_HOPS }}
+          STRIPE_SECRET_KEY: ${{ secrets.STRIPE_SECRET_KEY }}
+          STRIPE_PUBLISHABLE_KEY: ${{ secrets.STRIPE_PUBLISHABLE_KEY }}
+          # Three distinct endpoint secrets, copied from three different Stripe
+          # webhook endpoints. Pointing them at one value defeats the
+          # per-endpoint check each receiver performs.
+          STRIPE_WEBHOOK_SECRET: ${{ secrets.STRIPE_WEBHOOK_SECRET }}
+          STRIPE_CONNECT_WEBHOOK_SECRET: ${{ secrets.STRIPE_CONNECT_WEBHOOK_SECRET }}
+          STRIPE_IDENTITY_WEBHOOK_SECRET: ${{ secrets.STRIPE_IDENTITY_WEBHOOK_SECRET }}
+          STRIPE_PRICE_ID: ${{ secrets.STRIPE_PRICE_ID }}
           TWILIO_ACCOUNT_SID: ${{ secrets.TWILIO_ACCOUNT_SID }}
           TWILIO_AUTH_TOKEN: ${{ secrets.TWILIO_AUTH_TOKEN }}
           TWILIO_PHONE_NUMBER: ${{ secrets.TWILIO_PHONE_NUMBER }}
           TWILIO_VERIFY_SERVICE_SID: ${{ secrets.TWILIO_VERIFY_SERVICE_SID }}
+          TWILIO_WEBHOOK_BASE_URL: ${{ secrets.TWILIO_WEBHOOK_BASE_URL }}
+          CHECKR_API_KEY: ${{ secrets.CHECKR_API_KEY }}
+          CHECKR_WEBHOOK_SECRET: ${{ secrets.CHECKR_WEBHOOK_SECRET }}
+          CHECKR_API_URL: ${{ secrets.CHECKR_API_URL }}
+          NOONLIGHT_API_KEY: ${{ secrets.NOONLIGHT_API_KEY }}
+          NOONLIGHT_API_URL: ${{ secrets.NOONLIGHT_API_URL }}
+          NOONLIGHT_WEBHOOK_SECRET: ${{ secrets.NOONLIGHT_WEBHOOK_SECRET }}
           RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}

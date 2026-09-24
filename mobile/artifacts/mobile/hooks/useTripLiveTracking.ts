@@ -40,10 +40,19 @@ export interface UseTripLiveTrackingResult {
   hasPermission: boolean | null;
 }
 
+/**
+ * `from` and `to` are nullable because a city we do not serve has no
+ * coordinates, and the lookup that supplies them now says so instead of
+ * defaulting to Austin.
+ *
+ * Without both endpoints there is no route to measure against, so heading and
+ * progress are simply not reported — rather than reported against a made-up
+ * destination, which is what a fallback would do.
+ */
 export function useTripLiveTracking(
   bookingId: string | undefined,
-  from: { latitude: number; longitude: number },
-  to: { latitude: number; longitude: number },
+  from: { latitude: number; longitude: number } | null,
+  to: { latitude: number; longitude: number } | null,
   routeDurationSeconds?: number,
 ): UseTripLiveTrackingResult {
   const [snapshot, setSnapshot] = useState<TrackingSnapshot | null>(null);
@@ -128,17 +137,17 @@ export function useTripLiveTracking(
         longitude: driverLoc.longitude,
         heading:
           driverLoc.heading ??
-          bearingDegrees(
+          (to ? bearingDegrees(
             { latitude: driverLoc.latitude, longitude: driverLoc.longitude },
             to,
-          ),
+          ) : 0),
         speed: driverLoc.speed ?? undefined,
       }
     : viewerRole === "driver" && myLive
       ? {
           latitude: myLive.latitude,
           longitude: myLive.longitude,
-          heading: myLive.heading ?? bearingDegrees(myLive, to),
+          heading: myLive.heading ?? (to ? bearingDegrees(myLive, to) : 0),
           speed: myLive.speed,
         }
       : null;
@@ -168,13 +177,13 @@ export function useTripLiveTracking(
       }
     : null;
 
-  const totalMiles = Math.max(0.1, distanceMiles(from, to));
-  const remainingMiles = driverCoord
+  const totalMiles = from && to ? Math.max(0.1, distanceMiles(from, to)) : 0;
+  const remainingMiles = driverCoord && to
     ? distanceMiles(driverCoord, to)
     : totalMiles;
   const progress = Math.min(
     1,
-    Math.max(0, 1 - remainingMiles / totalMiles),
+    Math.max(0, totalMiles > 0 ? 1 - remainingMiles / totalMiles : 0),
   );
 
   const speedMph =

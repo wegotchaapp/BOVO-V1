@@ -1,0 +1,165 @@
+<title>BOVO-V1 Readiness Audit</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Serif:wght@500;600&display=swap">
+<style>
+/* Layout: single reading column, audit-memo style. Header block with metadata and verdict, then the four required sections. */
+:root {
+  --bg: #f6f7f9;
+  --surface: #ffffff;
+  --fg: #1b2230;
+  --muted: #5a6476;
+  --line: #dde1e8;
+  --accent: #2f4f7f;
+  --fail: #b42318;
+  --fail-bg: #fdecea;
+  --warn: #8a5a00;
+  --warn-bg: #fff4d6;
+  --ok: #1f7a4d;
+  --code-bg: #eef1f5;
+  --font-display: "IBM Plex Serif", Georgia, "Times New Roman", serif;
+  --font-body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #11151c; --surface: #181d26; --fg: #e4e8ef; --muted: #9aa4b5; --line: #2a3140;
+    --accent: #8fb0e0; --fail: #ff8a80; --fail-bg: #3a1b1a; --warn: #f2c55c; --warn-bg: #3a2f14;
+    --ok: #6fd3a0; --code-bg: #222938; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #11151c; --surface: #181d26; --fg: #e4e8ef; --muted: #9aa4b5; --line: #2a3140;
+  --accent: #8fb0e0; --fail: #ff8a80; --fail-bg: #3a1b1a; --warn: #f2c55c; --warn-bg: #3a2f14;
+  --ok: #6fd3a0; --code-bg: #222938; color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--fg);
+  font: 15px/1.6 var(--font-body);
+  padding-inline: 16px; padding-block: 40px 64px;
+}
+.wrap { max-width: 960px; margin: 0 auto; display: grid; gap: 40px; }
+.prose { max-width: 68ch; }
+h1, h2 { font-family: var(--font-display); font-weight: 600; text-wrap: balance; margin: 0; }
+h1 { font-size: clamp(1.8rem, 4vw, 2.4rem); line-height: 1.15; }
+h2 { font-size: 1.35rem; display: flex; align-items: baseline; gap: 10px; }
+h2 .sec { font: 500 0.8rem var(--font-mono); color: var(--muted); }
+p { margin: 0; }
+code { font-family: var(--font-mono); font-size: 0.86em; background: var(--code-bg); padding: 1px 5px; border-radius: 4px; overflow-wrap: anywhere; }
+a { color: var(--accent); }
+section { display: grid; gap: 16px; min-width: 0; }
+
+header { display: grid; gap: 18px; border-bottom: 1px solid var(--line); padding-bottom: 28px; }
+.eyebrow { font: 500 0.75rem var(--font-mono); letter-spacing: 0.08em; text-transform: uppercase; color: var(--accent); }
+.meta { display: flex; flex-wrap: wrap; gap: 8px 28px; font-size: 0.85rem; color: var(--muted); }
+.meta b { color: var(--fg); font-weight: 500; font-family: var(--font-mono); font-size: 0.82rem; }
+.scope { font-size: 0.9rem; color: var(--muted); }
+
+.verdict {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 12px 20px;
+  background: var(--fail-bg); border: 1px solid var(--fail); border-radius: 8px; padding: 14px 18px;
+}
+.verdict .stamp { font: 600 1.1rem var(--font-mono); color: var(--fail); letter-spacing: 0.06em; }
+.verdict p { flex: 1 1 280px; min-width: 0; font-size: 0.92rem; }
+
+.tally { display: flex; flex-wrap: wrap; gap: 8px; }
+.tally span { font: 500 0.8rem var(--font-mono); padding: 3px 10px; border-radius: 999px; }
+.t-fail { background: var(--fail-bg); color: var(--fail); }
+.t-warn { background: var(--warn-bg); color: var(--warn); }
+
+.table-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); }
+table { width: 100%; border-collapse: collapse; min-width: 640px; font-size: 0.9rem; }
+th, td { text-align: left; vertical-align: top; padding: 12px 14px; border-bottom: 1px solid var(--line); }
+tr:last-child td { border-bottom: none; }
+th { font: 500 0.72rem var(--font-mono); letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); background: var(--bg); }
+td:first-child { font-weight: 600; width: 22%; }
+td:nth-child(2) { width: 110px; white-space: nowrap; }
+.pill { display: inline-flex; align-items: center; gap: 6px; font: 500 0.78rem var(--font-mono); padding: 2px 9px; border-radius: 999px; }
+.pill::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
+.fail { background: var(--fail-bg); color: var(--fail); }
+.warn { background: var(--warn-bg); color: var(--warn); }
+
+ol.gaps { list-style: none; margin: 0; padding: 0; display: grid; gap: 12px; counter-reset: gap; }
+ol.gaps li {
+  counter-increment: gap; display: grid; grid-template-columns: 34px 1fr; gap: 4px 12px;
+  background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 16px 18px;
+}
+ol.gaps li::before {
+  content: counter(gap); grid-row: span 2; font: 600 1rem var(--font-mono); color: var(--fail);
+  width: 28px; height: 28px; border: 1.5px solid var(--fail); border-radius: 50%;
+  display: grid; place-items: center;
+}
+ol.gaps strong { font-weight: 600; }
+ol.gaps p { color: var(--muted); font-size: 0.92rem; min-width: 0; }
+
+.rec { background: var(--surface); border: 1px solid var(--line); border-left: 4px solid var(--fail); border-radius: 8px; padding: 20px 22px; display: grid; gap: 12px; }
+.rec .decision { font: 600 1.2rem var(--font-mono); color: var(--fail); }
+footer { font-size: 0.8rem; color: var(--muted); border-top: 1px solid var(--line); padding-top: 16px; }
+</style>
+
+<div class="wrap">
+  <header>
+    <div class="eyebrow">Production readiness audit</div>
+    <h1>BOVO-V1 (Bovogo carpooling platform)</h1>
+    <div class="meta">
+      <span>Repository <b>wegotchaapp/BOVO-V1</b></span>
+      <span>Branch <b>main @ 04a3e24</b></span>
+      <span>Audit date <b>2026-10-06</b></span>
+    </div>
+    <p class="scope">Scope is the code on <code>main</code>. Work in open PRs (#3, #5, #6) is noted where relevant but not credited, because it is not what would ship today.</p>
+    <div class="verdict">
+      <span class="stamp">NO-GO</span>
+      <p>Two findings are live security problems: a committed database password and publicly served identity documents. Fix those before any further investment discussion.</p>
+    </div>
+  </header>
+
+  <section>
+    <h2><span class="sec">1</span>Executive Summary</h2>
+    <p class="prose">BOVO-V1 is a monorepo for Bovogo, a Texas carpooling platform: a NestJS/TypeORM backend, a React/Vite admin console, and an Expo mobile app. The backend shows sound structural instincts, including a multi-stage non-root Dockerfile, Helmet, global validation, a health endpoint and versioned migrations. Execution falls well short of production grade. A live database password is committed in plain text, uploaded identity and vehicle documents are committed and served publicly, and payment and SMS webhooks fail open. Two spec files cover roughly 190 backend source files, with no tests at all for the mobile or admin apps. Lint reports 842 errors and has been made non-blocking. Mobile CI targets a directory that does not exist, so it fails every run. <code>main</code> has not moved since August 18, while hardening work waits in unmerged stacked PRs. The project is not ready for high-traffic or mission-critical use.</p>
+  </section>
+
+  <section>
+    <h2><span class="sec">2</span>Readiness Scorecard</h2>
+    <div class="tally"><span class="t-fail">7 Fail</span><span class="t-warn">4 Partial</span></div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Category</th><th>Status</th><th>Notes</th></tr></thead>
+        <tbody>
+          <tr><td>Code Quality: Linting</td><td><span class="pill fail">Fail</span></td><td>842 ESLint errors on <code>main</code> (mostly <code>no-unsafe-*</code>). PR #2 set <code>continue-on-error: true</code>, so lint gates nothing. 217 <code>any</code> usages in backend <code>src</code>. The lint script runs <code>--fix</code>, which changes code in CI instead of checking it.</td></tr>
+          <tr><td>Code Quality: Test Coverage</td><td><span class="pill fail">Fail</span></td><td>2 spec files (<code>safety.service.spec.ts</code>, <code>refund-calculator.spec.ts</code>) against 192 backend source files. No tests for auth, payments, bookings or the mobile API. <code>test:e2e</code> points to a config file that does not exist. Admin, mobile app and <code>mobile/artifacts/api-server</code> have zero tests.</td></tr>
+          <tr><td>Code Quality: Modularity</td><td><span class="pill warn">Partial</span></td><td>About 30 clean Nest modules, but services are large (<code>chat.service.ts</code> is 1,050 lines). Two parallel auth systems (JWT plus refresh, and 30-day opaque mobile tokens). The mobile workspace ships a second Express API that duplicates the NestJS <code>mobile-api</code> contract. Ad-hoc scripts (<code>fix_db_temp.js</code>, <code>scripts/add-*.js</code>) run DDL outside the migration system.</td></tr>
+          <tr><td>Documentation</td><td><span class="pill warn">Partial</span></td><td>Root README has a clear quick start and architecture sketch. <code>backend/README.md</code>, <code>Deployment.md</code> and <code>docs/APP_STORE_SUBMISSION.md</code> exist. Swagger is wired at <code>/docs</code> (disabled in production). No runbook, ADRs or incident docs. <code>.github/SECRETS.md</code> uses stale "WeGotcha" naming. <code>mobile/attached_assets/</code> holds pasted AI prompts and screenshots rather than docs.</td></tr>
+          <tr><td>Security: Secrets</td><td><span class="pill fail">Fail</span></td><td><code>backend/fix_db_temp.js</code> contains a hardcoded Supabase Postgres connection string with password. It is in git history and must be treated as compromised. The README publishes the seed admin credentials.</td></tr>
+          <tr><td>Security: Data Protection</td><td><span class="pill fail">Fail</span></td><td><code>backend/uploads/</code> (profile photos, vehicle insurance and registration images) is committed despite <code>.gitignore</code>. <code>main.ts</code> serves <code>/uploads</code> through <code>express.static</code> with no auth, so any stored document is readable by URL. Local-disk storage does not survive container restarts.</td></tr>
+          <tr><td>Security: API Hardening</td><td><span class="pill fail">Fail</span></td><td>Stripe Connect and Checkr webhooks skip signature checks when the secret is unset. Stripe verification hashes <code>JSON.stringify(body)</code> instead of the raw body, so it will reject real events once enabled. Twilio webhooks are unsigned, so anyone can opt a number out of emergency SMS. <code>ThrottlerModule</code> is configured but no <code>ThrottlerGuard</code> is registered. CORS uses <code>origin: true</code> with credentials. DB TLS uses <code>rejectUnauthorized: false</code>. <code>POST /chat/calls/initiate</code> has no auth guard. On the plus side: Helmet, a whitelisting <code>ValidationPipe</code>, bcrypt at 12 rounds and a non-root container.</td></tr>
+          <tr><td>DevOps: CI/CD</td><td><span class="pill fail">Fail</span></td><td><code>mobile-ci.yml</code> and <code>mobile-preview.yml</code> use <code>./wegotcha</code>, which does not exist, so Mobile CI has failed on every run. No admin CI on <code>main</code>. <code>backend-deploy.yml</code> runs lint as a blocking step, so every push to <code>main</code> fails before deploying. Production migrations run before deploy with no rollback step. <code>mobile-preview.yml</code> writes the Supabase URL into the anon-key variable.</td></tr>
+          <tr><td>DevOps: Containers &amp; Config</td><td><span class="pill warn">Partial</span></td><td>Good multi-stage backend Dockerfile with <code>HEALTHCHECK</code> and <code>.dockerignore</code>. No admin Dockerfile, no IaC, no Helm or Kubernetes manifests, no docker-compose for Postgres and Redis. Config is <code>.env</code> only, injected with <code>sed</code> in CI, and only <code>JWT_SECRET</code> is validated at startup. Sentry is a dependency but is never initialized.</td></tr>
+          <tr><td>Maintenance: Commit Activity</td><td><span class="pill warn">Partial</span></td><td>15 commits on <code>main</code> from 2026-06-23 to 2026-08-18, with nothing merged in 7 weeks. Branch work is active (PR #6 updated 2026-09-24) but stacked three deep (#6 → #5 → #3 → <code>main</code>), and PR #3 has been open since 2026-08-18.</td></tr>
+          <tr><td>Maintenance: Issue Resolution</td><td><span class="pill fail">Fail</span></td><td>Zero GitHub issues, open or closed. No visible triage or tracking, so resolution speed cannot be measured. Planning lives in commit messages and markdown ledgers instead.</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section>
+    <h2><span class="sec">3</span>Critical Gaps</h2>
+    <ol class="gaps">
+      <li><strong>Leaked production database credential</strong><p><code>backend/fix_db_temp.js</code> embeds a Supabase Postgres URL with its password. Rotate the password now, delete the file, purge it from history (for example with <code>git filter-repo</code>), and turn on GitHub secret scanning and push protection. Until it is rotated, assume the database is exposed.</p></li>
+      <li><strong>Identity documents are public and committed</strong><p><code>backend/uploads/</code> is in git, and <code>/uploads</code> is served without authentication. Remove the files from the repo and its history, move storage to a private S3 bucket with short-lived signed URLs, and check whether this counts as a reportable PII exposure.</p></li>
+      <li><strong>Fail-open webhooks and no rate limiting on a payments and safety platform</strong><p>Make the Stripe, Checkr and Twilio handlers reject requests when secrets are missing, verify Stripe signatures on the raw body with <code>stripe.webhooks.constructEvent</code>, validate Twilio signatures, register <code>ThrottlerGuard</code> globally, and restrict CORS to the <code>ALLOWED_ORIGINS</code> allowlist.</p></li>
+      <li><strong>CI/CD gives false confidence</strong><p>Mobile CI cannot pass, lint is advisory, the deploy pipeline is blocked by the same lint that CI ignores, and test coverage is close to zero. Fix the mobile workflow paths, clear the lint backlog and make it blocking, and add integration tests for the auth, booking, payment and SOS flows before any traffic.</p></li>
+      <li><strong>Delivery is stuck off <code>main</code></strong><p>The hardening in PR #4 was merged into a feature branch, not <code>main</code>, and three stacked PRs are still open. Agree on a merge plan, land the stack with review, and start using an issue tracker so defects and their resolution time are visible.</p></li>
+    </ol>
+  </section>
+
+  <section>
+    <h2><span class="sec">4</span>Final Recommendation</h2>
+    <div class="rec">
+      <div class="decision">Decision: NO-GO</div>
+      <p class="prose">The code on <code>main</code> is not fit for a high-traffic, mission-critical deployment. Gaps 1 and 2 are active security incidents, not backlog items, and need fixing before any further investment discussion. The architecture is reasonable and worth saving. A realistic path is a focused 4 to 8 week hardening phase: credential rotation and history cleanup, private document storage, webhook and rate-limit fixes, working CI with blocking lint and real test coverage on money and safety flows, and a merged, reviewed <code>main</code>. Re-audit after that phase before a Go decision.</p>
+    </div>
+  </section>
+
+  <footer>Evidence comes from static review of the repository, GitHub PR and Actions history, and the repo's own CI notes. The test suite and linter were not run as part of this audit.</footer>
+</div>
